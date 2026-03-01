@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — FinanceOS{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ monthly_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ monthly_budget_pct }}" class="hidden"></span>
+
+<!-- ══════════════════════════════════════════════
+     4 SUMMARY CARDS
+     All numbers use text-white explicitly — dark mode only app
+════════════════════════════════════════════════ -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+  <!-- Total Income -->
+  <div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800 hover:border-slate-700 transition-all">
+    <div class="flex justify-between items-start mb-4">
+      <div>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Income</p>
+        <p class="text-[10px] text-slate-500 mt-0.5">All-time</p>
+      </div>
+      <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Earned</span>
+    </div>
+    <h3 class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(total_income) }}</h3>
+    <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
+      <span>This month: <span class="text-slate-300 font-semibold">₹{{ "{:,.0f}".format(monthly_income) }}</span></span>
+      <span class="material-symbols-outlined text-emerald-400 text-base">trending_up</span>
+    </div>
+  </div>
+
+  <!-- Total Expense -->
+  <div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800 hover:border-slate-700 transition-all">
+    <div class="flex justify-between items-start mb-4">
+      <div>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Expense</p>
+        <p class="text-[10px] text-slate-500 mt-0.5">All-time</p>
+      </div>
+      <span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Spent</span>
+    </div>
+    <h3 class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(total_expense) }}</h3>
+    <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
+      <span>This month: <span class="text-slate-300 font-semibold">₹{{ "{:,.0f}".format(monthly_expense) }}</span></span>
+      {% if monthly_budget %}
+        <span class="text-slate-400 font-medium text-[10px]">Target: ₹{{ "{:,.0f}".format(monthly_budget['budget_amount']) }}</span>
+      {% else %}
+        <span class="material-symbols-outlined text-rose-400 text-base">trending_down</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Net Balance -->
+  <div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800 hover:border-slate-700 transition-all">
+    <div class="flex justify-between items-start mb-4">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Net Balance</p>
+      {% if balance >= 0 %}
+        <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Positive</span>
+      {% else %}
+        <span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Negative</span>
+      {% endif %}
+    </div>
+    {% if balance >= 0 %}
+      <h3 class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(balance) }}</h3>
+    {% else %}
+      <h3 class="text-2xl font-bold text-rose-400">-₹{{ "{:,.0f}".format(balance | abs) }}</h3>
+    {% endif %}
+    <div class="mt-4">
+      {% if total_income > 0 %}
+        {% set savings_pct = [[(((total_income - total_expense) / total_income) * 100) | round(0) | int, 0] | max, 100] | min %}
+        <div class="flex items-center justify-between text-[10px] text-slate-500 mb-1.5">
+          <span>Savings Rate</span>
+          <span class="text-slate-300 font-bold">{{ savings_pct }}%</span>
+        </div>
+        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div class="h-full bg-primary rounded-full transition-all" style="width:{{ savings_pct }}%"></div>
+        </div>
+      {% else %}
+        <p class="text-[10px] text-slate-600">No data yet</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Remaining Budget -->
+  <div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800 hover:border-slate-700 transition-all">
+    <div class="flex justify-between items-start mb-4">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Remaining Budget</p>
+      {% if monthly_budget %}
+        {% set remaining = monthly_budget['budget_amount'] - monthly_expense %}
+        {% if remaining > 0 %}
+          <span class="text-[10px] font-bold text-violet-400 bg-violet-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Safe</span>
+        {% else %}
+          <span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Over</span>
+        {% endif %}
+      {% else %}
+        <span class="text-[10px] font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded-full">No Budget</span>
+      {% endif %}
+    </div>
+    {% if monthly_budget %}
+      {% set remaining = monthly_budget['budget_amount'] - monthly_expense %}
+      {% if remaining >= 0 %}
+        <h3 class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(remaining) }}</h3>
+      {% else %}
+        <h3 class="text-2xl font-bold text-rose-400">-₹{{ "{:,.0f}".format(remaining | abs) }}</h3>
+      {% endif %}
+      <div class="mt-4">
+        <div class="flex items-center justify-between text-[10px] text-slate-500 mb-1.5">
+          <span>Budget Utilization</span>
+          <span class="text-slate-300 font-bold">{{ monthly_budget_pct }}%</span>
+        </div>
+        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          {% if monthly_budget_pct < 80 %}
+            <div class="h-full bg-violet-500 rounded-full transition-all" style="width:{{ monthly_budget_pct }}%"></div>
+          {% elif monthly_budget_pct < 100 %}
+            <div class="h-full bg-amber-500 rounded-full transition-all" style="width:{{ monthly_budget_pct }}%"></div>
+          {% else %}
+            <div class="h-full bg-rose-500 rounded-full transition-all" style="width:100%"></div>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <h3 class="text-2xl font-bold text-slate-600">—</h3>
+      <p class="mt-4 text-[10px] text-slate-500">
+        <a href="{{ url_for('budget') }}" class="text-primary hover:underline">Set a budget →</a>
+      </p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════
+     CHARTS ROW: Donut + Bar
+════════════════════════════════════════════════ -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+  <!-- ══ CHART 1: Donut — Expense by Category ══ -->
+  <div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800">
+    <div class="flex justify-between items-center mb-5">
+      <h4 class="text-sm font-semibold text-white">Expense by Category</h4>
+      <span class="text-xs text-slate-500 bg-slate-800 px-2.5 py-1 rounded-full">{{ month_name }}</span>
+    </div>
+
+    {% if category_data %}
+      {% set cat_colors = ['#2094f3','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16'] %}
+      {% set total_cat = category_data.values() | sum %}
+      {% set sorted_cats = category_data.items() | sort(attribute='1', reverse=True) | list %}
+
+      <!-- SVG Donut: stroke-dashoffset = 100 - cumulative_percent -->
+      <div class="flex items-center justify-center py-2">
+        <div class="relative" style="width:180px;height:180px;">
+          <svg viewBox="0 0 36 36" class="w-full h-full -rotate-90">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#1e293b" stroke-width="3.5"/>
+            {% set ns = namespace(cum=0) %}
+            {% for cat, amt in sorted_cats %}
+              {% set pct = (amt / total_cat * 100) %}
+              <circle cx="18" cy="18" r="15.9" fill="none"
+                stroke="{{ cat_colors[loop.index0 % cat_colors|length] }}"
+                stroke-width="3.5"
+                stroke-dasharray="{{ pct | round(3) }} {{ (100 - pct) | round(3) }}"
+                stroke-dashoffset="{{ (100 - ns.cum) | round(3) }}"
+                stroke-linecap="butt"/>
+              {% set ns.cum = ns.cum + pct %}
+            {% endfor %}
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span class="text-base font-bold text-white">₹{{ "{:,.0f}".format(total_cat) }}</span>
+            <span class="text-[9px] text-slate-500 uppercase tracking-widest font-bold mt-0.5">Total</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend — all categories with real percentages -->
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
+        {% for cat, amt in sorted_cats %}
+          {% set pct = (amt / total_cat * 100) | round(1) %}
+          <div class="flex items-center gap-2 text-xs">
+            <span class="size-2 rounded-full shrink-0" style="background:{{ cat_colors[loop.index0 % cat_colors|length] }}"></span>
+            <span class="text-slate-400 flex-1 truncate">{{ cat }}</span>
+            <span class="font-semibold text-slate-200 shrink-0">{{ pct }}%</span>
+          </div>
+        {% endfor %}
+      </div>
+
+    {% else %}
+      <div class="flex flex-col items-center justify-center py-14 text-slate-600">
+        <span class="material-symbols-outlined text-5xl mb-2 opacity-30">donut_large</span>
+        <p class="text-sm">No expense data this month</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- ══ CHART 2: Bar Chart — Income vs Expense ══
+       Uses income_expense_chart from backend (real data, all months)
+       Bars scale relative to the max value across all visible months.
+       Jan shows label but no income bar = Jan had 0 income; expense bar = 2% min.
+  -->
+  <div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800">
+    <div class="flex justify-between items-center mb-5">
+      <h4 class="text-sm font-semibold text-white">Income vs Expense</h4>
+      <div class="flex gap-4">
+        <div class="flex items-center gap-1.5 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+          <span class="inline-block w-3 h-2 rounded-sm bg-primary"></span>Income
+        </div>
+        <div class="flex items-center gap-1.5 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+          <span class="inline-block w-3 h-2 rounded-sm bg-rose-500"></span>Expense
+        </div>
+      </div>
+    </div>
+
+    {% if income_expense_chart %}
+      {# Max value for scaling — never 0 to avoid div/0 #}
+      {% set ns = namespace(max_val=1) %}
+      {% for m in income_expense_chart %}
+        {% if m['income'] > ns.max_val %}{% set ns.max_val = m['income'] %}{% endif %}
+        {% if m['expense'] > ns.max_val %}{% set ns.max_val = m['expense'] %}{% endif %}
+      {% endfor %}
+
+      {# Show last 6 months #}
+      {% set chart_data = income_expense_chart[-6:] %}
+
+      <!-- Bar area -->
+      <div class="flex items-end justify-around gap-1 px-2" style="height:180px;">
+        {% for m in chart_data %}
+          {# Use dict bracket access to be safe #}
+          {% set inc_val = m['income'] %}
+          {% set exp_val = m['expense'] %}
+          {% set inc_h = ((inc_val / ns.max_val) * 100) | round | int %}
+          {% set exp_h = ((exp_val / ns.max_val) * 100) | round | int %}
+          {# Minimum bar height of 3px so 0-value bars are invisible (height:0%) #}
+          <div class="flex-1 flex flex-col items-center h-full">
+            <!-- bars grow upward from bottom via flex-end -->
+            <div class="flex items-end gap-0.5 w-full h-full group relative">
+              <!-- Income bar -->
+              <div class="flex-1 rounded-t-sm transition-all duration-700 {% if loop.last %}bg-primary{% else %}bg-primary/40{% endif %}"
+                   style="height:{{ inc_h }}%"></div>
+              <!-- Expense bar -->
+              <div class="flex-1 rounded-t-sm transition-all duration-700 {% if loop.last %}bg-rose-500{% else %}bg-rose-500/40{% endif %}"
+                   style="height:{{ exp_h }}%"></div>
+              <!-- Hover tooltip -->
+              <div class="absolute -top-14 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-700 text-white text-[10px] py-1.5 px-2.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-all z-20 whitespace-nowrap pointer-events-none">
+                <div class="text-emerald-400 font-bold">↑ ₹{{ "{:,.0f}".format(inc_val) }}</div>
+                <div class="text-rose-400 font-bold">↓ ₹{{ "{:,.0f}".format(exp_val) }}</div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- X-axis labels -->
+      <div class="flex justify-around mt-3 px-2">
+        {% for m in chart_data %}
+          <div class="flex-1 text-center text-[10px] font-bold uppercase tracking-wider
+            {% if loop.last %}text-primary{% else %}text-slate-600{% endif %}">
+            {{ m['label'] }}
+          </div>
+        {% endfor %}
+      </div>
+
+    {% else %}
+      <div class="flex flex-col items-center justify-center text-slate-600" style="height:180px;">
+        <span class="material-symbols-outlined text-4xl mb-2 opacity-30">bar_chart</span>
+        <p class="text-sm">No data yet</p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════
+     CHART 3: Cash Flow Trend (SVG drawn by JS)
+════════════════════════════════════════════════ -->
+<div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800 mb-8">
+  <div class="flex justify-between items-center mb-5">
+    <div>
+      <h4 class="text-sm font-semibold text-white">Cash Flow Trend</h4>
+      <p class="text-[10px] text-slate-500 mt-0.5">Cumulative net balance over time</p>
+    </div>
+    <div class="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-wider">
+      <span class="inline-block w-6 h-px bg-primary"></span>Net Cash
+    </div>
+  </div>
+
+  {% if income_expense_chart and income_expense_chart | length > 0 %}
+    {# Build cumulative net (running total of income-expense per month) #}
+    {% set cum_nets = [] %}
+    {% set ns = namespace(running=0) %}
+    {% for m in income_expense_chart %}
+      {% set ns.running = ns.running + m['income'] - m['expense'] %}
+      {% if cum_nets.append(ns.running) %}{% endif %}
+    {% endfor %}
+
+    {# Use last 12 months for the trend view #}
+    {% set trend_data = income_expense_chart[-12:] %}
+    {% set trend_nets = cum_nets[-(trend_data | length):] %}
+
+    {# min/max for scaling #}
+    {% set ns2 = namespace(mn=trend_nets[0], mx=trend_nets[0]) %}
+    {% for v in trend_nets %}
+      {% if v < ns2.mn %}{% set ns2.mn = v %}{% endif %}
+      {% if v > ns2.mx %}{% set ns2.mx = v %}{% endif %}
+    {% endfor %}
+    {% set t_min = ns2.mn %}
+    {% set t_max = ns2.mx %}
+
+    <!-- Chart area -->
+    <div class="relative" style="height:160px;">
+      <!-- Grid lines -->
+      <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+        {% for _ in range(5) %}
+          <div class="border-t border-slate-800 w-full"></div>
+        {% endfor %}
+      </div>
+      <!-- SVG — paths built by JS below -->
+      <svg id="cashflow-svg" class="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="cfFill" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%"   stop-color="{{ '#ef4444' if (trend_nets[-1] | float) < 0 else '#2094f3' }}" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="{{ '#ef4444' if (trend_nets[-1] | float) < 0 else '#2094f3' }}" stop-opacity="0.0"/>
+          </linearGradient>
+          <linearGradient id="cfStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stop-color="#2094f3"/>
+            <stop offset="100%" stop-color="#10b981"/>
+          </linearGradient>
+        </defs>
+        <!-- zero-crossing reference line -->
+        {% if t_min < 0 and t_max > 0 %}
+          {% set t_range2 = t_max - t_min %}
+          {% set zero_pct = (t_max / t_range2 * 100) | round(1) %}
+          <line id="zero-line" x1="0%" y1="{{ zero_pct }}%" x2="100%" y2="{{ zero_pct }}%"
+                stroke="#475569" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>
+        {% endif %}
+        <path id="cf-area" fill="url(#cfFill)"/>
+        <path id="cf-line" fill="none" stroke="url(#cfStroke)" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+
+      <!-- Data for JS -->
+      <script id="cf-data" type="application/json">{"nets":[{% for v in trend_nets %}{{ v | round(2) }}{{ "," if not loop.last }}{% endfor %}],"labels":[{% for m in trend_data %}"{{ m['label'] }}"{{ "," if not loop.last }}{% endfor %}],"tMin":{{ t_min | round(2) }},"tMax":{{ t_max | round(2) }}}</script>
+    </div>
+
+    <!-- X-axis labels -->
+    <div class="flex justify-between mt-2 px-1">
+      {% set n_labels = trend_data | length %}
+      {% for m in trend_data %}
+        {% set show = (loop.index0 == 0) or loop.last or (n_labels > 6 and loop.index0 % ((n_labels // 5) | int) == 0) or n_labels <= 6 %}
+        {% if show %}
+          <span class="text-[10px] font-bold uppercase tracking-wider {% if loop.last %}text-primary{% else %}text-slate-600{% endif %}">
+            {{ m['label'] }}
+          </span>
+        {% else %}
+          <span></span>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <!-- Summary row -->
+    <div class="flex gap-8 mt-4 pt-4 border-t border-slate-800">
+      <div>
+        <p class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Net Cash Flow</p>
+        {% set final = trend_nets[-1] | float %}
+        <p class="text-sm font-bold {% if final >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %}">
+          {% if final >= 0 %}+{% endif %}₹{{ "{:,.0f}".format(final) }}
+        </p>
+      </div>
+      <div>
+        <p class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Peak</p>
+        <p class="text-sm font-bold text-primary">₹{{ "{:,.0f}".format(t_max) }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Lowest</p>
+        <p class="text-sm font-bold text-slate-400">₹{{ "{:,.0f}".format(t_min) }}</p>
+      </div>
+    </div>
+
+  {% else %}
+    <div class="flex flex-col items-center justify-center text-slate-600" style="height:160px;">
+      <span class="material-symbols-outlined text-4xl mb-2 opacity-30">show_chart</span>
+      <p class="text-sm">No transaction history yet</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- ══════════════════════════════════════════════
+     RECENT TRANSACTIONS
+════════════════════════════════════════════════ -->
+<div class="rounded-2xl border border-slate-800 overflow-hidden">
+  <div class="p-5 border-b border-slate-800 flex justify-between items-center" style="background:#141d26">
+    <h4 class="text-sm font-semibold text-slate-100">Recent Transactions</h4>
+    <a href="{{ url_for('transactions') }}" class="text-xs font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-1">
+      View All <span class="material-symbols-outlined text-sm">arrow_forward</span>
+    </a>
+  </div>
+
+  {% if recent %}
+    <div class="flex flex-col gap-3 p-4" style="background:#0d141c">
+      {% for t in recent %}
+        <a href="{{ url_for('edit_transaction', id=t['id']) }}"
+           class="group relative flex items-center rounded-xl overflow-hidden transition-all duration-200 p-4 cursor-pointer border"
+           style="background:#141d26;border-color:#314f68;opacity:1"
+           onmouseover="this.style.background='#1a2535'"
+           onmouseout="this.style.background='#141d26'">
+          <!-- Type stripe -->
+          <div class="absolute left-0 top-0 bottom-0 w-1"
+               style="background:{{ '#22c55e' if t['type'] == 'income' else '#ef4444' }}"></div>
+          <!-- Date -->
+          <div class="flex flex-col items-center justify-center min-w-[52px] border-r mr-4 shrink-0" style="border-color:#314f68">
+            <span class="text-[10px] text-slate-500 font-bold uppercase">{{ t['date'] | strftime('%b') }}</span>
+            <span class="text-xl font-black text-slate-200">{{ t['date'] | strftime('%d') }}</span>
+          </div>
+          <!-- Description + category -->
+          <div class="flex flex-col grow gap-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-slate-100 font-bold truncate">{{ t['description'] or t['category'] }}</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-tight shrink-0
+                {% if t['type'] == 'income' %}text-emerald-400{% else %}text-rose-400{% endif %}"
+                style="border-color:{{ 'rgba(34,197,94,0.3)' if t['type'] == 'income' else 'rgba(239,68,68,0.3)' }}">
+                {{ t['type'] }}
+              </span>
+            </div>
+            <p class="text-slate-500 text-xs">{{ t['category'] }}</p>
+          </div>
+          <!-- Amount -->
+          <span class="text-base font-bold shrink-0 ml-4
+            {% if t['type'] == 'income' %}text-emerald-400{% else %}text-rose-400{% endif %}">
+            {{ '+' if t['type'] == 'income' else '−' }}₹{{ "{:,.2f}".format(t['amount']) }}
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="flex flex-col items-center justify-center py-16 text-slate-600" style="background:#0d141c">
+      <span class="material-symbols-outlined text-5xl mb-3 opacity-20">receipt_long</span>
+      <p class="text-sm font-medium">No transactions yet</p>
+      <a href="{{ url_for('add_transaction') }}" class="mt-2 text-xs text-primary hover:underline">Add your first one →</a>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ══ Cash Flow Trend — draw smooth bezier curve from JSON data ══
+(function () {
+  const dataEl = document.getElementById('cf-data');
+  if (!dataEl) return;
+  let data;
+  try { data = JSON.parse(dataEl.textContent.trim()); } catch (e) { console.error('CF parse', e); return; }
+
+  const { nets, labels, tMin, tMax } = data;
+  if (!nets || nets.length === 0) return;
+
+  const W = 100, H = 100, PX = 2, PY = 4;
+  const rng = (tMax - tMin) || 1;
+  const n = nets.length;
+
+  const toX = i => n === 1 ? W / 2 : PX + (i / (n - 1)) * (W - PX * 2);
+  const toY = v => PY + (1 - (v - tMin) / rng) * (H - PY * 2);
+
+  // Smooth bezier path
+  let line = `M ${toX(0).toFixed(2)} ${toY(nets[0]).toFixed(2)}`;
+  for (let i = 1; i < n; i++) {
+    const x0 = toX(i - 1), y0 = toY(nets[i - 1]);
+    const x1 = toX(i),     y1 = toY(nets[i]);
+    const cx = (x0 + x1) / 2;
+    line += ` C ${cx.toFixed(2)} ${y0.toFixed(2)} ${cx.toFixed(2)} ${y1.toFixed(2)} ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  }
+  const area = line + ` L ${toX(n - 1).toFixed(2)} ${H} L ${toX(0).toFixed(2)} ${H} Z`;
+
+  const svg = document.getElementById('cashflow-svg');
+  const lineEl = document.getElementById('cf-line');
+  const areaEl = document.getElementById('cf-area');
+  if (svg)    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  if (lineEl) lineEl.setAttribute('d', line);
+  if (areaEl) areaEl.setAttribute('d', area);
+
+  // Interactive dots + tooltip
+  const tip = document.createElement('div');
+  tip.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;background:#1e293b;border:1px solid #334155;color:#fff;font-size:10px;padding:4px 8px;border-radius:6px;opacity:0;transition:opacity .15s;white-space:nowrap;z-index:30;';
+  svg.parentElement.style.position = 'relative';
+  svg.parentElement.appendChild(tip);
+
+  nets.forEach((v, i) => {
+    const cx = toX(i), cy = toY(v);
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('cx', cx.toFixed(2));
+    dot.setAttribute('cy', cy.toFixed(2));
+    dot.setAttribute('r', '2');
+    dot.setAttribute('fill', v >= 0 ? '#2094f3' : '#ef4444');
+    dot.setAttribute('stroke', '#0f172a');
+    dot.setAttribute('stroke-width', '0.8');
+    dot.style.cssText = 'opacity:0;transition:opacity .15s,r .15s;cursor:pointer;';
+    svg.appendChild(dot);
+
+    svg.addEventListener('mousemove', (e) => {
+      const rect = svg.getBoundingClientRect();
+      const mx = ((e.clientX - rect.left) / rect.width) * W;
+      const near = Math.abs(mx - cx) < (W / n / 2 + 2);
+      dot.style.opacity = near ? '1' : '0';
+      dot.setAttribute('r', near ? '3' : '2');
+      if (near) {
+        const sign = v >= 0 ? '+' : '';
+        tip.innerHTML = `<span style="color:#94a3b8">${labels[i]}</span>: <b style="color:${v>=0?'#34d399':'#f87171'}">${sign}₹${Math.round(v).toLocaleString('en-IN')}</b>`;
+        tip.style.opacity = '1';
+        const px = ((cx / W) * rect.width) + rect.left - svg.parentElement.getBoundingClientRect().left;
+        tip.style.left = Math.min(px - tip.offsetWidth / 2, svg.parentElement.offsetWidth - tip.offsetWidth - 4) + 'px';
+        tip.style.top = ((cy / H) * rect.height - 30) + 'px';
+      }
+    });
+    svg.addEventListener('mouseleave', () => {
+      dot.style.opacity = '0';
+      tip.style.opacity = '0';
+    });
+  });
+})();
+</script>
+{% endblock %}

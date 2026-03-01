@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ cb['category'] }} Budget — FinanceOS{% endblock %}
+{% block page_title %}Edit Category Budget{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
+
+<!-- Breadcrumb -->
+<div class="flex items-center gap-2 text-slate-500 text-sm mb-8">
+  <a href="{{ url_for('budget') }}" class="hover:text-primary transition-colors">Budget</a>
+  <span class="material-symbols-outlined text-sm">chevron_right</span>
+  <a href="{{ url_for('budget_monthly') }}" class="hover:text-primary transition-colors">Monthly</a>
+  <span class="material-symbols-outlined text-sm">chevron_right</span>
+  <span class="text-slate-300">{{ cb['category'] }}</span>
+</div>
+
+<div class="max-w-lg mx-auto">
+
+  <!-- Category header card -->
+  {% set cat_icons = {'Food & Dining':'restaurant','Transport':'directions_car','Shopping':'shopping_bag','Entertainment':'theater_comedy','Health & Medical':'medical_services','Utilities':'bolt','Rent & Housing':'home','Education':'school','Travel':'flight','Personal Care':'spa','Insurance':'shield','Subscriptions':'subscriptions','Other':'category'} %}
+  {% set icon = cat_icons.get(cb['category'], 'category') %}
+  {% set status = 'over' if pct >= 100 else ('warn' if pct >= 80 else 'ok') %}
+
+  <div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-7 mb-6">
+    <div class="flex items-center gap-4 mb-6">
+      <div class="size-14 rounded-2xl flex items-center justify-center bg-primary/10">
+        <span class="material-symbols-outlined text-primary text-2xl">{{ icon }}</span>
+      </div>
+      <div>
+        <h2 class="text-xl font-bold text-white">{{ cb['category'] }}</h2>
+        <p class="text-slate-500 text-sm">{{ month_name }}</p>
+      </div>
+    </div>
+
+    <!-- Current stats -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+      <div class="bg-slate-800/50 rounded-xl p-4">
+        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Limit</p>
+        <p class="text-lg font-bold text-white">₹{{ "{:,.0f}".format(cb['budget_amount']) }}</p>
+      </div>
+      <div class="bg-slate-800/50 rounded-xl p-4">
+        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Spent</p>
+        <p class="text-lg font-bold {{ 'text-expense' if status=='over' else 'text-white' }}">₹{{ "{:,.0f}".format(spent) }}</p>
+      </div>
+      <div class="bg-slate-800/50 rounded-xl p-4">
+        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Used</p>
+        <p class="text-lg font-bold {{ 'text-expense' if status=='over' else ('text-amber-400' if status=='warn' else 'text-white') }}">{{ pct }}%</p>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="mb-2">
+      <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+        <div class="h-full rounded-full transition-all duration-700"
+             style="width:{{ pct }}%;background:{{ '#ef4444' if status=='over' else ('#f59e0b' if status=='warn' else '#2094f3') }}"></div>
+      </div>
+    </div>
+    <p class="text-xs text-slate-600">
+      {% if status == 'over' %}Budget exceeded by ₹{{ "{:,.0f}".format(spent - cb['budget_amount']) }}.
+      {% elif status == 'warn' %}₹{{ "{:,.0f}".format(cb['budget_amount'] - spent) }} remaining — approaching limit.
+      {% else %}₹{{ "{:,.0f}".format(cb['budget_amount'] - spent) }} remaining this month.{% endif %}
+    </p>
+  </div>
+
+  <!-- Edit form -->
+  <div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-7 mb-6">
+    <h3 class="font-bold text-white mb-5">Update Monthly Limit</h3>
+    <form method="POST" class="space-y-5">
+      <input type="hidden" name="action" value="update">
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">New Monthly Limit (₹)</label>
+        <div class="relative">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
+          <input type="number" name="budget_amount" required min="1" step="1"
+            value="{{ cb['budget_amount']|int }}"
+            class="w-full h-13 bg-slate-900/60 border border-slate-800 rounded-xl pl-9 pr-4 py-3 text-white text-xl font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"/>
+        </div>
+        <p class="text-xs text-slate-600 mt-2">Current limit: ₹{{ "{:,.0f}".format(cb['budget_amount']) }} / month</p>
+      </div>
+      <div class="flex gap-3">
+        <button type="submit"
+          class="flex-1 h-12 bg-primary text-white font-bold rounded-xl hover:brightness-110 primary-glow transition-all flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined">save</span> Save Changes
+        </button>
+        <a href="{{ url_for('budget_monthly') }}"
+           class="flex-1 h-12 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all flex items-center justify-center">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Danger zone -->
+  <div class="bg-[#0f172a] rounded-2xl border border-red-500/15 p-6">
+    <h3 class="font-bold text-slate-300 mb-1 text-sm">Danger Zone</h3>
+    <p class="text-slate-600 text-xs mb-4">Removing this budget won't affect your transactions.</p>
+    <form method="POST" onsubmit="return confirm('Remove budget for {{ cb['category'] }}?');">
+      <input type="hidden" name="action" value="delete">
+      <button type="submit"
+        class="flex items-center gap-2 text-expense text-sm font-bold hover:underline transition-colors">
+        <span class="material-symbols-outlined text-sm">delete</span> Remove Budget
+      </button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

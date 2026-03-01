@@ -1,0 +1,3 @@
+Flask>=3.0.0
+Werkzeug>=3.0.0
+npx tailwindcss -i ./static/src/input.css -o ./static/css/output.css

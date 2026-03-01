@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>{% block title %}FinanceOS{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    .sidebar-transition { transition: width 0.3s ease; }
+    .label-transition { transition: opacity 0.2s ease, max-width 0.3s ease; }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #314f68; border-radius: 10px; }
+    .flash-auto { transition: opacity 0.5s ease; }
+    .primary-glow { box-shadow: 0 0 15px rgba(32,148,243,0.4); }
+    .expense-glow { box-shadow: 0 0 10px rgba(239,68,68,0.3); }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display transition-colors duration-300">
+
+{% if session.user_id %}
+<div class="flex h-screen overflow-hidden">
+
+  <!-- ── Sidebar ── -->
+  <aside id="main-sidebar"
+    class="sidebar-transition w-64 bg-background-dark border-r border-border-muted flex flex-col shrink-0 overflow-hidden">
+
+    <!-- Brand -->
+    <div class="p-6 flex items-center gap-3 shrink-0">
+      <div class="size-8 bg-primary rounded flex items-center justify-center text-white shrink-0">
+        <span class="material-symbols-outlined text-xl">account_balance_wallet</span>
+      </div>
+      <h1 class="sidebar-label label-transition text-xl font-bold tracking-tight text-slate-100 whitespace-nowrap overflow-hidden">
+        FinanceOS
+      </h1>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
+
+      <a href="{{ url_for('dashboard') }}"
+        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
+          {% if request.endpoint == 'dashboard' %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
+        <span class="material-symbols-outlined shrink-0">dashboard</span>
+        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Dashboard</span>
+      </a>
+
+      <a href="{{ url_for('add_transaction') }}"
+        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
+          {% if request.endpoint == 'add_transaction' %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
+        <span class="material-symbols-outlined shrink-0">add_circle</span>
+        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Add Transaction</span>
+      </a>
+
+      <a href="{{ url_for('transactions') }}"
+        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
+          {% if request.endpoint == 'transactions' %}bg-primary/10 text-primary border-l-4 border-primary shadow-[0_0_20px_rgba(32,148,243,0.1)]{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
+        <span class="material-symbols-outlined shrink-0">swap_horiz</span>
+        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Transactions</span>
+      </a>
+
+      <a href="{{ url_for('budget') }}"
+        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
+          {% if request.endpoint in ('budget','budget_monthly','budget_yearly','edit_category_budget') %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
+        <span class="material-symbols-outlined shrink-0">account_balance_wallet</span>
+        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Budget</span>
+      </a>
+
+      <a href="#"
+        class="flex items-center gap-4 px-4 py-3 rounded-xl text-slate-400 hover:bg-primary/5 hover:text-primary transition-all">
+        <span class="material-symbols-outlined shrink-0">analytics</span>
+        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Analysis</span>
+      </a>
+
+    </nav>
+
+    <!-- Monthly Spend Widget -->
+    <div class="sidebar-label label-transition px-4 pb-3 shrink-0 overflow-hidden">
+      <div class="p-4 bg-charcoal/40 rounded-2xl border border-border-muted/30">
+        <div class="flex justify-between items-end mb-2">
+          <div>
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Monthly Spend</p>
+            <p class="text-lg font-black text-expense" id="sidebar-monthly-spend">—</p>
+          </div>
+          <span class="text-[10px] font-bold text-slate-400" id="sidebar-spend-pct"></span>
+        </div>
+        <div class="w-full bg-charcoal h-1.5 rounded-full overflow-hidden">
+          <div class="bg-expense h-full rounded-full expense-glow transition-all duration-700" id="sidebar-spend-bar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- User chip -->
+    <div class="p-4 border-t border-border-muted/50 shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="size-10 rounded-xl bg-charcoal border border-border-muted flex items-center justify-center shrink-0">
+          <span class="text-primary text-sm font-bold">{{ session.username[0].upper() }}</span>
+        </div>
+        <div class="sidebar-label label-transition overflow-hidden whitespace-nowrap">
+          <p class="text-sm font-bold text-slate-100 leading-none truncate">{{ session.username }}</p>
+          <p class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter mt-0.5">Personal Plan</p>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+
+    <!-- Topbar -->
+    <header class="h-16 flex items-center justify-between border-b border-border-muted px-6 bg-background-dark shrink-0 z-50">
+
+      <div class="flex items-center gap-4">
+        <button id="sidebar-toggle"
+          class="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
+          title="Toggle sidebar">
+          <span class="material-symbols-outlined" id="toggle-icon">menu</span>
+        </button>
+        <h2 class="text-xl font-bold text-slate-100">{% block page_title %}{% endblock %}</h2>
+      </div>
+
+      <div class="flex items-center gap-6">
+        <!-- Notifications -->
+        <button class="relative p-2 text-slate-400 hover:text-primary transition-colors">
+          <span class="material-symbols-outlined text-2xl">notifications</span>
+          <span class="absolute top-2 right-2 size-2 bg-expense rounded-full border-2 border-background-dark"></span>
+        </button>
+
+        <div class="h-8 w-px bg-border-muted/50"></div>
+
+        <!-- User dropdown -->
+        <div class="group relative flex items-center gap-4 cursor-pointer">
+          <div class="text-right hidden sm:block">
+            <p class="text-sm font-bold text-slate-100 group-hover:text-primary transition-colors">{{ session.username }}</p>
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Personal Plan</p>
+          </div>
+          <div class="size-10 rounded-xl bg-charcoal border border-border-muted flex items-center justify-center">
+            <span class="text-primary font-bold">{{ session.username[0].upper() }}</span>
+          </div>
+
+          <!-- Dropdown -->
+          <div class="absolute right-0 top-full mt-2 w-44 bg-charcoal border border-border-muted rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+            <div class="py-1">
+              <a href="{{ url_for('logout') }}"
+                class="flex items-center gap-2 px-4 py-2.5 text-sm text-expense hover:bg-background-dark transition-colors rounded-xl">
+                <span class="material-symbols-outlined text-lg">logout</span>
+                Logout
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="px-8 pt-3 space-y-2 shrink-0">
+          {% for cat, msg in messages %}
+            <div class="flash-auto flex items-center gap-2 px-4 py-3 rounded-xl text-sm
+              {% if cat == 'error' %}bg-red-500/10 border border-red-500/30 text-red-400
+              {% elif cat == 'success' %}bg-emerald-500/10 border border-emerald-500/30 text-emerald-400
+              {% else %}bg-primary/10 border border-primary/30 text-primary{% endif %}">
+              <span class="material-symbols-outlined text-base">
+                {% if cat == 'error' %}error{% elif cat == 'success' %}check_circle{% else %}info{% endif %}
+              </span>
+              {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Page content -->
+    <main class="flex-1 overflow-y-auto bg-background-dark p-8 custom-scrollbar">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+</div>
+
+{% else %}
+  {% block auth_content %}{% endblock %}
+{% endif %}
+
+<script>
+  // Auto-dismiss flashes
+  setTimeout(() => {
+    document.querySelectorAll('.flash-auto').forEach(f => f.style.opacity = '0');
+  }, 4000);
+
+  // ── Sidebar collapse ──
+  const sidebar    = document.getElementById('main-sidebar');
+  const toggleBtn  = document.getElementById('sidebar-toggle');
+  const toggleIcon = document.getElementById('toggle-icon');
+  const labels     = document.querySelectorAll('.sidebar-label');
+
+  let collapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+  if (collapsed) applySidebarState(true, false);
+
+  function applySidebarState(isCollapsed, animate = true) {
+    if (!animate) sidebar.classList.remove('sidebar-transition');
+    if (isCollapsed) {
+      sidebar.style.width = '64px';
+      toggleIcon.textContent = 'menu_open';
+      labels.forEach(l => { l.style.opacity = '0'; l.style.maxWidth = '0'; l.style.overflow = 'hidden'; });
+    } else {
+      sidebar.style.width = '256px';
+      toggleIcon.textContent = 'menu';
+      labels.forEach(l => { l.style.opacity = '1'; l.style.maxWidth = '200px'; l.style.overflow = ''; });
+    }
+    if (!animate) requestAnimationFrame(() => sidebar.classList.add('sidebar-transition'));
+  }
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      collapsed = !collapsed;
+      localStorage.setItem('sidebar-collapsed', collapsed);
+      applySidebarState(collapsed);
+    });
+  }
+
+  // ── Monthly Spend Widget (populated by dashboard data via hidden meta tags) ──
+  document.addEventListener('DOMContentLoaded', () => {
+    const spendEl  = document.getElementById('sidebar-monthly-spend');
+    const pctEl    = document.getElementById('sidebar-spend-pct');
+    const barEl    = document.getElementById('sidebar-spend-bar');
+    const metaSpend = document.getElementById('meta-monthly-expense');
+    const metaPct   = document.getElementById('meta-monthly-pct');
+
+    if (spendEl && metaSpend) {
+      const spend = parseFloat(metaSpend.dataset.value || 0);
+      const pct   = parseFloat(metaPct?.dataset.value || 0);
+      spendEl.textContent = '₹' + spend.toLocaleString('en-IN', {maximumFractionDigits:0});
+      if (pctEl) pctEl.textContent = pct + '%';
+      setTimeout(() => { if (barEl) barEl.style.width = Math.min(pct, 100) + '%'; }, 300);
+    }
+  });
+</script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

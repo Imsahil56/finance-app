@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Transactions — FinanceOS{% endblock %}
+{% block page_title %}Transactions{% endblock %}
+
+{% block content %}
+
+<!-- Meta for sidebar spend widget -->
+<span id="meta-monthly-expense" data-value="{{ monthly_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct" data-value="{{ monthly_budget_pct }}" class="hidden"></span>
+
+<!-- Top action bar -->
+<div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+  <div>
+    <p class="text-slate-400 text-sm">{{ transactions | length }} total transactions</p>
+  </div>
+  <a href="{{ url_for('add_transaction') }}"
+     class="flex items-center justify-center gap-2 rounded-xl h-11 px-6 bg-primary text-white font-bold primary-glow hover:brightness-110 transition-all">
+    <span class="material-symbols-outlined">add</span>
+    Add Transaction
+  </a>
+</div>
+
+<!-- ── Filter Panel ── -->
+<details class="group bg-charcoal/50 border border-border-muted rounded-2xl overflow-hidden mb-6" open>
+  <summary class="flex cursor-pointer items-center justify-between p-4 bg-charcoal/80 hover:bg-charcoal transition-colors list-none select-none">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-primary">filter_list</span>
+      <span class="text-slate-100 font-semibold">Filter Options</span>
+    </div>
+    <span class="material-symbols-outlined text-slate-400 group-open:rotate-180 transition-transform duration-200">expand_more</span>
+  </summary>
+
+  <div class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 border-t border-border-muted">
+
+    <!-- Transaction Type toggle -->
+    <div class="flex flex-col gap-2">
+      <label class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Transaction Type</label>
+      <div class="flex bg-charcoal p-1 border border-border-muted h-11 rounded-xl">
+        <button id="filter-all"    onclick="setFilter('all')"
+          class="flex-1 text-xs font-bold uppercase bg-primary text-white rounded-xl transition-all">All</button>
+        <button id="filter-income" onclick="setFilter('income')"
+          class="flex-1 text-xs font-bold uppercase text-slate-400 hover:text-slate-200 rounded-xl transition-all">Income</button>
+        <button id="filter-expense" onclick="setFilter('expense')"
+          class="flex-1 text-xs font-bold uppercase text-slate-400 hover:text-slate-200 rounded-xl transition-all">Expense</button>
+      </div>
+    </div>
+
+    <!-- Category -->
+    <div class="flex flex-col gap-2">
+      <label class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Category</label>
+      <select id="filter-category" onchange="applyFilters()"
+        class="bg-charcoal border border-border-muted h-11 px-4 text-sm text-slate-100 focus:ring-primary focus:border-primary rounded-xl appearance-none">
+        <option value="">All Categories</option>
+        {% set cats = [] %}
+        {% for t in transactions %}
+          {% if t['category'] not in cats %}
+            {% set _ = cats.append(t['category']) %}
+            <option value="{{ t['category'] }}">{{ t['category'] }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Amount range -->
+    <div class="flex flex-col gap-2">
+      <label class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Amount (Min – Max)</label>
+      <div class="flex items-center gap-2">
+        <input id="filter-min" type="number" placeholder="Min" oninput="applyFilters()"
+          class="w-full bg-charcoal border border-border-muted h-11 px-4 text-sm text-slate-100 rounded-xl focus:ring-primary focus:border-primary placeholder-slate-600"/>
+        <span class="text-slate-500 shrink-0">–</span>
+        <input id="filter-max" type="number" placeholder="Max" oninput="applyFilters()"
+          class="w-full bg-charcoal border border-border-muted h-11 px-4 text-sm text-slate-100 rounded-xl focus:ring-primary focus:border-primary placeholder-slate-600"/>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="flex flex-col gap-2 lg:col-span-1">
+      <label class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Search Keyword</label>
+      <div class="relative">
+        <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-xl pointer-events-none">search</span>
+        <input id="filter-search" type="text" placeholder="Search description or category..." oninput="applyFilters()"
+          class="w-full bg-charcoal border border-border-muted h-11 pl-10 pr-4 text-sm text-slate-100 rounded-xl focus:ring-primary focus:border-primary placeholder-slate-600"/>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="lg:col-span-4 flex justify-end gap-3 mt-2">
+      <button onclick="resetFilters()"
+        class="px-6 h-11 border border-border-muted text-slate-400 font-bold hover:bg-charcoal hover:text-slate-200 transition-colors rounded-xl">
+        Reset Filters
+      </button>
+      <button onclick="applyFilters()"
+        class="px-8 h-11 bg-primary text-white font-bold hover:brightness-110 transition-all rounded-xl primary-glow">
+        Apply Filter
+      </button>
+    </div>
+  </div>
+</details>
+
+<!-- ── Transaction Cards ── -->
+{% if transactions %}
+  <!-- Summary bar -->
+  {% set ns_i = namespace(val=0) %}
+  {% set ns_e = namespace(val=0) %}
+  {% for t in transactions %}
+    {% if t['type'] == 'income' %}{% set ns_i.val = ns_i.val + t['amount'] %}{% endif %}
+    {% if t['type'] == 'expense' %}{% set ns_e.val = ns_e.val + t['amount'] %}{% endif %}
+  {% endfor %}
+  <div class="flex flex-wrap gap-6 mb-5 px-1">
+    <span class="text-xs text-slate-500">
+      Total Income: <span class="text-income font-bold">₹{{ "{:,.0f}".format(ns_i.val) }}</span>
+    </span>
+    <span class="text-xs text-slate-500">
+      Total Expense: <span class="text-expense font-bold">₹{{ "{:,.0f}".format(ns_e.val) }}</span>
+    </span>
+    <span class="text-xs text-slate-500">
+      Net: <span class="font-bold {{ 'text-income' if ns_i.val >= ns_e.val else 'text-expense' }}">
+        ₹{{ "{:,.0f}".format(ns_i.val - ns_e.val) }}
+      </span>
+    </span>
+  </div>
+
+  <div class="flex flex-col gap-3" id="txn-list">
+    {% for t in transactions %}
+      <div class="txn-card group relative flex items-center bg-charcoal/40 hover:bg-charcoal/70 border border-border-muted/30 rounded-2xl overflow-hidden transition-all duration-200 p-4 shadow-sm hover:shadow-lg"
+           data-type="{{ t['type'] }}"
+           data-category="{{ t['category'] | lower }}"
+           data-search="{{ (t['description'] or '') | lower }} {{ t['category'] | lower }}"
+           data-amount="{{ t['amount'] }}">
+
+        <!-- Colored left accent -->
+        <div class="absolute left-0 top-0 bottom-0 w-1 {{ 'bg-income' if t['type'] == 'income' else 'bg-expense' }}"></div>
+
+        <!-- Date -->
+        <div class="flex flex-col items-center justify-center min-w-[60px] border-r border-border-muted/30 mr-6 shrink-0">
+          <span class="text-xs text-slate-500 font-bold uppercase">{{ t['date'] | strftime('%b') }}</span>
+          <span class="text-xl font-black text-slate-300">{{ t['date'] | strftime('%d') }}</span>
+        </div>
+
+        <!-- Info (clickable to edit) -->
+        <a href="{{ url_for('edit_transaction', id=t['id']) }}" class="flex flex-col grow gap-1 min-w-0 cursor-pointer">
+          <div class="flex items-center gap-3 flex-wrap">
+            <h3 class="text-slate-100 font-bold text-base group-hover:text-primary transition-colors truncate">
+              {{ t['description'] or t['category'] }}
+            </h3>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 uppercase tracking-tighter
+              {{ 'border-income/40 text-income' if t['type'] == 'income' else 'border-expense/40 text-expense' }}">
+              {{ t['type'] }}
+            </span>
+          </div>
+          <p class="text-slate-400 text-sm">{{ t['category'] }}</p>
+        </a>
+
+        <!-- Amount + Delete -->
+        <div class="flex items-center gap-4 ml-4 shrink-0">
+          <span class="text-lg font-bold {{ 'text-income' if t['type'] == 'income' else 'text-expense' }}">
+            {{ '+ ' if t['type'] == 'income' else '- ' }}₹{{ "{:,.2f}".format(t['amount']) }}
+          </span>
+          <form method="POST" action="{{ url_for('delete_transaction', id=t['id']) }}"
+                onsubmit="return confirm('Delete this transaction?');">
+            <button type="submit"
+              class="p-1.5 rounded-lg text-slate-600 hover:text-expense hover:bg-expense/10 transition-colors opacity-0 group-hover:opacity-100">
+              <span class="material-symbols-outlined text-lg">delete</span>
+            </button>
+          </form>
+        </div>
+
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Empty state when filters hide everything -->
+  <div id="no-results" class="hidden flex flex-col items-center justify-center py-16 text-slate-500">
+    <span class="material-symbols-outlined text-5xl mb-3 opacity-30">search_off</span>
+    <p class="text-sm font-medium">No transactions match your filters</p>
+    <button onclick="resetFilters()" class="mt-2 text-xs text-primary hover:underline">Clear filters</button>
+  </div>
+
+{% else %}
+  <div class="flex flex-col items-center justify-center py-24 text-slate-500">
+    <span class="material-symbols-outlined text-5xl mb-3 opacity-30">receipt_long</span>
+    <p class="text-base font-medium">No transactions yet</p>
+    <a href="{{ url_for('add_transaction') }}" class="mt-3 text-sm text-primary hover:underline">Add your first one →</a>
+  </div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let activeFilter = 'all';
+
+  function setFilter(type) {
+    activeFilter = type;
+    ['all','income','expense'].forEach(t => {
+      const btn = document.getElementById('filter-' + t);
+      if (t === type) {
+        btn.classList.add('bg-primary','text-white');
+        btn.classList.remove('text-slate-400');
+      } else {
+        btn.classList.remove('bg-primary','text-white');
+        btn.classList.add('text-slate-400');
+      }
+    });
+    applyFilters();
+  }
+
+  function applyFilters() {
+    const search   = document.getElementById('filter-search').value.toLowerCase();
+    const category = document.getElementById('filter-category').value.toLowerCase();
+    const minAmt   = parseFloat(document.getElementById('filter-min').value) || 0;
+    const maxAmt   = parseFloat(document.getElementById('filter-max').value) || Infinity;
+    let visible = 0;
+
+    document.querySelectorAll('.txn-card').forEach(card => {
+      const typeMatch = activeFilter === 'all' || card.dataset.type === activeFilter;
+      const catMatch  = !category || card.dataset.category.includes(category);
+      const searchMatch = !search || card.dataset.search.includes(search);
+      const amt = parseFloat(card.dataset.amount);
+      const amtMatch = amt >= minAmt && amt <= maxAmt;
+
+      const show = typeMatch && catMatch && searchMatch && amtMatch;
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+
+    const noResults = document.getElementById('no-results');
+    if (noResults) noResults.classList.toggle('hidden', visible > 0);
+  }
+
+  function resetFilters() {
+    setFilter('all');
+    document.getElementById('filter-search').value = '';
+    document.getElementById('filter-category').value = '';
+    document.getElementById('filter-min').value = '';
+    document.getElementById('filter-max').value = '';
+    applyFilters();
+  }
+</script>
+{% endblock %}

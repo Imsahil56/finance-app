@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Add Transaction — FinanceOS{% endblock %}
+{% block page_title %}Add Transaction{% endblock %}
+
+{% block content %}
+
+<div class="max-w-lg mx-auto">
+
+  <!-- Header Card -->
+  <div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-7 mb-6">
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-xl font-bold text-white">New Transaction</h2>
+        <p class="text-slate-500 text-sm">{{ today }}</p>
+      </div>
+
+      <div class="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">
+        FinanceOS
+      </div>
+    </div>
+
+    <!-- Monthly Snapshot -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-slate-800/50 rounded-xl p-4">
+        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">This Month Spend</p>
+        <p class="text-white font-semibold">₹{{ "{:,.0f}".format(monthly_expense) }}</p>
+      </div>
+
+      <div class="bg-slate-800/50 rounded-xl p-4">
+        <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Budget Used</p>
+        <p class="text-white font-semibold">{{ monthly_budget_pct }}%</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Form Card -->
+  <div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-7">
+
+    <form method="POST" class="space-y-6">
+
+      <!-- Type Toggle -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+          Type
+        </label>
+
+        <div class="flex bg-slate-900 rounded-xl p-1">
+          <button type="button" onclick="setType('expense')" id="expenseBtn"
+            class="flex-1 py-2 rounded-lg text-sm font-bold transition-all bg-red-500/10 text-expense">
+            Expense
+          </button>
+
+          <button type="button" onclick="setType('income')" id="incomeBtn"
+            class="flex-1 py-2 rounded-lg text-sm font-bold transition-all text-slate-400">
+            Income
+          </button>
+        </div>
+
+        <input type="hidden" name="type" id="typeInput" value="expense">
+      </div>
+
+      <!-- Amount -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+          Amount (₹)
+        </label>
+
+        <div class="relative">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
+          <input type="number" name="amount" required min="1" step="1"
+            class="w-full bg-slate-900/60 border border-slate-800 rounded-xl pl-9 pr-4 py-3 text-white text-xl font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"/>
+        </div>
+      </div>
+
+      <!-- Category -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+          Category
+        </label>
+
+        <select name="category" id="categorySelect"
+          class="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+
+          {% for cat in expense_categories %}
+            <option value="{{ cat }}">{{ cat }}</option>
+          {% endfor %}
+
+        </select>
+      </div>
+
+      <!-- Date -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+          Date
+        </label>
+
+        <input type="date" name="date" required value="{{ today }}"
+          class="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"/>
+      </div>
+
+      <!-- Description -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+          Description
+        </label>
+
+        <textarea name="description" rows="3"
+          class="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"></textarea>
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex gap-3">
+        <button type="submit"
+          class="flex-1 h-12 bg-primary text-white font-bold rounded-xl hover:brightness-110 primary-glow transition-all">
+          Add Transaction
+        </button>
+
+        <a href="{{ url_for('transactions') }}"
+           class="flex-1 h-12 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all flex items-center justify-center">
+          Cancel
+        </a>
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+
+<!-- Dynamic Category Script -->
+
+<script type="application/json" id="expenseData">
+  {{ expense_categories|tojson }}
+</script>
+
+<script type="application/json" id="incomeData">
+  {{ income_categories|tojson }}
+</script>
+
+<script>
+const expenseCategories = JSON.parse(
+  document.getElementById('expenseData').textContent
+);
+
+const incomeCategories = JSON.parse(
+  document.getElementById('incomeData').textContent
+);
+
+const categorySelect = document.getElementById('categorySelect');
+const typeInput = document.getElementById('typeInput');
+
+function setType(type) {
+  typeInput.value = type;
+
+  document.getElementById('expenseBtn')
+    .classList.remove('bg-red-500/10','text-expense');
+  document.getElementById('incomeBtn')
+    .classList.remove('bg-green-500/10','text-income');
+
+  if(type === 'expense') {
+    document.getElementById('expenseBtn')
+      .classList.add('bg-red-500/10','text-expense');
+
+    categorySelect.innerHTML = expenseCategories
+      .map(c => `<option value="${c}">${c}</option>`)
+      .join('');
+  } else {
+    document.getElementById('incomeBtn')
+      .classList.add('bg-green-500/10','text-income');
+
+    categorySelect.innerHTML = incomeCategories
+      .map(c => `<option value="${c}">${c}</option>`)
+      .join('');
+  }
+}
+</script>
+
+{% endblock %}

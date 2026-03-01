@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Budget — FinanceOS{% endblock %}
+{% block page_title %}Budget{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
+
+<!-- Header -->
+<div class="mb-8">
+  <h2 class="text-2xl font-bold text-white">Budget</h2>
+  <p class="text-slate-500 text-sm mt-1">Manage your monthly and yearly spending limits</p>
+</div>
+
+<!-- Two main cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+
+  <!-- Monthly Budget Card -->
+  {% if monthly_budget %}
+  <a href="{{ url_for('budget_monthly') }}"
+     class="group bg-[#0f172a] rounded-2xl border border-slate-800 p-7 hover:border-primary/40 hover:shadow-[0_0_24px_rgba(32,148,243,0.08)] transition-all cursor-pointer block">
+  {% else %}
+  <div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-7">
+  {% endif %}
+    <div class="flex items-start justify-between mb-6">
+      <div class="size-11 rounded-xl bg-primary/10 flex items-center justify-center">
+        <span class="material-symbols-outlined text-primary">calendar_month</span>
+      </div>
+      {% if monthly_budget %}
+        <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400">Active</span>
+      {% else %}
+        <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-slate-800 text-slate-500">Not Set</span>
+      {% endif %}
+    </div>
+
+    <h3 class="text-lg font-bold text-white mb-1">Monthly Budget</h3>
+    <p class="text-slate-500 text-xs mb-5">{{ month_name }} {{ year }}</p>
+
+    {% if monthly_budget %}
+      <p class="text-3xl font-black text-white tracking-tight mb-1">
+        ₹{{ "{:,.0f}".format(monthly_budget['budget_amount']) }}
+      </p>
+      <p class="text-xs text-slate-500 mb-5">{{ monthly_budget_pct }}% used this month</p>
+      <div class="w-full h-1 bg-slate-800 rounded-full overflow-hidden mb-4">
+        <div class="h-full rounded-full transition-all duration-700"
+             style="width:{{ monthly_budget_pct }}%;background:{{ '#ef4444' if monthly_budget_pct>=100 else ('#f59e0b' if monthly_budget_pct>=80 else '#2094f3') }}"></div>
+      </div>
+      <div class="flex items-center gap-2 text-primary text-xs font-semibold group-hover:gap-3 transition-all">
+        View Details <span class="material-symbols-outlined text-sm">arrow_forward</span>
+      </div>
+    {% else %}
+      <p class="text-slate-600 text-sm mb-6">No budget set for this month yet.</p>
+      <a href="{{ url_for('budget_monthly') }}"
+         class="inline-flex items-center gap-2 bg-primary text-white text-xs font-bold px-5 py-2.5 rounded-xl hover:brightness-110 transition-all primary-glow">
+        <span class="material-symbols-outlined text-sm">add</span> Set Budget
+      </a>
+    {% endif %}
+  {% if monthly_budget %}</a>{% else %}</div>{% endif %}
+
+  <!-- Yearly Budget Card -->
+  {% if yearly_budget %}
+  <a href="{{ url_for('budget_yearly') }}"
+     class="group bg-[#0f172a] rounded-2xl border border-slate-800 p-7 hover:border-primary/40 hover:shadow-[0_0_24px_rgba(32,148,243,0.08)] transition-all cursor-pointer block">
+  {% else %}
+  <div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-7">
+  {% endif %}
+    <div class="flex items-start justify-between mb-6">
+      <div class="size-11 rounded-xl bg-purple-500/10 flex items-center justify-center">
+        <span class="material-symbols-outlined text-purple-400">event_repeat</span>
+      </div>
+      {% if yearly_budget %}
+        <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400">Active</span>
+      {% else %}
+        <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-slate-800 text-slate-500">Not Set</span>
+      {% endif %}
+    </div>
+
+    <h3 class="text-lg font-bold text-white mb-1">Yearly Budget</h3>
+    <p class="text-slate-500 text-xs mb-5">{{ year }}</p>
+
+    {% if yearly_budget %}
+      <p class="text-3xl font-black text-white tracking-tight mb-1">
+        ₹{{ "{:,.0f}".format(yearly_budget['budget_amount']) }}
+      </p>
+      <p class="text-xs text-slate-500 mb-5">{{ yearly_budget_pct }}% used this year</p>
+      <div class="w-full h-1 bg-slate-800 rounded-full overflow-hidden mb-4">
+        <div class="h-full rounded-full transition-all duration-700"
+             style="width:{{ yearly_budget_pct }}%;background:{{ '#ef4444' if yearly_budget_pct>=100 else ('#f59e0b' if yearly_budget_pct>=80 else '#6366f1') }}"></div>
+      </div>
+      <div class="flex items-center gap-2 text-primary text-xs font-semibold group-hover:gap-3 transition-all">
+        View Details <span class="material-symbols-outlined text-sm">arrow_forward</span>
+      </div>
+    {% else %}
+      <p class="text-slate-600 text-sm mb-6">No yearly goal set for {{ year }}.</p>
+      <a href="{{ url_for('budget_yearly') }}"
+         class="inline-flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
+        <span class="material-symbols-outlined text-sm">add</span> Set Goal
+      </a>
+    {% endif %}
+  {% if yearly_budget %}</a>{% else %}</div>{% endif %}
+
+</div>
+
+<!-- Statistics -->
+<div class="mb-3">
+  <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider">This Month</h3>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+  <div class="bg-[#0f172a] rounded-xl border border-slate-800 p-5">
+    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">Spend</p>
+    <p class="text-xl font-black text-white">₹{{ "{:,.0f}".format(monthly_expense) }}</p>
+    <p class="text-[10px] text-slate-600 mt-1">expenses this month</p>
+  </div>
+
+  <div class="bg-[#0f172a] rounded-xl border border-slate-800 p-5">
+    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">Income</p>
+    <p class="text-xl font-black text-emerald-400">₹{{ "{:,.0f}".format(monthly_income) }}</p>
+    <p class="text-[10px] text-slate-600 mt-1">received this month</p>
+  </div>
+
+  <div class="bg-[#0f172a] rounded-xl border border-slate-800 p-5">
+    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">Categories</p>
+    <p class="text-xl font-black text-white">{{ cat_count }}</p>
+    <p class="text-[10px] text-slate-600 mt-1">budgets configured</p>
+  </div>
+
+  <div class="bg-[#0f172a] rounded-xl border border-slate-800 p-5">
+    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">Allocated</p>
+    <p class="text-xl font-black text-white">₹{{ "{:,.0f}".format(total_allocated) }}</p>
+    {% if monthly_budget %}
+      {% set rem = monthly_budget['budget_amount'] - monthly_expense %}
+      <p class="text-[10px] mt-1 {{ 'text-expense' if rem < 0 else 'text-slate-600' }}">
+        ₹{{ "{:,.0f}".format(rem|abs) }} {{ 'over' if rem < 0 else 'remaining' }}
+      </p>
+    {% else %}
+      <p class="text-[10px] text-slate-600 mt-1">no budget set</p>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

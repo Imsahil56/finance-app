@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block title %}Monthly Budget — FinanceOS{% endblock %}
+{% block page_title %}Monthly Budget{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
+
+<!-- Header row -->
+<div class="flex items-start justify-between mb-8 gap-4">
+  <div>
+    <div class="flex items-center gap-2 text-slate-500 text-sm mb-1">
+      <a href="{{ url_for('budget') }}" class="hover:text-primary transition-colors">Budget</a>
+      <span class="material-symbols-outlined text-sm">chevron_right</span>
+      <span class="text-slate-300">Monthly</span>
+    </div>
+    <h2 class="text-2xl font-bold text-white">Monthly Budget</h2>
+    <p class="text-slate-500 text-sm mt-1">Overview for {{ sel_month_name }}</p>
+  </div>
+
+  <!-- Month filter -->
+  <form method="GET" class="flex items-center gap-2 shrink-0">
+    <select name="month" onchange="this.form.submit()"
+      class="bg-[#0f172a] border border-slate-800 text-slate-200 text-sm rounded-xl px-4 py-2.5 focus:ring-primary focus:border-primary appearance-none pr-8 cursor-pointer"
+      style="background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 viewBox=%220 0 20 20%22><path stroke=%22%2364748b%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%221.5%22 d=%22M6 8l4 4 4-4%22/></svg>');background-position:right .5rem center;background-repeat:no-repeat;background-size:1.5em">
+      {% for opt in month_options %}
+        <option value="{{ opt.month }}" {{ 'selected' if opt.month==sel_month and opt.year==sel_year else '' }}
+          {% if loop.index > 1 %}{# We only show current year months; use data attr for year #}{% endif %}>
+          {{ opt.label }}
+        </option>
+      {% endfor %}
+    </select>
+    <!-- Hidden year field synced via JS -->
+    <input type="hidden" name="year" id="year-hidden" value="{{ sel_year }}">
+  </form>
+</div>
+
+<!-- Budget Summary Card -->
+{% if monthly_budget %}
+<div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-8 mb-8">
+  <div class="flex flex-col md:flex-row md:items-start justify-between gap-8 mb-8">
+    <div>
+      <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Total Monthly Budget</p>
+      <p class="text-5xl font-black text-white tracking-tighter">₹{{ "{:,.0f}".format(monthly_budget['budget_amount']) }}</p>
+    </div>
+    <div class="flex gap-10">
+      <div>
+        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Allocated</p>
+        <p class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(monthly_expense) }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-widest mb-2
+          {{ 'text-expense' if monthly_expense > monthly_budget['budget_amount'] else 'text-primary' }}">Remaining</p>
+        {% set rem = monthly_budget['budget_amount'] - monthly_expense %}
+        <p class="text-2xl font-bold {{ 'text-expense' if rem < 0 else 'text-primary' }}">
+          ₹{{ "{:,.0f}".format(rem|abs) }}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="flex justify-between items-center mb-2">
+      <span class="text-slate-300 text-sm">Budget Utilization</span>
+      <span class="text-sm font-bold {{ 'text-expense' if monthly_budget_pct>=100 else ('text-amber-400' if monthly_budget_pct>=80 else 'text-primary') }}">
+        {{ monthly_budget_pct }}% Used
+      </span>
+    </div>
+    <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+      <div class="h-full rounded-full transition-all duration-700"
+           style="width:{{ monthly_budget_pct }}%;background:{{ '#ef4444' if monthly_budget_pct>=100 else ('#f59e0b' if monthly_budget_pct>=80 else '#2094f3') }};box-shadow:0 0 10px {{ 'rgba(239,68,68,0.3)' if monthly_budget_pct>=100 else ('rgba(245,158,11,0.25)' if monthly_budget_pct>=80 else 'rgba(32,148,243,0.25)') }}"></div>
+    </div>
+    {% if monthly_budget_pct >= 80 %}
+    <p class="text-slate-500 text-xs mt-3 flex items-center gap-1.5">
+      <span class="material-symbols-outlined text-sm">info</span>
+      {% if monthly_budget_pct >= 100 %}Budget exceeded by ₹{{ "{:,.0f}".format(monthly_expense - monthly_budget['budget_amount']) }}.
+      {% else %}Approaching limit — ₹{{ "{:,.0f}".format(monthly_budget['budget_amount'] - monthly_expense) }} left.{% endif %}
+    </p>
+    {% endif %}
+  </div>
+</div>
+
+{% else %}
+<!-- No budget set -->
+<div class="bg-[#0f172a] rounded-2xl border border-dashed border-slate-700 p-10 mb-8 flex flex-col items-center text-center">
+  <span class="material-symbols-outlined text-4xl text-slate-700 mb-3">calendar_month</span>
+  <p class="font-semibold text-slate-400 mb-1">No budget set for {{ sel_month_name }}</p>
+  <p class="text-slate-600 text-sm mb-5">Define your monthly spending limit to track utilization.</p>
+  <button onclick="document.getElementById('set-monthly-modal').classList.remove('hidden')"
+    class="inline-flex items-center gap-2 bg-primary text-white text-sm font-bold px-6 py-2.5 rounded-xl hover:brightness-110 transition-all primary-glow">
+    <span class="material-symbols-outlined text-sm">add</span> Set Monthly Budget
+  </button>
+</div>
+{% endif %}
+
+<!-- Action row -->
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div class="flex gap-3">
+    {% if monthly_budget %}
+    <button onclick="document.getElementById('set-monthly-modal').classList.remove('hidden')"
+      class="flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-200 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
+      <span class="material-symbols-outlined text-sm">edit</span> Edit Budget
+    </button>
+    {% endif %}
+    <a href="{{ url_for('add_transaction') }}"
+       class="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:brightness-110 primary-glow transition-all">
+      <span class="material-symbols-outlined text-sm">add</span> Add Expense
+    </a>
+  </div>
+  <button onclick="document.getElementById('add-cat-modal').classList.remove('hidden')"
+    class="flex items-center gap-2 text-primary text-sm font-semibold hover:underline transition-colors">
+    <span class="material-symbols-outlined text-sm">add</span> Add Category Budget
+  </button>
+</div>
+
+<!-- Category Cards -->
+{% if cat_budget_data %}
+{% set cat_icons = {'Food & Dining':'restaurant','Transport':'directions_car','Shopping':'shopping_bag','Entertainment':'theater_comedy','Health & Medical':'medical_services','Utilities':'bolt','Rent & Housing':'home','Education':'school','Travel':'flight','Personal Care':'spa','Insurance':'shield','Subscriptions':'subscriptions','Other':'category'} %}
+{% set palette = [
+  ('#3b82f6','rgba(59,130,246,0.12)','rgba(59,130,246,0.15)'),
+  ('#10b981','rgba(16,185,129,0.12)','rgba(16,185,129,0.15)'),
+  ('#f97316','rgba(249,115,22,0.12)','rgba(249,115,22,0.15)'),
+  ('#a855f7','rgba(168,85,247,0.12)','rgba(168,85,247,0.15)'),
+  ('#f43f5e','rgba(244,63,94,0.12)','rgba(244,63,94,0.15)'),
+  ('#eab308','rgba(234,179,8,0.12)','rgba(234,179,8,0.15)'),
+  ('#2094f3','rgba(32,148,243,0.12)','rgba(32,148,243,0.15)'),
+  ('#f59e0b','rgba(245,158,11,0.12)','rgba(245,158,11,0.15)')
+] %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+{% for cb in cat_budget_data %}
+  {% set p = palette[loop.index0 % palette|length] %}
+  {% set icon = cat_icons.get(cb.category, 'category') %}
+  {% set bar_color = '#ef4444' if cb.status=='over' else ('#f59e0b' if cb.status=='warn' else p[0]) %}
+
+  <a href="{{ url_for('edit_category_budget', cb_id=cb.id) }}"
+     class="group bg-[#0f172a] rounded-2xl border p-6 flex flex-col gap-4 transition-all cursor-pointer
+       {{ 'border-red-500/20 hover:border-red-500/30' if cb.status=='over' else ('border-amber-500/15 hover:border-amber-500/25' if cb.status=='warn' else 'border-slate-800 hover:border-slate-700') }}">
+
+    <div class="flex items-start justify-between">
+      <div class="flex items-center gap-3">
+        <div class="size-11 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform"
+             style="background:{{ p[1] }};color:{{ p[0] }}">
+          <span class="material-symbols-outlined">{{ icon }}</span>
+        </div>
+        <div>
+          <p class="font-bold text-white text-sm {{ 'uppercase tracking-tight' if cb.status=='over' else '' }}">{{ cb.category }}</p>
+          <p class="text-xs mt-0.5 {{ 'text-expense font-bold' if cb.status=='over' else ('text-amber-400' if cb.status=='warn' else 'text-slate-500') }}">
+            {% if cb.status=='over' %}Budget Exceeded{% elif cb.status=='warn' %}Approaching limit{% else %}{{ cb.raw_pct }}% of budget used{% endif %}
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-slate-700 group-hover:text-slate-400 transition-colors text-sm">edit</span>
+        <span class="text-xs font-bold px-2 py-0.5 rounded-lg"
+              style="background:{{ 'rgba(239,68,68,0.12)' if cb.status=='over' else ('rgba(245,158,11,0.12)' if cb.status=='warn' else p[1]) }};color:{{ '#ef4444' if cb.status=='over' else ('#f59e0b' if cb.status=='warn' else p[0]) }}">
+          {{ cb.raw_pct }}%
+        </span>
+      </div>
+    </div>
+
+    <div class="flex justify-between text-xs">
+      <span class="{{ 'text-expense font-semibold' if cb.status=='over' else 'text-slate-300' }}">Spent: ₹{{ "{:,.0f}".format(cb.spent) }}</span>
+      <span class="text-slate-500">Limit: ₹{{ "{:,.0f}".format(cb.budget) }}</span>
+    </div>
+
+    <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+      <div class="h-full rounded-full transition-all duration-700"
+           style="width:{{ cb.pct }}%;background:{{ bar_color }}"></div>
+    </div>
+  </a>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="flex flex-col items-center justify-center py-14 border border-dashed border-slate-800 rounded-2xl text-center">
+  <span class="material-symbols-outlined text-4xl text-slate-700 mb-3">grid_view</span>
+  <p class="text-slate-400 font-medium mb-1">No category budgets yet</p>
+  <p class="text-slate-600 text-sm mb-5">Set per-category limits to track detailed spending.</p>
+  <button onclick="document.getElementById('add-cat-modal').classList.remove('hidden')"
+    class="inline-flex items-center gap-2 text-primary text-sm font-bold hover:underline">
+    <span class="material-symbols-outlined text-sm">add</span> Add Category Budget
+  </button>
+</div>
+{% endif %}
+
+
+<!-- ── MODAL: Set/Edit Monthly Budget ── -->
+<div id="set-monthly-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-[#0d141c] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
+    <div class="flex items-center justify-between p-6 border-b border-slate-800">
+      <div class="flex items-center gap-3">
+        <div class="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-primary text-xl">event_repeat</span>
+        </div>
+        <div>
+          <p class="font-bold text-white">{{ 'Edit' if monthly_budget else 'Set' }} Monthly Budget</p>
+          <p class="text-xs text-slate-500">{{ sel_month_name }}</p>
+        </div>
+      </div>
+      <button onclick="document.getElementById('set-monthly-modal').classList.add('hidden')"
+        class="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <form method="POST" class="p-6 space-y-5">
+      <input type="hidden" name="action" value="set_monthly">
+      <input type="hidden" name="post_month" value="{{ sel_month }}">
+      <input type="hidden" name="post_year"  value="{{ sel_year }}">
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Total Budget Amount</label>
+        <div class="relative">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
+          <input type="number" name="budget_amount" required min="1" step="1"
+            value="{{ monthly_budget['budget_amount']|int if monthly_budget else '' }}"
+            placeholder="0"
+            class="w-full h-13 bg-slate-900/60 border border-slate-800 rounded-xl pl-9 pr-4 py-3 text-white text-xl font-bold placeholder-slate-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"/>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button type="submit" class="flex-1 h-12 bg-primary text-white font-bold rounded-xl hover:brightness-110 primary-glow transition-all flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined">save</span> Save
+        </button>
+        <button type="button" onclick="document.getElementById('set-monthly-modal').classList.add('hidden')"
+          class="flex-1 h-12 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── MODAL: Add Category Budget ── -->
+<div id="add-cat-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-[#0d141c] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
+    <div class="flex items-center justify-between p-6 border-b border-slate-800">
+      <div class="flex items-center gap-3">
+        <div class="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-primary text-xl">add_chart</span>
+        </div>
+        <div>
+          <p class="font-bold text-white">Add Category Budget</p>
+          <p class="text-xs text-slate-500">Monthly spending limit per category</p>
+        </div>
+      </div>
+      <button onclick="document.getElementById('add-cat-modal').classList.add('hidden')"
+        class="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <form method="POST" class="p-6 space-y-5">
+      <input type="hidden" name="action" value="add_category">
+      <input type="hidden" name="post_month" value="{{ sel_month }}">
+      <input type="hidden" name="post_year"  value="{{ sel_year }}">
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Category</label>
+        <select name="category" required
+          class="w-full bg-slate-900/60 border border-slate-800 h-12 rounded-xl px-4 text-sm text-slate-200 focus:ring-2 focus:ring-primary focus:border-primary appearance-none transition-all">
+          <option value="" disabled selected>Select category</option>
+          {% for c in expense_categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Monthly Limit (₹)</label>
+        <div class="relative">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+          <input type="number" name="cat_budget_amount" required min="1" step="1" placeholder="e.g. 10000"
+            class="w-full h-12 bg-slate-900/60 border border-slate-800 rounded-xl pl-9 pr-4 text-sm text-white placeholder-slate-700 focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none transition-all"/>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button type="submit" class="flex-1 h-12 bg-primary text-white font-bold rounded-xl hover:brightness-110 primary-glow transition-all flex items-center justify-center gap-2 text-sm">
+          <span class="material-symbols-outlined">save</span> Save
+        </button>
+        <button type="button" onclick="document.getElementById('add-cat-modal').classList.add('hidden')"
+          class="flex-1 h-12 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all text-sm">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Sync year hidden field with month select option
+  const monthSel = document.querySelector('select[name=month]');
+  const yearHidden = document.getElementById('year-hidden');
+  const yearMap = {
+    {% for opt in month_options %}'{{ opt.month }}_{{ opt.year }}':'{{ opt.year }}',{% endfor %}
+  };
+  // On change pick the year from the option label
+  if (monthSel) {
+    monthSel.addEventListener('change', function() {
+      // We store all options as "month_year" in select value
+    });
+  }
+
+  ['set-monthly-modal','add-cat-modal'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('click', e => { if(e.target===el) el.classList.add('hidden'); });
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key==='Escape') ['set-monthly-modal','add-cat-modal'].forEach(id =>
+      document.getElementById(id).classList.add('hidden'));
+  });
+</script>
+{% endblock %}
