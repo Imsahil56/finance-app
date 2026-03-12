@@ -43,36 +43,51 @@
     <!-- Nav -->
     <nav class="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
 
-      <a href="{{ url_for('dashboard') }}"
+      <a href="{{ url_for('dashboard_bp.dashboard') }}"
         class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
           {% if request.endpoint == 'dashboard' %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
         <span class="material-symbols-outlined shrink-0">dashboard</span>
         <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Dashboard</span>
       </a>
 
-      <a href="{{ url_for('add_transaction') }}"
+      <a href="{{ url_for('transactions_bp.add_transaction') }}"
         class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
           {% if request.endpoint == 'add_transaction' %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
         <span class="material-symbols-outlined shrink-0">add_circle</span>
         <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Add Transaction</span>
       </a>
 
-      <a href="{{ url_for('transactions') }}"
+      <a href="{{ url_for('transactions_bp.transactions') }}"
         class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
           {% if request.endpoint == 'transactions' %}bg-primary/10 text-primary border-l-4 border-primary shadow-[0_0_20px_rgba(32,148,243,0.1)]{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
         <span class="material-symbols-outlined shrink-0">swap_horiz</span>
         <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Transactions</span>
       </a>
 
-      <a href="{{ url_for('budget') }}"
+      <a href="{{ url_for('obligations_bp.obligations') }}"
         class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
-          {% if request.endpoint in ('budget','budget_monthly','budget_yearly','edit_category_budget') %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
+          {% if request.endpoint and request.endpoint.startswith('obligations_bp.') %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
+        <span class="material-symbols-outlined shrink-0">repeat</span>
+        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Commitments</span>
+      </a>
+
+      <a href="{{ url_for('budget_bp.budget') }}"
+        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
+          {% if request.endpoint in ('budget_bp.budget','budget_bp.budget_monthly','defaults_bp.default_budgets','budget_bp.budget_yearly','budget_bp.edit_category_budget') %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
         <span class="material-symbols-outlined shrink-0">account_balance_wallet</span>
         <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Budget</span>
       </a>
 
-      <a href="#"
-        class="flex items-center gap-4 px-4 py-3 rounded-xl text-slate-400 hover:bg-primary/5 hover:text-primary transition-all">
+      <a href="{{ url_for('loans_bp.loans') }}"
+        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
+          {% if request.endpoint and request.endpoint.startswith('loans_bp.') %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
+        <span class="material-symbols-outlined shrink-0">account_balance</span>
+        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Loans & EMI</span>
+      </a>
+
+      <a href="{{ url_for('analysis.overview') }}"
+        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
+          {% if request.endpoint and request.endpoint.startswith('analysis.') %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
         <span class="material-symbols-outlined shrink-0">analytics</span>
         <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Analysis</span>
       </a>
@@ -127,10 +142,23 @@
 
       <div class="flex items-center gap-6">
         <!-- Notifications -->
-        <button class="relative p-2 text-slate-400 hover:text-primary transition-colors">
-          <span class="material-symbols-outlined text-2xl">notifications</span>
-          <span class="absolute top-2 right-2 size-2 bg-expense rounded-full border-2 border-background-dark"></span>
-        </button>
+        <div class="relative" id="notif-wrapper">
+          <button id="notif-btn" onclick="toggleNotifPanel()"
+            class="relative p-2 text-slate-400 hover:text-primary transition-colors">
+            <span class="material-symbols-outlined text-2xl">notifications</span>
+            <span id="notif-badge" class="hidden absolute top-1.5 right-1.5 min-w-[16px] h-4 bg-rose-500 rounded-full text-[9px] font-black text-white flex items-center justify-center px-1"></span>
+          </button>
+          <!-- Notifications panel -->
+          <div id="notif-panel" class="hidden absolute right-0 top-full mt-2 w-80 bg-[#0d141c] border border-slate-700 rounded-2xl shadow-2xl z-[100] overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+              <p class="font-bold text-sm text-white">Pending Payments</p>
+              <span id="notif-count" class="text-[10px] font-bold text-slate-500"></span>
+            </div>
+            <div id="notif-list" class="max-h-80 overflow-y-auto custom-scrollbar py-1">
+              <p class="text-slate-500 text-xs px-4 py-6 text-center">Loading…</p>
+            </div>
+          </div>
+        </div>
 
         <div class="h-8 w-px bg-border-muted/50"></div>
 
@@ -147,7 +175,7 @@
           <!-- Dropdown -->
           <div class="absolute right-0 top-full mt-2 w-44 bg-charcoal border border-border-muted rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
             <div class="py-1">
-              <a href="{{ url_for('logout') }}"
+              <a href="{{ url_for('auth_bp.logout') }}"
                 class="flex items-center gap-2 px-4 py-2.5 text-sm text-expense hover:bg-background-dark transition-colors rounded-xl">
                 <span class="material-symbols-outlined text-lg">logout</span>
                 Logout
@@ -243,6 +271,110 @@
     }
   });
 </script>
+
+{% if session.user_id %}
+<script>
+  // ── Notification Bell ──
+  let notifLoaded = false;
+
+  function toggleNotifPanel() {
+    const panel = document.getElementById('notif-panel');
+    panel.classList.toggle('hidden');
+    if (!notifLoaded) { loadNotifications(); notifLoaded = true; }
+  }
+
+  function loadNotifications() {
+    fetch('/obligations/api/pending')
+      .then(r => r.json())
+      .then(data => {
+        const badge = document.getElementById('notif-badge');
+        const list  = document.getElementById('notif-list');
+        const count = document.getElementById('notif-count');
+        const n = data.length;
+        if (n > 0) {
+          badge.textContent = n > 9 ? '9+' : n;
+          badge.classList.remove('hidden');
+          badge.classList.add('flex');
+        } else {
+          badge.classList.add('hidden');
+        }
+        if (count) count.textContent = n + ' pending';
+        if (n === 0) {
+          list.innerHTML = '<p class="text-slate-500 text-xs px-4 py-6 text-center">All caught up! No pending payments.</p>';
+          return;
+        }
+        list.innerHTML = data.map(item => `
+          <div class="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-800/50 transition-colors" id="pending-${item.pending_id}">
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-white truncate">${item.name}</p>
+              <p class="text-xs text-slate-500">Due ${item.due_date}</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-sm font-black text-white">&#x20B9;${Number(item.amount).toLocaleString('en-IN', {maximumFractionDigits:0})}</span>
+              <button onclick="approvePending(${item.pending_id})"
+                class="text-[10px] font-bold px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-all">
+                &#10003; Approve
+              </button>
+              <button onclick="skipPending(${item.pending_id})"
+                class="text-[10px] font-bold px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-400 rounded-lg hover:bg-slate-700 transition-all">
+                Skip
+              </button>
+            </div>
+          </div>`).join('');
+      })
+      .catch(err => console.error('Notif fetch error:', err));
+  }
+
+  function approvePending(id) {
+    fetch('/obligations/approve/' + id, {method: 'POST'})
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          document.getElementById('pending-' + id)?.remove();
+          notifLoaded = false;
+          loadNotifications();
+        }
+      })
+      .catch(err => console.error('Approve error:', err));
+  }
+
+  function skipPending(id) {
+    fetch('/obligations/skip/' + id, {method: 'POST'})
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          document.getElementById('pending-' + id)?.remove();
+          notifLoaded = false;
+          loadNotifications();
+        }
+      })
+      .catch(err => console.error('Skip error:', err));
+  }
+
+  // Auto-load badge count on every page load
+  document.addEventListener('DOMContentLoaded', () => {
+    fetch('/obligations/api/pending')
+      .then(r => r.json())
+      .then(data => {
+        const n = data.length;
+        const badge = document.getElementById('notif-badge');
+        if (badge && n > 0) {
+          badge.textContent = n > 9 ? '9+' : n;
+          badge.classList.remove('hidden');
+          badge.classList.add('flex');
+        }
+      })
+      .catch(() => {});
+  });
+
+  // Close panel on click outside
+  document.addEventListener('click', e => {
+    const wrapper = document.getElementById('notif-wrapper');
+    if (wrapper && !wrapper.contains(e.target))
+      document.getElementById('notif-panel')?.classList.add('hidden');
+  });
+</script>
+{% endif %}
 
 {% block extra_js %}{% endblock %}
 </body>

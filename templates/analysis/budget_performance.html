@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Budget Performance — FinanceOS{% endblock %}
+{% block page_title %}Budget Performance{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct" data-value="{{ sidebar_pct }}" class="hidden"></span>
+
+<!-- ── Page Header ── -->
+<div class="mb-8">
+  <h1 class="text-2xl font-bold text-white">Budget Performance</h1>
+  <p class="text-slate-500 text-sm mt-0.5">Real-time overview of spending discipline and allocation efficiency.</p>
+</div>
+
+<!-- ── KPI Cards ── -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+  <!-- Avg Utilization -->
+  <div class="p-6 rounded-xl border border-slate-800 flex flex-col gap-2" style="background:#0d141c">
+    <div class="flex items-center justify-between">
+      <p class="text-slate-500 text-sm font-medium">Avg Utilization</p>
+      <span class="material-symbols-outlined text-primary text-lg">trending_up</span>
+    </div>
+    <p class="text-3xl font-bold text-white">{{ perf.avg_utilization }}%</p>
+    {% if perf.avg_util_change is not none %}
+    <p class="text-xs font-semibold flex items-center gap-1
+        {% if perf.avg_util_change < 0 %}text-emerald-400{% else %}text-rose-400{% endif %}">
+      <span class="material-symbols-outlined text-xs">{{ 'arrow_downward' if perf.avg_util_change < 0
+          else 'arrow_upward' }}</span>
+          {{ perf.avg_util_change }}% from last month
+    </p>
+    {% else %}
+    <p class="text-xs text-slate-600">No prior data</p>
+    {% endif %}
+  </div>
+
+  <!-- Overshoot Frequency -->
+  <div class="p-6 rounded-xl border border-slate-800 flex flex-col gap-2" style="background:#0d141c">
+    <div class="flex items-center justify-between">
+      <p class="text-slate-500 text-sm font-medium">Overshoot Frequency</p>
+      <span class="material-symbols-outlined text-amber-500 text-lg">warning</span>
+    </div>
+    <p class="text-3xl font-bold text-white">{{ perf.overshoot_frequency }}%</p>
+    <p class="text-xs font-semibold text-slate-500">
+      {{ perf.overshoot_count }} month{{ 's' if perf.overshoot_count != 1 }} overshot in last 6
+    </p>
+  </div>
+
+  <!-- Discipline Score -->
+  <div class="p-6 rounded-xl border border-slate-800 flex flex-col gap-2" style="background:#0d141c">
+    <div class="flex items-center justify-between">
+      <p class="text-slate-500 text-sm font-medium">Discipline Score</p>
+      <span class="material-symbols-outlined text-emerald-500 text-lg">verified</span>
+    </div>
+    <p class="text-3xl font-bold text-white">{{ perf.discipline_score }}<span class="text-lg text-slate-500">/100</span>
+    </p>
+    <p class="text-xs font-semibold
+      {% if perf.discipline_score >= 80 %}text-emerald-400
+      {% elif perf.discipline_score >= 60 %}text-primary
+      {% else %}text-rose-400{% endif %}">
+      {% if perf.discipline_score >= 80 %}Excellent{% elif perf.discipline_score >= 60 %}Good{% else %}Needs Work{%
+      endif %}
+    </p>
+  </div>
+</div>
+
+<!-- ── Monthly Discipline Trend Chart ── -->
+<div class="rounded-xl border border-slate-800 p-6 mb-8" style="background:#0d141c">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-xl font-bold text-white">Monthly Discipline Trend</h2>
+    <div class="flex gap-2">
+      <button class="px-3 py-1 text-xs font-semibold rounded bg-primary/10 text-primary border border-primary/20">6
+        Months</button>
+    </div>
+  </div>
+
+  {% if perf.monthly_trend %}
+  <!-- SVG Area Chart -->
+  {% set utils = perf.monthly_trend | map(attribute='utilization') | list %}
+  {% set max_u = [utils | max, 1] | max %}
+
+  <div class="relative" style="height:200px;">
+    <svg id="trend-svg" class="w-full h-full" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="trendAreaGrad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#2094f3" stop-opacity="0.3" />
+          <stop offset="100%" stop-color="#2094f3" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <!-- Area + line built by JS -->
+      <path id="trend-area" fill="url(#trendAreaGrad)" />
+      <path id="trend-line" fill="none" stroke="#2094f3" stroke-width="2.5" stroke-linecap="round"
+        stroke-linejoin="round" />
+    </svg>
+    <!-- JSON data for JS -->
+    <script id="trend-data" type="application/json">
+        {"utils":[{% for u in utils %}{{ u }}{{ ',' if not loop.last }}{% endfor %}],"max":{{ max_u }}}
+      </script>
+  </div>
+
+  <!-- X-axis labels -->
+  <div class="flex justify-between mt-2 px-1">
+    {% for m in perf.monthly_trend %}
+    <span class="text-[10px] font-bold text-slate-500 uppercase">{{ m.label }}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="flex flex-col items-center justify-center h-48 text-slate-600">
+    <span class="material-symbols-outlined text-4xl mb-2 opacity-30">show_chart</span>
+    <p class="text-sm">No budget data available yet</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Category Breakdown ── -->
+<div class="rounded-xl border border-slate-800 overflow-hidden" style="background:#0d141c">
+  <div class="px-6 py-4 border-b border-slate-800">
+    <h2 class="text-xl font-bold text-white">Category Breakdown</h2>
+  </div>
+  {% if perf.category_breakdown %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-left border-collapse">
+      <thead>
+        <tr style="background:#182834">
+          <th class="px-6 py-3 text-slate-500 text-xs font-bold uppercase tracking-wider">Category</th>
+          <th class="px-6 py-3 text-slate-500 text-xs font-bold uppercase tracking-wider">Allocated</th>
+          <th class="px-6 py-3 text-slate-500 text-xs font-bold uppercase tracking-wider">Spent</th>
+          <th class="px-6 py-3 text-slate-500 text-xs font-bold uppercase tracking-wider">Utilization %</th>
+          <th class="px-6 py-3 text-slate-500 text-xs font-bold uppercase tracking-wider">Status</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800">
+        {% for cat in perf.category_breakdown %}
+        <tr class="hover:bg-slate-800/20 transition-colors">
+          <td class="px-6 py-4 font-medium text-white">{{ cat.category }}</td>
+          <td class="px-6 py-4 text-slate-400">₹{{ "{:,.0f}".format(cat.allocated) }}</td>
+          <td class="px-6 py-4 text-slate-400">₹{{ "{:,.0f}".format(cat.spent) }}</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <div class="flex-1 h-2 rounded-full overflow-hidden" style="background:#182834">
+                <div class="h-full rounded-full transition-all"
+                  style="width:{{ [cat.utilization, 100]|min }}%;
+                                background:{% if cat.status == 'overshot' %}#ef4444{% elif cat.status == 'warning' %}#f59e0b{% else %}#2094f3{% endif %}">
+                </div>
+              </div>
+              <span class="text-sm font-semibold text-white w-10">{{ cat.utilization }}%</span>
+            </div>
+          </td>
+          <td class="px-6 py-4">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                  {% if cat.status == 'overshot' %}bg-rose-500/10 text-rose-400
+                  {% elif cat.status == 'warning' %}bg-amber-500/10 text-amber-400
+                  {% else %}bg-emerald-500/10 text-emerald-400{% endif %}">
+              {% if cat.status == 'overshot' %}Overshot{% elif cat.status == 'warning' %}Warning{% else %}On Track{%
+              endif %}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="px-6 py-3 flex justify-end border-t border-slate-800" style="background:#182834">
+    <a href="{{ url_for('budget_bp.budget') }}"
+      class="text-primary text-xs font-bold flex items-center gap-1 hover:underline">
+      View Budget Settings <span class="material-symbols-outlined text-sm">chevron_right</span>
+    </a>
+  </div>
+  {% else %}
+  <div class="flex flex-col items-center justify-center py-16 text-slate-600">
+    <span class="material-symbols-outlined text-4xl mb-2 opacity-30">account_balance_wallet</span>
+    <p class="text-sm font-medium">No category budgets set</p>
+    <a href="{{ url_for('budget_bp.budget_monthly') }}" class="mt-2 text-xs text-primary hover:underline">Set category
+      budgets →</a>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Build smooth area chart from utilization data
+  (function () {
+    const el = document.getElementById('trend-data');
+    if (!el) return;
+    const { utils, max } = JSON.parse(el.textContent);
+    if (!utils || utils.length === 0) return;
+
+    const W = 100, H = 100, PX = 2, PY = 4;
+    const n = utils.length;
+    const toX = i => n === 1 ? W / 2 : PX + (i / (n - 1)) * (W - PX * 2);
+    const toY = v => PY + (1 - v / (max * 1.1)) * (H - PY * 2);
+
+    let line = `M ${toX(0).toFixed(1)} ${toY(utils[0]).toFixed(1)}`;
+    for (let i = 1; i < n; i++) {
+      const x0 = toX(i - 1), y0 = toY(utils[i - 1]);
+      const x1 = toX(i), y1 = toY(utils[i]);
+      const cx = (x0 + x1) / 2;
+      line += ` C ${cx.toFixed(1)} ${y0.toFixed(1)} ${cx.toFixed(1)} ${y1.toFixed(1)} ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+    }
+    const area = line + ` L ${toX(n - 1).toFixed(1)} ${H} L ${toX(0).toFixed(1)} ${H} Z`;
+
+    const svg = document.getElementById('trend-svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    document.getElementById('trend-line').setAttribute('d', line);
+    document.getElementById('trend-area').setAttribute('d', area);
+  })();
+</script>
+{% endblock %}

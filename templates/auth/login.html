@@ -1,15 +1,8 @@
-<!DOCTYPE html>
-<html class="dark" lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-  <title>Login — FinanceOS</title>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-  <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
-  <style>body { font-family: 'Public Sans', sans-serif; }</style>
-</head>
-<body class="bg-content-bg text-slate-100 min-h-screen flex items-center justify-center p-4">
+{% extends "base.html" %}
+{% block title %}Login — FinanceOS{% endblock %}
+
+{% block auth_content %}
+<div class="min-h-screen bg-content-bg flex items-center justify-center p-4">
   <div class="w-full max-w-md">
 
     <!-- Brand -->
@@ -33,8 +26,13 @@
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           {% for cat, msg in messages %}
-            <div class="flex items-center gap-2 px-4 py-3 rounded-lg mb-4 text-sm {% if cat == 'error' %}bg-red-500/10 border border-red-500/30 text-red-400{% elif cat == 'success' %}bg-green-500/10 border border-green-500/30 text-green-400{% else %}bg-blue-500/10 border border-blue-500/30 text-blue-400{% endif %}">
-              <span class="material-symbols-outlined text-base">{% if cat == 'error' %}error{% elif cat == 'success' %}check_circle{% else %}info{% endif %}</span>
+            <div class="flex items-center gap-2 px-4 py-3 rounded-lg mb-4 text-sm
+              {% if cat == 'error' %}bg-red-500/10 border border-red-500/30 text-red-400
+              {% elif cat == 'success' %}bg-green-500/10 border border-green-500/30 text-green-400
+              {% else %}bg-blue-500/10 border border-blue-500/30 text-blue-400{% endif %}">
+              <span class="material-symbols-outlined text-base">
+                {% if cat == 'error' %}error{% elif cat == 'success' %}check_circle{% else %}info{% endif %}
+              </span>
               {{ msg }}
             </div>
           {% endfor %}
@@ -42,6 +40,7 @@
       {% endwith %}
 
       <form method="POST" class="space-y-5">
+        <!-- Username -->
         <div>
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Username</label>
           <div class="relative">
@@ -51,19 +50,22 @@
           </div>
         </div>
 
+        <!-- Password -->
         <div>
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Password</label>
           <div class="relative">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xl pointer-events-none">lock</span>
             <input type="password" name="password" id="password-field" required placeholder="••••••••"
               class="w-full bg-sidebar-bg border border-slate-700 rounded-lg pl-10 pr-10 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"/>
-            <button type="button" onclick="togglePassword('password-field','eye-icon')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+            <button type="button" onclick="togglePwd('password-field','eye-icon')"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
               <span class="material-symbols-outlined text-xl" id="eye-icon">visibility</span>
             </button>
           </div>
         </div>
 
-        <button type="submit" class="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 mt-2">
+        <button type="submit"
+          class="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
           <span class="material-symbols-outlined text-xl">login</span>
           Sign In
         </button>
@@ -77,20 +79,21 @@
 
       <p class="text-center text-sm text-slate-400">
         Don't have an account?
-        <a href="{{ url_for('register') }}" class="text-primary hover:text-blue-400 font-semibold transition-colors ml-1">Create one →</a>
+        <a href="{{ url_for('auth_bp.register') }}" class="text-primary hover:text-blue-400 font-semibold transition-colors ml-1">Create one →</a>
       </p>
     </div>
 
     <p class="text-center text-slate-600 text-xs mt-6">© 2026 FinanceOS · Personal Finance Analytics</p>
   </div>
+</div>
+{% endblock %}
 
-  <script>
-    function togglePassword(fieldId, iconId) {
-      const f = document.getElementById(fieldId);
-      const i = document.getElementById(iconId);
-      f.type = f.type === 'password' ? 'text' : 'password';
-      i.textContent = f.type === 'password' ? 'visibility' : 'visibility_off';
-    }
-  </script>
-</body>
-</html>
+{% block extra_js %}
+<script>
+  function togglePwd(fId, iId) {
+    const f = document.getElementById(fId), i = document.getElementById(iId);
+    f.type = f.type === 'password' ? 'text' : 'password';
+    i.textContent = f.type === 'password' ? 'visibility' : 'visibility_off';
+  }
+</script>
+{% endblock %}

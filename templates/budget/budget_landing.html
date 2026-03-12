@@ -17,7 +17,7 @@
 
   <!-- Monthly Budget Card -->
   {% if monthly_budget %}
-  <a href="{{ url_for('budget_monthly') }}"
+  <a href="{{ url_for('budget_bp.budget_monthly') }}"
      class="group bg-[#0f172a] rounded-2xl border border-slate-800 p-7 hover:border-primary/40 hover:shadow-[0_0_24px_rgba(32,148,243,0.08)] transition-all cursor-pointer block">
   {% else %}
   <div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-7">
@@ -50,7 +50,7 @@
       </div>
     {% else %}
       <p class="text-slate-600 text-sm mb-6">No budget set for this month yet.</p>
-      <a href="{{ url_for('budget_monthly') }}"
+      <a href="{{ url_for('budget_bp.budget_monthly') }}"
          class="inline-flex items-center gap-2 bg-primary text-white text-xs font-bold px-5 py-2.5 rounded-xl hover:brightness-110 transition-all primary-glow">
         <span class="material-symbols-outlined text-sm">add</span> Set Budget
       </a>
@@ -59,7 +59,7 @@
 
   <!-- Yearly Budget Card -->
   {% if yearly_budget %}
-  <a href="{{ url_for('budget_yearly') }}"
+  <a href="{{ url_for('budget_bp.budget_yearly') }}"
      class="group bg-[#0f172a] rounded-2xl border border-slate-800 p-7 hover:border-primary/40 hover:shadow-[0_0_24px_rgba(32,148,243,0.08)] transition-all cursor-pointer block">
   {% else %}
   <div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-7">
@@ -92,7 +92,7 @@
       </div>
     {% else %}
       <p class="text-slate-600 text-sm mb-6">No yearly goal set for {{ year }}.</p>
-      <a href="{{ url_for('budget_yearly') }}"
+      <a href="{{ url_for('budget_bp.budget_yearly') }}"
          class="inline-flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
         <span class="material-symbols-outlined text-sm">add</span> Set Goal
       </a>

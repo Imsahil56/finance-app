@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% block title %}Trends & Comparison — FinanceOS{% endblock %}
+{% block page_title %}Trends{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}" class="hidden"></span>
+
+<!-- ── Header ── -->
+<div class="mb-8">
+  <h1 class="text-2xl font-bold text-white">Trends &amp; Comparison</h1>
+  <p class="text-slate-500 text-sm mt-0.5">Analyse your financial performance over time with visual comparisons.</p>
+</div>
+
+<!-- ── Controls ── -->
+<div class="flex flex-col md:flex-row gap-4 items-center justify-between p-4 rounded-xl border border-slate-800 mb-8" style="background:#0d141c">
+  <!-- Granularity tabs -->
+  <div class="flex rounded-lg p-1 gap-1" style="background:#182834">
+    {% for g, g_label in [('monthly','Monthly'),('quarterly','Quarterly'),('yearly','Yearly')] %}
+      <a href="{{ url_for('analysis.trends', granularity=g, compare='1' if compare else '0') }}"
+         class="px-5 py-2 rounded text-sm font-semibold transition-all
+           {% if granularity == g %}bg-white/10 text-white shadow{% else %}text-slate-500 hover:text-slate-300{% endif %}">
+        {{ g_label }}
+      </a>
+    {% endfor %}
+  </div>
+  <!-- Comparison mode -->
+  <div class="flex items-center gap-3">
+    <div class="flex flex-col text-right">
+      <p class="text-sm font-bold text-white leading-none">Comparison Mode</p>
+      <p class="text-xs text-slate-500">Prev. period overlay</p>
+    </div>
+    <a href="{{ url_for('analysis.trends', granularity=granularity, compare='0' if compare else '1') }}"
+       class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+         {% if compare %}bg-primary{% else %}bg-slate-700{% endif %}">
+      <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+        {% if compare %}translate-x-6{% else %}translate-x-1{% endif %}"></span>
+    </a>
+  </div>
+</div>
+
+{% set monthly = trends.monthly_data %}
+{% set total_savings = trends.total_savings %}
+
+<!-- ── Chart 1: Income vs Expense ── -->
+<div class="rounded-xl border border-slate-800 p-6 mb-8" style="background:#0d141c">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h3 class="text-lg font-bold text-white">Income vs Expense</h3>
+      <p class="text-sm text-slate-500">Cash flow analysis for the current year</p>
+    </div>
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <div class="size-3 rounded-sm bg-primary"></div>
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Income</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="size-3 rounded-sm bg-slate-700"></div>
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Expense</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-4 border-t-2 border-dashed border-primary/60"></div>
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Net Flow</span>
+      </div>
+    </div>
+  </div>
+
+  {% if monthly %}
+    {% set max_val = [monthly|map(attribute='income')|max, monthly|map(attribute='expense')|max, 1]|max %}
+    <div class="relative" style="height:280px">
+      <!-- Grid lines -->
+      <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+        {% for _ in range(5) %}
+          <div class="border-t border-slate-800 w-full"></div>
+        {% endfor %}
+      </div>
+
+      <!-- Bars -->
+      <div class="absolute inset-0 flex items-end px-2 gap-1">
+        {% for m in monthly %}
+          {% set inc_h = (m['income'] / max_val * 90) | round | int %}
+          {% set exp_h = (m['expense'] / max_val * 90) | round | int %}
+          <div class="flex-1 flex flex-col items-center h-full group relative">
+            <div class="flex items-end gap-0.5 w-full h-full">
+              <!-- Income bar -->
+              <div class="flex-1 rounded-t transition-all duration-700 bg-primary/80"
+                   style="height:{{ [inc_h,2]|max }}%"
+                   title="Income: ₹{{ '{:,.0f}'.format(m['income']) }}"></div>
+              <!-- Expense bar -->
+              <div class="flex-1 rounded-t transition-all duration-700 bg-slate-600"
+                   style="height:{{ [exp_h,2]|max }}%"
+                   title="Expense: ₹{{ '{:,.0f}'.format(m['expense']) }}"></div>
+            </div>
+            <!-- Hover tooltip -->
+            <div class="absolute -top-16 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-700 text-white text-[10px] py-2 px-3 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap pointer-events-none">
+              <div class="font-bold text-slate-400 mb-1">{{ m['label'] }}</div>
+              <div class="text-emerald-400 font-bold">↑ ₹{{ "{:,.0f}".format(m['income']) }}</div>
+              <div class="text-rose-400 font-bold">↓ ₹{{ "{:,.0f}".format(m['expense']) }}</div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- Net flow SVG overlay -->
+      {% if monthly | length >= 2 %}
+        {% set max_net = [monthly|map(attribute='net_cumulative')|max, 1]|max %}
+        {% set min_net = monthly|map(attribute='net_cumulative')|min %}
+        <svg id="net-flow-svg" class="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+          <defs>
+            <marker id="dotMarker" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+              <circle cx="3" cy="3" r="2.5" fill="#2094f3"/>
+            </marker>
+          </defs>
+          <!-- Build net flow path via JS -->
+          <path id="net-flow-path" fill="none" stroke="#2094f3" stroke-width="2" stroke-dasharray="6,4" opacity="0.7"/>
+          <script id="net-flow-data" type="application/json">
+            {"nets":[{% for m in monthly %}{{ m['net_cumulative'] }}{{ ',' if not loop.last }}{% endfor %}],"min":{{ min_net }},"max":{{ max_net }}}
+          </script>
+        </svg>
+      {% endif %}
+    </div>
+
+    <!-- X-axis -->
+    <div class="flex justify-between mt-3 px-2">
+      {% for m in monthly %}
+        <div class="flex-1 text-center text-[10px] font-bold uppercase tracking-wider
+          {% if loop.last %}text-primary{% else %}text-slate-600{% endif %}">
+          {{ m['label'].split(' ')[0] }}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="flex flex-col items-center justify-center text-slate-600" style="height:280px">
+      <span class="material-symbols-outlined text-4xl mb-2 opacity-30">bar_chart</span>
+      <p class="text-sm">No transaction data yet</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- ── Chart 2: Savings Trend ── -->
+<div class="rounded-xl border border-slate-800 p-6" style="background:#0d141c">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+    <div>
+      <h3 class="text-lg font-bold text-white">Savings Trend</h3>
+      <p class="text-sm text-slate-500">Monthly cumulative savings growth</p>
+    </div>
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-3">
+        <span class="text-sm font-medium text-slate-400">Moving Average</span>
+        <div class="relative w-10 h-5 rounded-full cursor-pointer"
+             style="background:#2094f355" id="ma-toggle">
+          <span class="absolute right-1 top-1 size-3 bg-white rounded-full" id="ma-dot"></span>
+        </div>
+      </div>
+      <div class="w-px h-8 bg-slate-800"></div>
+      <div>
+        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Total Savings</p>
+        <p class="text-lg font-bold
+          {% if total_savings >= 0 %}text-primary{% else %}text-rose-400{% endif %}">
+          {% if total_savings >= 0 %}+{% endif %}₹{{ "{:,.0f}".format(total_savings) }}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {% if monthly %}
+    <div class="relative" style="height:280px;">
+      <svg id="savings-svg" class="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="savingsGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#2094f3" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#2094f3" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path id="savings-area" fill="url(#savingsGrad)"/>
+        <path id="savings-line" fill="none" stroke="#2094f3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path id="savings-ma"   fill="none" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="5,4" opacity="0.7"/>
+      </svg>
+
+      <!-- Inject data -->
+      <script id="savings-data" type="application/json">
+        {
+          "nets":[{% for m in monthly %}{{ m['net_cumulative'] }}{{ ',' if not loop.last }}{% endfor %}],
+          "mavg":[{% for m in monthly %}{{ m['moving_avg'] }}{{ ',' if not loop.last }}{% endfor %}],
+          "labels":[{% for m in monthly %}"{{ m['label'] }}"{{ ',' if not loop.last }}{% endfor %}]
+        }
+      </script>
+
+      <!-- Last point tooltip -->
+      {% if monthly %}
+        {% set last = monthly[-1] %}
+        {% if last['net_cumulative'] != 0 %}
+          <div id="last-tooltip" class="absolute top-4 right-4 bg-slate-800 border border-slate-700 text-white p-2 rounded-lg shadow-xl text-xs hidden">
+            <p class="text-slate-400 font-bold uppercase text-[9px]">{{ last['label'] }} Projection</p>
+            <p class="text-primary font-black text-sm">+₹{{ "{:,.0f}".format(last['net_cumulative']) }}</p>
+          </div>
+        {% endif %}
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="flex flex-col items-center justify-center text-slate-600" style="height:280px">
+      <span class="material-symbols-outlined text-4xl mb-2 opacity-30">show_chart</span>
+      <p class="text-sm">No savings data yet</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- ── Footer ── -->
+<footer class="mt-12 border-t border-slate-800 py-6 flex flex-col md:flex-row items-center justify-between text-slate-600 text-xs">
+  <p>All data refreshed from your transaction records.</p>
+  <div class="flex gap-4 mt-3 md:mt-0">
+    <a href="{{ url_for('transactions_bp.transactions') }}" class="hover:text-primary transition-colors">Transactions</a>
+    <a href="{{ url_for('analysis.spending') }}" class="hover:text-primary transition-colors">Spending Analysis</a>
+  </div>
+</footer>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Net flow dashed overlay ──
+(function() {
+  const el = document.getElementById('net-flow-data');
+  if (!el) return;
+  const { nets, min, max } = JSON.parse(el.textContent);
+  if (!nets || nets.length < 2) return;
+
+  const W = 100, H = 100, PX = 2, PY = 8;
+  const rng = (max - min) || 1;
+  const n = nets.length;
+  const toX = i => PX + (i / (n-1)) * (W - PX*2);
+  const toY = v => PY + (1 - (v - min) / rng) * (H - PY*2);
+
+  let d = `M ${toX(0).toFixed(1)} ${toY(nets[0]).toFixed(1)}`;
+  for (let i = 1; i < n; i++) {
+    const cx = (toX(i-1) + toX(i)) / 2;
+    d += ` C ${cx.toFixed(1)} ${toY(nets[i-1]).toFixed(1)} ${cx.toFixed(1)} ${toY(nets[i]).toFixed(1)} ${toX(i).toFixed(1)} ${toY(nets[i]).toFixed(1)}`;
+  }
+  const svg = document.getElementById('net-flow-svg');
+  if (svg) svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const path = document.getElementById('net-flow-path');
+  if (path) path.setAttribute('d', d);
+})();
+
+// ── Savings trend ──
+(function() {
+  const el = document.getElementById('savings-data');
+  if (!el) return;
+  const { nets, mavg, labels } = JSON.parse(el.textContent);
+  if (!nets || nets.length === 0) return;
+
+  const W = 100, H = 100, PX = 1, PY = 6;
+  const allVals = [...nets, ...mavg];
+  const min = Math.min(...allVals);
+  const max = Math.max(...allVals) || 1;
+  const rng = (max - min) || 1;
+  const n = nets.length;
+
+  const toX = i => n === 1 ? W/2 : PX + (i/(n-1)) * (W - PX*2);
+  const toY = v => PY + (1 - (v - min) / rng) * (H - PY*2);
+
+  // Main line
+  let line = `M ${toX(0).toFixed(2)} ${toY(nets[0]).toFixed(2)}`;
+  for (let i = 1; i < n; i++) {
+    const cx = (toX(i-1) + toX(i)) / 2;
+    line += ` C ${cx.toFixed(2)} ${toY(nets[i-1]).toFixed(2)} ${cx.toFixed(2)} ${toY(nets[i]).toFixed(2)} ${toX(i).toFixed(2)} ${toY(nets[i]).toFixed(2)}`;
+  }
+  const area = line + ` L ${toX(n-1).toFixed(2)} ${H} L ${toX(0).toFixed(2)} ${H} Z`;
+
+  // Moving average line
+  let maLine = `M ${toX(0).toFixed(2)} ${toY(mavg[0]).toFixed(2)}`;
+  for (let i = 1; i < n; i++) {
+    maLine += ` L ${toX(i).toFixed(2)} ${toY(mavg[i]).toFixed(2)}`;
+  }
+
+  const svg = document.getElementById('savings-svg');
+  if (svg) svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const lineEl = document.getElementById('savings-line');
+  const areaEl = document.getElementById('savings-area');
+  const maEl   = document.getElementById('savings-ma');
+  if (lineEl) lineEl.setAttribute('d', line);
+  if (areaEl) areaEl.setAttribute('d', area);
+  if (maEl)   maEl.setAttribute('d', maLine);
+
+  // Show last tooltip
+  const tip = document.getElementById('last-tooltip');
+  if (tip) tip.classList.remove('hidden');
+
+  // MA toggle
+  let maVisible = true;
+  const toggle = document.getElementById('ma-toggle');
+  const dot    = document.getElementById('ma-dot');
+  if (toggle && maEl) {
+    toggle.addEventListener('click', () => {
+      maVisible = !maVisible;
+      maEl.style.opacity = maVisible ? '0.7' : '0';
+      toggle.style.background = maVisible ? '#2094f355' : '#33415555';
+      dot.style.transform = maVisible ? 'translateX(20px)' : '';
+    });
+  }
+})();
+</script>
+{% endblock %}

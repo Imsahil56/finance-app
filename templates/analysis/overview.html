@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}Analysis Overview — FinanceOS{% endblock %}
+{% block page_title %}Analysis{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct" data-value="{{ sidebar_pct }}" class="hidden"></span>
+
+<!-- ── Period Filters ── -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 p-4 rounded-xl border border-slate-800" style="background:#0d141c">
+  <div class="flex items-center gap-1 p-1 rounded-lg" style="background:#182834">
+    {% for p, label in [('last_30','Last 30 Days'),('last_month','Last Month'),('last_quarter','Last Quarter')] %}
+      <a href="{{ url_for('analysis.overview', period=p, compare='1' if compare else '0') }}"
+         class="px-4 py-2 rounded-md text-sm font-semibold transition-all whitespace-nowrap
+           {% if period == p %}bg-primary text-white shadow{% else %}text-slate-400 hover:text-slate-200{% endif %}">
+        {{ label }}
+      </a>
+    {% endfor %}
+    <a href="{{ url_for('analysis.overview', period='custom', compare='1' if compare else '0') }}"
+       class="px-4 py-2 rounded-md text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 whitespace-nowrap">Custom</a>
+  </div>
+  <div class="flex items-center gap-4">
+    <div class="flex items-center gap-3 pr-4 border-r border-slate-700">
+      <span class="text-sm font-medium text-slate-400">Comparison</span>
+      <a href="{{ url_for('analysis.overview', period=period, compare='0' if compare else '1') }}"
+         class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+           {% if compare %}bg-primary{% else %}bg-slate-700{% endif %}">
+        <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+          {% if compare %}translate-x-6{% else %}translate-x-1{% endif %}"></span>
+      </a>
+      <span class="text-xs font-bold {% if compare %}text-primary{% else %}text-slate-500{% endif %}">
+        {{ 'ON' if compare else 'OFF' }}
+      </span>
+    </div>
+    <a href="{{ url_for('analysis.overview', period=period, compare='1' if compare else '0') }}"
+       class="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-5 py-2 rounded-lg font-semibold text-sm transition-all">
+      <span class="material-symbols-outlined text-base">filter_list</span>
+      Apply Filters
+    </a>
+  </div>
+</div>
+
+<!-- ── 2×2 Card Grid ── -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+  <!-- Card 1: Spending Deep Dive -->
+  <a href="{{ url_for('analysis.spending') }}"
+     class="group relative overflow-hidden p-6 rounded-2xl border border-slate-800 hover:border-primary/40 transition-all cursor-pointer"
+     style="background:#0d141c">
+    <div class="flex justify-between items-start mb-5">
+      <div>
+        <h3 class="text-base font-bold text-white mb-1">Spending Deep Dive</h3>
+        <div class="flex items-center gap-2">
+          <span class="text-2xl font-bold text-white">₹{{ "{:,.1f}".format(overview.spending.total_expense / 1000) }}k</span>
+          {% if overview.spending.comparison and overview.spending.comparison.change_pct is not none %}
+            {% set chg = overview.spending.comparison.change_pct %}
+            <span class="flex items-center text-xs font-bold px-2 py-0.5 rounded
+              {% if chg > 0 %}text-rose-400 bg-rose-500/10{% else %}text-emerald-400 bg-emerald-500/10{% endif %}">
+              <span class="material-symbols-outlined text-xs">{{ 'trending_up' if chg > 0 else 'trending_down' }}</span>
+              {{ '+' if chg > 0 else '' }}{{ chg }}%
+            </span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="p-2 bg-primary/10 rounded-lg text-primary">
+        <span class="material-symbols-outlined">payments</span>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between gap-4">
+      <!-- Mini donut -->
+      <div class="relative size-24 shrink-0">
+        <svg class="size-full" viewBox="0 0 36 36">
+          <path fill="none" stroke="#1e293b" stroke-width="4"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+          <path fill="none" stroke="#2094f3" stroke-width="4" stroke-linecap="round"
+            stroke-dasharray="{{ overview.spending.essential_pct }} 100"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+        </svg>
+        <div class="absolute inset-0 flex items-center justify-center">
+          <span class="text-xs font-bold text-white">{{ overview.spending.essential_pct }}%</span>
+        </div>
+      </div>
+      <!-- Breakdown bars -->
+      <div class="flex-1 space-y-3">
+        <div>
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="text-slate-500">Essential</span>
+            <span class="font-bold text-white">₹{{ "{:,.1f}".format(overview.spending.essential / 1000) }}k</span>
+          </div>
+          <div class="w-full h-1 rounded-full" style="background:#182834">
+            <div class="bg-primary h-1 rounded-full" style="width:{{ overview.spending.essential_pct }}%"></div>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="text-slate-500">Lifestyle</span>
+            <span class="font-bold text-white">₹{{ "{:,.1f}".format(overview.spending.lifestyle / 1000) }}k</span>
+          </div>
+          <div class="w-full h-1 rounded-full" style="background:#182834">
+            {% set lifestyle_pct = 100 - overview.spending.essential_pct %}
+            <div class="bg-slate-500 h-1 rounded-full" style="width:{{ lifestyle_pct }}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </a>
+
+  <!-- Card 2: Budget Performance -->
+  <a href="{{ url_for('analysis.budget_performance') }}"
+     class="group relative overflow-hidden p-6 rounded-2xl border border-slate-800 hover:border-primary/40 transition-all cursor-pointer"
+     style="background:#0d141c">
+    <div class="flex justify-between items-start mb-5">
+      <div>
+        <h3 class="text-base font-bold text-white mb-1">Budget Performance</h3>
+        <div class="flex items-center gap-2">
+          <span class="text-2xl font-bold text-white">{{ overview.budget_util }}% <span class="text-sm font-medium text-slate-500">Utilized</span></span>
+          {% if overview.overshoot_cats > 0 %}
+            <span class="flex items-center text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded gap-1">
+              <span class="material-symbols-outlined text-xs">warning</span>
+              {{ overview.overshoot_cats }} Overshoot{{ 's' if overview.overshoot_cats > 1 }}
+            </span>
+          {% else %}
+            <span class="flex items-center text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded gap-1">
+              <span class="material-symbols-outlined text-xs">check_circle</span>
+              On Track
+            </span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="p-2 bg-primary/10 rounded-lg text-primary">
+        <span class="material-symbols-outlined">analytics</span>
+      </div>
+    </div>
+    <!-- Mini bar chart from monthly trend -->
+    <div class="flex items-end justify-between h-20 gap-1.5 pt-2">
+      {% for m in budget_perf.monthly_trend %}
+        {% set bar_h = [m.utilization, 5]|max %}
+        <div class="flex-1 rounded-t-sm transition-all"
+             style="height:{{ [bar_h, 100]|min }}%;
+                    background:{% if m.overshot %}#ef4444{% elif m.utilization > 80 %}#f59e0b{% else %}#2094f3{% endif %}">
+        </div>
+      {% else %}
+        {% for _ in range(6) %}
+          <div class="flex-1 rounded-t-sm h-8" style="background:#182834"></div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </a>
+
+  <!-- Card 3: Trends & Comparison -->
+  <a href="{{ url_for('analysis.trends') }}"
+     class="group relative overflow-hidden p-6 rounded-2xl border border-slate-800 hover:border-primary/40 transition-all cursor-pointer"
+     style="background:#0d141c">
+    <div class="flex justify-between items-start mb-5">
+      <div>
+        <h3 class="text-base font-bold text-white mb-1">Trends &amp; Comparison</h3>
+        <div class="flex items-center gap-2">
+          {% if overview.savings_growth is not none %}
+            <span class="text-2xl font-bold {{ 'text-emerald-400' if overview.savings_growth >= 0 else 'text-rose-400' }}">
+              {{ '+' if overview.savings_growth >= 0 else '' }}{{ overview.savings_growth }}%
+            </span>
+            <span class="text-sm font-medium text-slate-500">Savings Growth</span>
+          {% else %}
+            <span class="text-2xl font-bold text-slate-500">—</span>
+            <span class="text-sm text-slate-500">No prior data</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="p-2 bg-primary/10 rounded-lg text-primary">
+        <span class="material-symbols-outlined">show_chart</span>
+      </div>
+    </div>
+    <!-- Mini SVG line from week_data -->
+    <div class="h-20 relative mt-2">
+      {% set week = overview.week_data %}
+      {% if week %}
+        {% set max_v = [week|map(attribute='expense')|max, 1]|max %}
+        <svg class="w-full h-full" viewBox="0 0 100 30" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="trendGrad" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="#2094f3" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#2094f3" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          {% set points = [] %}
+          {% for d in week %}
+            {% set x = (loop.index0 / (week|length - 1) * 100) | round(1) %}
+            {% set y = (30 - (d.expense / max_v * 25)) | round(1) %}
+            {% if points.append(x ~ ',' ~ y) %}{% endif %}
+          {% endfor %}
+          <polyline fill="none" stroke="#2094f3" stroke-width="2" stroke-linecap="round"
+            points="{{ points | join(' ') }}"/>
+          <polygon fill="url(#trendGrad)"
+            points="{{ points | join(' ') }} 100,30 0,30"/>
+        </svg>
+      {% endif %}
+      <div class="mt-1 flex items-center justify-between text-[10px] text-slate-500 font-medium">
+        <span>Mon</span>
+        <span class="flex items-center gap-1 text-emerald-400">
+          <span class="material-symbols-outlined text-xs">arrow_upward</span> Trending Up
+        </span>
+        <span>Sun</span>
+      </div>
+    </div>
+  </a>
+
+  <!-- Card 4: Financial Health -->
+  <a href="{{ url_for('analysis.health_score') }}"
+     class="group relative overflow-hidden p-6 rounded-2xl border border-slate-800 hover:border-primary/40 transition-all cursor-pointer"
+     style="background:#0d141c">
+    <div class="flex justify-between items-start mb-5">
+      <div>
+        <h3 class="text-base font-bold text-white mb-1">Financial Health</h3>
+        <div class="flex items-center gap-2">
+          <span class="text-2xl font-bold text-white">{{ health.score }}/100</span>
+          <span class="text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider
+            {% if health.score >= 80 %}text-emerald-400 bg-emerald-500/10
+            {% elif health.score >= 60 %}text-primary bg-primary/10
+            {% elif health.score >= 40 %}text-amber-400 bg-amber-500/10
+            {% else %}text-rose-400 bg-rose-500/10{% endif %}">
+            {{ health.status }}
+          </span>
+        </div>
+      </div>
+      <div class="p-2 bg-primary/10 rounded-lg text-primary">
+        <span class="material-symbols-outlined">health_and_safety</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-6">
+      <!-- Mini score circle -->
+      <div class="relative size-24 shrink-0">
+        <svg class="size-full -rotate-90" viewBox="0 0 36 36">
+          <circle cx="18" cy="18" r="16" fill="none" stroke="#1e293b" stroke-width="3"/>
+          <circle cx="18" cy="18" r="16" fill="none"
+            stroke="{{ '#10b981' if health.score >= 80 else ('#2094f3' if health.score >= 60 else ('#f59e0b' if health.score >= 40 else '#ef4444')) }}"
+            stroke-width="3" stroke-linecap="round"
+            stroke-dasharray="{{ health.score }} 100"/>
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <span class="text-base font-bold text-white">{{ health.score }}</span>
+          <span class="text-[9px] text-slate-500 uppercase font-bold">Score</span>
+        </div>
+      </div>
+      <div class="flex-1 space-y-2">
+        <p class="text-xs text-slate-500 italic leading-relaxed">
+          "Your saving habits are better than 88% of users this month."
+        </p>
+        {% if health.improvement is not none and health.improvement > 0 %}
+          <div class="flex items-center gap-1 text-emerald-400 font-bold text-xs">
+            <span class="material-symbols-outlined text-sm">verified</span>
+            +{{ health.improvement }} pt improvement
+          </div>
+        {% endif %}
+        <button class="text-xs font-bold text-primary hover:underline">View Advice →</button>
+      </div>
+    </div>
+  </a>
+
+</div>
+
+<!-- ── Insights Banner ── -->
+{% if insights %}
+  <div class="space-y-3">
+    {% for ins in insights %}
+      <div class="flex items-start gap-4 p-4 rounded-xl border
+        {% if ins.color == 'rose' %}border-rose-500/20 bg-rose-500/5
+        {% elif ins.color == 'amber' %}border-amber-500/20 bg-amber-500/5
+        {% elif ins.color == 'emerald' %}border-emerald-500/20 bg-emerald-500/5
+        {% else %}border-primary/20 bg-primary/5{% endif %}">
+        <div class="size-10 shrink-0 rounded-full flex items-center justify-center
+          {% if ins.color == 'rose' %}bg-rose-500/10 text-rose-400
+          {% elif ins.color == 'amber' %}bg-amber-500/10 text-amber-400
+          {% elif ins.color == 'emerald' %}bg-emerald-500/10 text-emerald-400
+          {% else %}bg-primary/10 text-primary{% endif %}">
+          <span class="material-symbols-outlined text-lg">{{ ins.icon }}</span>
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-bold text-white">{{ ins.title }}</p>
+          <p class="text-xs text-slate-500 mt-0.5">{{ ins.body }}</p>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="flex items-center gap-4 p-4 rounded-xl border border-primary/20 bg-primary/5">
+    <div class="size-10 shrink-0 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+      <span class="material-symbols-outlined">lightbulb</span>
+    </div>
+    <div class="flex-1">
+      <p class="text-sm font-medium text-white">
+        Want deeper insights?
+        <span class="font-normal text-slate-500"> Add transactions and budgets to unlock personalised analysis.</span>
+      </p>
+    </div>
+    <button class="text-sm font-bold text-primary px-4 py-2 hover:bg-primary/10 rounded-lg transition-colors">Dismiss</button>
+  </div>
+{% endif %}
+
+{% endblock %}

@@ -10,7 +10,7 @@
 <div class="flex items-start justify-between mb-8 gap-4">
   <div>
     <div class="flex items-center gap-2 text-slate-500 text-sm mb-1">
-      <a href="{{ url_for('budget') }}" class="hover:text-primary transition-colors">Budget</a>
+      <a href="{{ url_for('budget_bp.budget') }}" class="hover:text-primary transition-colors">Budget</a>
       <span class="material-symbols-outlined text-sm">chevron_right</span>
       <span class="text-slate-300">Yearly</span>
     </div>
@@ -97,7 +97,7 @@
       <span class="material-symbols-outlined text-sm">edit</span> {{ 'Edit' if yearly_budget else 'Set' }} Yearly Budget
     </button>
   </div>
-  <a href="{{ url_for('budget_monthly') }}"
+  <a href="{{ url_for('budget_bp.budget_monthly') }}"
      class="flex items-center gap-2 text-primary text-sm font-semibold hover:underline transition-colors">
     <span class="material-symbols-outlined text-sm">arrow_back</span> View Monthly Detail
   </a>
@@ -128,7 +128,7 @@
   {% set icon = cat_icons.get(cb.category, 'category') %}
   {% set bar_color = '#ef4444' if cb.status=='over' else ('#f59e0b' if cb.status=='warn' else p[0]) %}
 
-  <a href="{{ url_for('edit_category_budget', cb_id=cb.id) }}"
+  <a href="{{ url_for('budget_bp.budget_monthly') }}"
      class="group bg-[#0f172a] rounded-2xl border p-6 flex flex-col gap-4 transition-all cursor-pointer
        {{ 'border-red-500/20 hover:border-red-500/30' if cb.status=='over' else ('border-amber-500/15 hover:border-amber-500/25' if cb.status=='warn' else 'border-slate-800 hover:border-slate-700') }}">
 
@@ -170,7 +170,7 @@
   <span class="material-symbols-outlined text-4xl text-slate-700 mb-3">grid_view</span>
   <p class="text-slate-400 font-medium mb-1">No category budgets configured</p>
   <p class="text-slate-600 text-sm mb-4">Set monthly category budgets — yearly targets are calculated automatically.</p>
-  <a href="{{ url_for('budget_monthly') }}" class="text-primary text-sm font-semibold hover:underline">
+  <a href="{{ url_for('budget_bp.budget_monthly') }}" class="text-primary text-sm font-semibold hover:underline">
     Go to Monthly Budget →
   </a>
 </div>

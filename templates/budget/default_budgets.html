@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Default Budget Settings — FinanceOS{% endblock %}
+{% block page_title %}Default Budget Settings{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense | default(0) }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct | default(0) }}"     class="hidden"></span>
+
+<!-- Header -->
+<div class="flex items-start justify-between mb-8 gap-4">
+  <div>
+    <div class="flex items-center gap-2 text-slate-500 text-sm mb-1">
+      <a href="{{ url_for('budget_bp.budget') }}" class="hover:text-primary transition-colors">Budget</a>
+      <span class="material-symbols-outlined text-sm">chevron_right</span>
+      <span class="text-slate-300">Default Settings</span>
+    </div>
+    <h2 class="text-2xl font-bold text-white">Default Budget Template</h2>
+    <p class="text-slate-500 text-sm mt-1">These defaults auto-fill new monthly budgets. Editing them never changes existing months.</p>
+  </div>
+  <a href="{{ url_for('budget_bp.budget_monthly') }}"
+     class="flex items-center gap-2 bg-primary text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:brightness-110 transition-all shrink-0">
+    <span class="material-symbols-outlined text-sm">calendar_month</span> Monthly Budget
+  </a>
+</div>
+
+<!-- Summary bar -->
+<div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6 mb-8 flex flex-wrap gap-8 items-center">
+  <div>
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Categories Set</p>
+    <p class="text-3xl font-black text-white">{{ defaults|length }}</p>
+  </div>
+  <div>
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Monthly Default</p>
+    <p class="text-3xl font-black text-white">₹{{ "{:,.0f}".format(total_default) }}</p>
+  </div>
+  <div>
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Projected Yearly</p>
+    <p class="text-3xl font-black text-primary">₹{{ "{:,.0f}".format(total_default * 12) }}</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+  <!-- Left: existing defaults list -->
+  <div class="lg:col-span-2">
+    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Current Defaults</h3>
+
+    {% if defaults %}
+    <div class="space-y-3">
+      {% for d in defaults %}
+      <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5 flex items-center justify-between gap-4 hover:border-slate-700 transition-all">
+        <div class="flex items-center gap-4 min-w-0">
+          <div class="size-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-primary text-[18px]">label</span>
+          </div>
+          <div class="min-w-0">
+            <p class="font-semibold text-white text-sm truncate">{{ d.category }}</p>
+            <p class="text-xs text-slate-500">₹{{ "{:,.0f}".format(d.amount) }} / month &nbsp;·&nbsp; ₹{{ "{:,.0f}".format(d.amount * 12) }} / year</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <a href="{{ url_for('defaults_bp.edit_default_budget', dcb_id=d.id) }}"
+             class="h-9 px-4 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-700 transition-all flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">edit</span> Edit
+          </a>
+          <form method="POST" action="{{ url_for('defaults_bp.delete_default_budget', dcb_id=d.id) }}"
+                id="del-{{ d.id }}">
+            <input type="hidden" name="action" value="delete">
+            <button type="submit" onclick="return confirm('Delete default for {{ d.category }}?')"
+              class="h-9 px-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-all flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">delete</span>
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-[#0f172a] border border-dashed border-slate-700 rounded-2xl p-10 text-center">
+      <span class="material-symbols-outlined text-slate-600 text-4xl mb-3 block">playlist_add</span>
+      <p class="text-slate-400 font-semibold mb-1">No default budgets yet</p>
+      <p class="text-slate-600 text-sm">Add categories on the right to build your template.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right: add new default -->
+  <div>
+    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Add / Update Default</h3>
+    <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6">
+      {% if available_categories %}
+      <form method="POST" action="{{ url_for('defaults_bp.add_default_budget') }}" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Category</label>
+          <select name="category" required
+            class="w-full bg-slate-900/60 border border-slate-700 text-slate-200 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+            <option value="" disabled selected>Select category</option>
+            {% for cat in expense_categories %}
+              <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Monthly Amount (₹)</label>
+          <div class="relative">
+            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+            <input type="number" name="amount" required min="1" step="1" placeholder="e.g. 6000"
+              class="w-full bg-slate-900/60 border border-slate-700 rounded-xl pl-9 pr-4 py-3 text-white font-bold placeholder-slate-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"/>
+          </div>
+          <p class="text-xs text-slate-600 mt-1">Yearly projection = amount × 12</p>
+        </div>
+        <button type="submit"
+          class="w-full h-11 bg-primary text-white font-bold rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-sm">add</span> Add Default
+        </button>
+      </form>
+      {% else %}
+      <p class="text-slate-500 text-sm text-center py-4">All categories have defaults set.</p>
+      {% endif %}
+
+      <div class="mt-6 pt-6 border-t border-slate-800">
+        <p class="text-xs text-slate-500 leading-relaxed">
+          <span class="material-symbols-outlined text-xs align-middle text-amber-400">info</span>
+          Changing a default will <strong class="text-slate-300">not</strong> affect existing monthly budgets.
+          Use "Create From Default" on the Monthly Budget page to apply these to a specific month.
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -13,89 +13,102 @@
   <div>
     <p class="text-slate-400 text-sm">{{ transactions | length }} total transactions</p>
   </div>
-  <a href="{{ url_for('add_transaction') }}"
+  <a href="{{ url_for('transactions_bp.add_transaction') }}"
      class="flex items-center justify-center gap-2 rounded-xl h-11 px-6 bg-primary text-white font-bold primary-glow hover:brightness-110 transition-all">
     <span class="material-symbols-outlined">add</span>
     Add Transaction
   </a>
 </div>
 
-<!-- ── Filter Panel ── -->
-<details class="group bg-charcoal/50 border border-border-muted rounded-2xl overflow-hidden mb-6" open>
-  <summary class="flex cursor-pointer items-center justify-between p-4 bg-charcoal/80 hover:bg-charcoal transition-colors list-none select-none">
-    <div class="flex items-center gap-2">
-      <span class="material-symbols-outlined text-primary">filter_list</span>
-      <span class="text-slate-100 font-semibold">Filter Options</span>
-    </div>
-    <span class="material-symbols-outlined text-slate-400 group-open:rotate-180 transition-transform duration-200">expand_more</span>
-  </summary>
+<!-- ── Filter Bar ── -->
+<div class="bg-charcoal/50 border border-border-muted rounded-2xl p-4 mb-6">
+  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 items-end">
 
-  <div class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 border-t border-border-muted">
-
-    <!-- Transaction Type toggle -->
-    <div class="flex flex-col gap-2">
-      <label class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Transaction Type</label>
-      <div class="flex bg-charcoal p-1 border border-border-muted h-11 rounded-xl">
-        <button id="filter-all"    onclick="setFilter('all')"
-          class="flex-1 text-xs font-bold uppercase bg-primary text-white rounded-xl transition-all">All</button>
-        <button id="filter-income" onclick="setFilter('income')"
-          class="flex-1 text-xs font-bold uppercase text-slate-400 hover:text-slate-200 rounded-xl transition-all">Income</button>
-        <button id="filter-expense" onclick="setFilter('expense')"
-          class="flex-1 text-xs font-bold uppercase text-slate-400 hover:text-slate-200 rounded-xl transition-all">Expense</button>
+    <!-- Type dropdown -->
+    <div class="flex flex-col gap-1.5">
+      <label class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Type</label>
+      <div class="relative">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none">swap_horiz</span>
+        <select id="filter-type-select" onchange="setFilter(this.value)"
+          class="w-full bg-charcoal border border-border-muted h-11 pl-9 pr-4 text-sm text-slate-100 focus:ring-1 focus:ring-primary focus:border-primary rounded-xl appearance-none cursor-pointer">
+          <option value="all">All Types</option>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+          <option value="obligation">Commitments</option>
+          <option value="loan">Loan Payments</option>
+          <option value="manual">Manual Entry</option>
+        </select>
+        <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none">expand_more</span>
       </div>
     </div>
 
-    <!-- Category -->
-    <div class="flex flex-col gap-2">
-      <label class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Category</label>
-      <select id="filter-category" onchange="applyFilters()"
-        class="bg-charcoal border border-border-muted h-11 px-4 text-sm text-slate-100 focus:ring-primary focus:border-primary rounded-xl appearance-none">
-        <option value="">All Categories</option>
-        {% set cats = [] %}
-        {% for t in transactions %}
-          {% if t['category'] not in cats %}
-            {% set _ = cats.append(t['category']) %}
-            <option value="{{ t['category'] }}">{{ t['category'] }}</option>
-          {% endif %}
-        {% endfor %}
-      </select>
+    <!-- Category dropdown -->
+    <div class="flex flex-col gap-1.5">
+      <label class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Category</label>
+      <div class="relative">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none">category</span>
+        <select id="filter-category" onchange="applyFilters()"
+          class="w-full bg-charcoal border border-border-muted h-11 pl-9 pr-4 text-sm text-slate-100 focus:ring-1 focus:ring-primary focus:border-primary rounded-xl appearance-none cursor-pointer">
+          <option value="">All Categories</option>
+          {% set cats = [] %}
+          {% for t in transactions %}
+            {% if t['category'] not in cats %}
+              {% set _ = cats.append(t['category']) %}
+              <option value="{{ t['category'] }}">{{ t['category'] }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+        <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none">expand_more</span>
+      </div>
     </div>
 
     <!-- Amount range -->
-    <div class="flex flex-col gap-2">
-      <label class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Amount (Min – Max)</label>
-      <div class="flex items-center gap-2">
-        <input id="filter-min" type="number" placeholder="Min" oninput="applyFilters()"
-          class="w-full bg-charcoal border border-border-muted h-11 px-4 text-sm text-slate-100 rounded-xl focus:ring-primary focus:border-primary placeholder-slate-600"/>
-        <span class="text-slate-500 shrink-0">–</span>
-        <input id="filter-max" type="number" placeholder="Max" oninput="applyFilters()"
-          class="w-full bg-charcoal border border-border-muted h-11 px-4 text-sm text-slate-100 rounded-xl focus:ring-primary focus:border-primary placeholder-slate-600"/>
+    <div class="flex flex-col gap-1.5">
+      <label class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Amount Range</label>
+      <div class="flex items-center gap-1.5">
+        <div class="relative flex-1">
+          <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">₹</span>
+          <input id="filter-min" type="number" placeholder="Min" oninput="applyFilters()"
+            class="w-full bg-charcoal border border-border-muted h-11 pl-6 pr-2 text-sm text-slate-100 rounded-xl focus:ring-1 focus:ring-primary focus:border-primary placeholder-slate-600"/>
+        </div>
+        <span class="text-slate-600 shrink-0 text-xs">–</span>
+        <div class="relative flex-1">
+          <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">₹</span>
+          <input id="filter-max" type="number" placeholder="Max" oninput="applyFilters()"
+            class="w-full bg-charcoal border border-border-muted h-11 pl-6 pr-2 text-sm text-slate-100 rounded-xl focus:ring-1 focus:ring-primary focus:border-primary placeholder-slate-600"/>
+        </div>
       </div>
     </div>
 
     <!-- Search -->
-    <div class="flex flex-col gap-2 lg:col-span-1">
-      <label class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Search Keyword</label>
+    <div class="flex flex-col gap-1.5">
+      <label class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Search</label>
       <div class="relative">
-        <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-xl pointer-events-none">search</span>
-        <input id="filter-search" type="text" placeholder="Search description or category..." oninput="applyFilters()"
-          class="w-full bg-charcoal border border-border-muted h-11 pl-10 pr-4 text-sm text-slate-100 rounded-xl focus:ring-primary focus:border-primary placeholder-slate-600"/>
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none">search</span>
+        <input id="filter-search" type="text" placeholder="Description or category…" oninput="applyFilters()"
+          class="w-full bg-charcoal border border-border-muted h-11 pl-9 pr-4 text-sm text-slate-100 rounded-xl focus:ring-1 focus:ring-primary focus:border-primary placeholder-slate-600"/>
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="lg:col-span-4 flex justify-end gap-3 mt-2">
+    <!-- Reset button -->
+    <div class="flex flex-col gap-1.5">
+      <label class="text-slate-500 text-[10px] font-bold uppercase tracking-widest opacity-0 select-none">Reset</label>
       <button onclick="resetFilters()"
-        class="px-6 h-11 border border-border-muted text-slate-400 font-bold hover:bg-charcoal hover:text-slate-200 transition-colors rounded-xl">
-        Reset Filters
-      </button>
-      <button onclick="applyFilters()"
-        class="px-8 h-11 bg-primary text-white font-bold hover:brightness-110 transition-all rounded-xl primary-glow">
-        Apply Filter
+        class="h-11 w-full border border-border-muted text-slate-400 font-bold hover:bg-charcoal hover:text-slate-200 transition-colors rounded-xl text-sm flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-base">filter_alt_off</span> Reset
       </button>
     </div>
+
   </div>
-</details>
+
+  <!-- Active filter pill -->
+  <div id="active-filter-row" class="hidden mt-3 flex items-center gap-2">
+    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Filtered by:</span>
+    <span id="active-filter-pill"
+      class="text-[11px] font-bold px-3 py-1 bg-primary/10 border border-primary/30 text-primary rounded-full"></span>
+    <button onclick="resetFilters()" class="text-[10px] text-slate-500 hover:text-rose-400 transition-colors">✕ clear</button>
+  </div>
+</div>
 
 <!-- ── Transaction Cards ── -->
 {% if transactions %}
@@ -124,12 +137,17 @@
     {% for t in transactions %}
       <div class="txn-card group relative flex items-center bg-charcoal/40 hover:bg-charcoal/70 border border-border-muted/30 rounded-2xl overflow-hidden transition-all duration-200 p-4 shadow-sm hover:shadow-lg"
            data-type="{{ t['type'] }}"
+           data-source="{{ t['source_type'] or 'manual' }}"
            data-category="{{ t['category'] | lower }}"
            data-search="{{ (t['description'] or '') | lower }} {{ t['category'] | lower }}"
            data-amount="{{ t['amount'] }}">
 
         <!-- Colored left accent -->
-        <div class="absolute left-0 top-0 bottom-0 w-1 {{ 'bg-income' if t['type'] == 'income' else 'bg-expense' }}"></div>
+        <div class="absolute left-0 top-0 bottom-0 w-1
+          {% if t['source_type'] == 'obligation' %}bg-purple-500
+          {% elif t['source_type'] == 'loan' %}bg-primary
+          {% elif t['type'] == 'income' %}bg-income
+          {% else %}bg-expense{% endif %}"></div>
 
         <!-- Date -->
         <div class="flex flex-col items-center justify-center min-w-[60px] border-r border-border-muted/30 mr-6 shrink-0">
@@ -138,7 +156,7 @@
         </div>
 
         <!-- Info (clickable to edit) -->
-        <a href="{{ url_for('edit_transaction', id=t['id']) }}" class="flex flex-col grow gap-1 min-w-0 cursor-pointer">
+        <a href="{{ url_for('transactions_bp.edit_transaction', id=t['id']) }}" class="flex flex-col grow gap-1 min-w-0 cursor-pointer">
           <div class="flex items-center gap-3 flex-wrap">
             <h3 class="text-slate-100 font-bold text-base group-hover:text-primary transition-colors truncate">
               {{ t['description'] or t['category'] }}
@@ -147,6 +165,15 @@
               {{ 'border-income/40 text-income' if t['type'] == 'income' else 'border-expense/40 text-expense' }}">
               {{ t['type'] }}
             </span>
+            {% if t['source_type'] == 'obligation' %}
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0">Commitment</span>
+            {% elif t['source_type'] == 'loan' %}
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary shrink-0">Loan Payment</span>
+            {% elif t['is_recurring'] and t['type'] == 'income' %}
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">Fixed Income</span>
+            {% elif t['is_recurring'] and t['type'] == 'expense' %}
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0">Recurring</span>
+            {% endif %}
           </div>
           <p class="text-slate-400 text-sm">{{ t['category'] }}</p>
         </a>
@@ -156,13 +183,13 @@
           <span class="text-lg font-bold {{ 'text-income' if t['type'] == 'income' else 'text-expense' }}">
             {{ '+ ' if t['type'] == 'income' else '- ' }}₹{{ "{:,.2f}".format(t['amount']) }}
           </span>
-          <form method="POST" action="{{ url_for('delete_transaction', id=t['id']) }}"
-                onsubmit="return confirm('Delete this transaction?');">
-            <button type="submit"
-              class="p-1.5 rounded-lg text-slate-600 hover:text-expense hover:bg-expense/10 transition-colors opacity-0 group-hover:opacity-100">
-              <span class="material-symbols-outlined text-lg">delete</span>
-            </button>
-          </form>
+          <button type="button"
+            data-id="{{ t['id'] }}"
+            data-recurring="{{ 'true' if t['source_type'] in ('obligation','loan') else 'false' }}"
+            class="txn-delete p-1.5 rounded-lg text-slate-600 hover:text-expense hover:bg-expense/10 transition-colors opacity-0 group-hover:opacity-100">
+            <span class="material-symbols-outlined text-lg">delete</span>
+          </button>
+          <form id="del-form-{{ t['id'] }}" method="POST" action="{{ url_for('transactions_bp.delete_transaction', id=t['id']) }}" class="hidden"></form>
         </div>
 
       </div>
@@ -180,7 +207,7 @@
   <div class="flex flex-col items-center justify-center py-24 text-slate-500">
     <span class="material-symbols-outlined text-5xl mb-3 opacity-30">receipt_long</span>
     <p class="text-base font-medium">No transactions yet</p>
-    <a href="{{ url_for('add_transaction') }}" class="mt-3 text-sm text-primary hover:underline">Add your first one →</a>
+    <a href="{{ url_for('transactions_bp.add_transaction') }}" class="mt-3 text-sm text-primary hover:underline">Add your first one →</a>
   </div>
 {% endif %}
 
@@ -190,18 +217,27 @@
 <script>
   let activeFilter = 'all';
 
+  const filterLabels = {
+    all: null, income: 'Income', expense: 'Expense',
+    obligation: 'Commitments', loan: 'Loan Payments', manual: 'Manual Entry'
+  };
+
   function setFilter(type) {
     activeFilter = type;
-    ['all','income','expense'].forEach(t => {
-      const btn = document.getElementById('filter-' + t);
-      if (t === type) {
-        btn.classList.add('bg-primary','text-white');
-        btn.classList.remove('text-slate-400');
+    // Sync dropdown
+    const sel = document.getElementById('filter-type-select');
+    if (sel && sel.value !== type) sel.value = type;
+    // Show / hide active pill
+    const pill = document.getElementById('active-filter-pill');
+    const row  = document.getElementById('active-filter-row');
+    if (pill && row) {
+      if (filterLabels[type]) {
+        pill.textContent = filterLabels[type];
+        row.classList.remove('hidden'); row.classList.add('flex');
       } else {
-        btn.classList.remove('bg-primary','text-white');
-        btn.classList.add('text-slate-400');
+        row.classList.add('hidden'); row.classList.remove('flex');
       }
-    });
+    }
     applyFilters();
   }
 
@@ -213,11 +249,17 @@
     let visible = 0;
 
     document.querySelectorAll('.txn-card').forEach(card => {
-      const typeMatch = activeFilter === 'all' || card.dataset.type === activeFilter;
-      const catMatch  = !category || card.dataset.category.includes(category);
+      let typeMatch;
+      if      (activeFilter === 'all')        typeMatch = true;
+      else if (activeFilter === 'obligation') typeMatch = card.dataset.source === 'obligation';
+      else if (activeFilter === 'loan')       typeMatch = card.dataset.source === 'loan';
+      else if (activeFilter === 'manual')     typeMatch = card.dataset.source === 'manual';
+      else                                    typeMatch = card.dataset.type === activeFilter;
+
+      const catMatch    = !category || card.dataset.category.includes(category);
       const searchMatch = !search || card.dataset.search.includes(search);
-      const amt = parseFloat(card.dataset.amount);
-      const amtMatch = amt >= minAmt && amt <= maxAmt;
+      const amt         = parseFloat(card.dataset.amount);
+      const amtMatch    = amt >= minAmt && amt <= maxAmt;
 
       const show = typeMatch && catMatch && searchMatch && amtMatch;
       card.style.display = show ? '' : 'none';
@@ -228,12 +270,33 @@
     if (noResults) noResults.classList.toggle('hidden', visible > 0);
   }
 
+  function confirmDelete(id, isRecurring) {
+    const msg = isRecurring
+      ? 'Delete this transaction only?\nThe Commitment will remain active.'
+      : 'Delete this transaction?';
+    if (!confirm(msg)) return;
+    document.getElementById('del-form-' + id).submit();
+  }
+
+  // Event delegation for delete buttons — no Jinja in onclick
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.txn-delete');
+    if (!btn) return;
+    const id          = btn.dataset.id;
+    const isRecurring = btn.dataset.recurring === 'true';
+    confirmDelete(id, isRecurring);
+  });
+
   function resetFilters() {
-    setFilter('all');
+    activeFilter = 'all';
+    const sel = document.getElementById('filter-type-select');
+    if (sel) sel.value = 'all';
     document.getElementById('filter-search').value = '';
     document.getElementById('filter-category').value = '';
     document.getElementById('filter-min').value = '';
     document.getElementById('filter-max').value = '';
+    const row = document.getElementById('active-filter-row');
+    if (row) { row.classList.add('hidden'); row.classList.remove('flex'); }
     applyFilters();
   }
 </script>

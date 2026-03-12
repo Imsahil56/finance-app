@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Financial Health Score — FinanceOS{% endblock %}
+{% block page_title %}Health Score{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}" class="hidden"></span>
+
+<!-- ── Score Hero ── -->
+<section class="flex flex-col items-center justify-center py-10 text-center">
+  <!-- Large progress ring -->
+  <div class="relative mb-6" style="width:192px;height:192px;">
+    <svg class="w-full h-full -rotate-90" viewBox="0 0 200 200">
+      <!-- Track -->
+      <circle cx="100" cy="100" r="88" fill="none" stroke="#1e293b" stroke-width="10"/>
+      <!-- Score arc -->
+      <circle cx="100" cy="100" r="88" fill="none"
+        stroke="{{ '#10b981' if health.score >= 80 else ('#2094f3' if health.score >= 60 else ('#f59e0b' if health.score >= 40 else '#ef4444')) }}"
+        stroke-width="10"
+        stroke-linecap="round"
+        stroke-dasharray="{{ health.circumference }}"
+        stroke-dashoffset="{{ health.dash_offset }}"/>
+    </svg>
+    <div class="absolute inset-0 flex flex-col items-center justify-center">
+      <span class="text-5xl font-bold text-white tracking-tighter">{{ health.score }}</span>
+      <span class="text-slate-500 text-sm font-medium">/ 100</span>
+    </div>
+  </div>
+
+  <h2 class="text-2xl font-bold text-white mb-2">{{ health.status }} Health Score</h2>
+  <p class="text-slate-500 max-w-md flex items-center justify-center gap-2 text-sm">
+    {% if health.improvement is not none and health.improvement > 0 %}
+      <span class="material-symbols-outlined text-emerald-500 text-sm">trending_up</span>
+      Your financial position improved by {{ health.improvement }}% since last month.
+    {% elif health.improvement is not none and health.improvement < 0 %}
+      <span class="material-symbols-outlined text-rose-400 text-sm">trending_down</span>
+      Your score decreased by {{ health.improvement | abs }}% since last month.
+    {% else %}
+      <span class="material-symbols-outlined text-slate-500 text-sm">horizontal_rule</span>
+      Based on your last 90 days of transactions.
+    {% endif %}
+  </p>
+</section>
+
+<!-- ── Component Breakdown ── -->
+<section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+  {% for key, comp in health.components.items() %}
+    <div class="p-5 rounded-xl border border-slate-800 hover:border-primary/30 transition-colors" style="background:#0d141c">
+      <div class="flex items-center gap-2 mb-3 text-slate-500">
+        <span class="material-symbols-outlined text-lg">{{ comp.icon }}</span>
+        <span class="text-[10px] font-bold uppercase tracking-wider">{{ comp.label }}</span>
+      </div>
+      <div class="flex items-end justify-between">
+        <span class="text-2xl font-bold text-white">{{ comp.value }}</span>
+        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase
+          {% if comp.status_color == 'emerald' %}bg-emerald-500/10 text-emerald-400
+          {% elif comp.status_color == 'primary' %}bg-primary/10 text-primary
+          {% elif comp.status_color == 'amber' %}bg-amber-500/10 text-amber-400
+          {% elif comp.status_color == 'rose' %}bg-rose-500/10 text-rose-400
+          {% else %}bg-slate-500/10 text-slate-400{% endif %}">
+          {{ comp.status }}
+        </span>
+      </div>
+      <!-- Score bar -->
+      <div class="mt-3 w-full h-1 rounded-full overflow-hidden" style="background:#182834">
+        <div class="h-full rounded-full
+          {% if comp.status_color == 'emerald' %}bg-emerald-500
+          {% elif comp.status_color == 'primary' %}bg-primary
+          {% elif comp.status_color == 'amber' %}bg-amber-500
+          {% else %}bg-rose-500{% endif %}"
+          style="width:{{ (comp.score / comp.max * 100) | round | int }}%"></div>
+      </div>
+      <p class="text-[9px] text-slate-600 mt-1">{{ comp.score }}/{{ comp.max }} pts</p>
+    </div>
+  {% endfor %}
+</section>
+
+<!-- ── Spending Risk Profile ── -->
+<section class="rounded-2xl p-8 border border-slate-800 mb-10" style="background:#0d141c">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h3 class="text-xl font-bold text-white">Spending Risk Profile</h3>
+      <p class="text-sm text-slate-500">Analysis of allocation across spending categories</p>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-1.5">
+        <span class="size-2 rounded-full bg-emerald-500"></span>
+        <span class="text-[10px] font-bold text-slate-500 uppercase">Low</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="size-2 rounded-full bg-primary"></span>
+        <span class="text-[10px] font-bold text-slate-500 uppercase">Mod</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="size-2 rounded-full bg-amber-500"></span>
+        <span class="text-[10px] font-bold text-slate-500 uppercase">High</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-8">
+    {% for seg in health.risk_profile %}
+      <div class="space-y-3">
+        <div class="flex items-center justify-between text-sm">
+          <span class="font-semibold text-white">{{ seg.label }}</span>
+          <span class="font-semibold
+            {% if seg.risk_color == 'emerald' %}text-emerald-400
+            {% elif seg.risk_color == 'primary' %}text-primary
+            {% elif seg.risk_color == 'amber' %}text-amber-400
+            {% elif seg.risk_color == 'rose' %}text-rose-400
+            {% else %}text-slate-400{% endif %}">
+            {{ seg.risk }}
+          </span>
+        </div>
+        <div class="h-2 w-full rounded-full overflow-hidden" style="background:#182834">
+          <div class="h-full rounded-full transition-all duration-700
+            {% if seg.bar_color == 'emerald' %}bg-emerald-500
+            {% elif seg.bar_color == 'primary' %}bg-primary
+            {% elif seg.bar_color == 'amber' %}bg-amber-500
+            {% elif seg.bar_color == 'rose' %}bg-rose-500
+            {% else %}bg-slate-600{% endif %}"
+            style="width:{{ seg.percent }}%"></div>
+        </div>
+        <p class="text-xs text-slate-500">{{ seg.description }}</p>
+      </div>
+    {% else %}
+      <!-- No transaction data yet — show neutral placeholders -->
+      {% for seg in [
+        ('Essential Expenses', 'Low Risk', 'emerald', 20, 'Housing, utilities, and core necessities.'),
+        ('Flexible Expenses', 'Moderate', 'primary', 45, 'Subscriptions and lifestyle services.'),
+        ('Discretionary Spending', 'Controlled', 'slate', 30, 'Non-essential discretionary purchases.'),
+      ] %}
+        <div class="space-y-3">
+          <div class="flex items-center justify-between text-sm">
+            <span class="font-semibold text-white">{{ seg[0] }}</span>
+            <span class="font-semibold text-{{ seg[2] }}-400">{{ seg[1] }}</span>
+          </div>
+          <div class="h-2 w-full rounded-full overflow-hidden" style="background:#182834">
+            <div class="h-full bg-{{ seg[2] }}-500 rounded-full" style="width:{{ seg[3] }}%"></div>
+          </div>
+          <p class="text-xs text-slate-500">{{ seg[4] }}</p>
+        </div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ── Summary Stats ── -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+  <div class="p-4 rounded-xl border border-slate-800 text-center" style="background:#0d141c">
+    <p class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Savings Rate</p>
+    <p class="text-xl font-bold text-white">{{ health.savings_rate_pct }}%</p>
+  </div>
+  <div class="p-4 rounded-xl border border-slate-800 text-center" style="background:#0d141c">
+    <p class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Budget Adherence</p>
+    <p class="text-xl font-bold text-white">{{ health.adherence_pct }}%</p>
+  </div>
+  <div class="p-4 rounded-xl border border-slate-800 text-center" style="background:#0d141c">
+    <p class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Expense Variance</p>
+    <p class="text-xl font-bold text-white">{{ health.expense_variance }}%</p>
+  </div>
+  <div class="p-4 rounded-xl border border-slate-800 text-center" style="background:#0d141c">
+    <p class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Income Stability</p>
+    <p class="text-xl font-bold text-white">{{ health.income_label }}</p>
+  </div>
+</div>
+
+<!-- ── Footer ── -->
+<footer class="border-t border-slate-800 pt-8 pb-4 text-center">
+  <p class="text-xs text-slate-600">
+    Score generated based on last 90 days of transaction data. Updates on each page load.
+  </p>
+</footer>
+
+{% endblock %}

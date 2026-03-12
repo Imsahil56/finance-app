@@ -8,9 +8,9 @@
 
 <!-- Breadcrumb -->
 <div class="flex items-center gap-2 text-slate-500 text-sm mb-8">
-  <a href="{{ url_for('budget') }}" class="hover:text-primary transition-colors">Budget</a>
+  <a href="{{ url_for('budget_bp.budget') }}" class="hover:text-primary transition-colors">Budget</a>
   <span class="material-symbols-outlined text-sm">chevron_right</span>
-  <a href="{{ url_for('budget_monthly') }}" class="hover:text-primary transition-colors">Monthly</a>
+  <a href="{{ url_for('budget_bp.budget_monthly', month=cb['month'], year=cb['year']) }}" class="hover:text-primary transition-colors">Monthly</a>
   <span class="material-symbols-outlined text-sm">chevron_right</span>
   <span class="text-slate-300">{{ cb['category'] }}</span>
 </div>
@@ -37,7 +37,7 @@
     <div class="grid grid-cols-3 gap-4 mb-6">
       <div class="bg-slate-800/50 rounded-xl p-4">
         <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Limit</p>
-        <p class="text-lg font-bold text-white">₹{{ "{:,.0f}".format(cb['budget_amount']) }}</p>
+        <p class="text-lg font-bold text-white">₹{{ "{:,.0f}".format(cb['amount']) }}</p>
       </div>
       <div class="bg-slate-800/50 rounded-xl p-4">
         <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Spent</p>
@@ -57,15 +57,19 @@
       </div>
     </div>
     <p class="text-xs text-slate-600">
-      {% if status == 'over' %}Budget exceeded by ₹{{ "{:,.0f}".format(spent - cb['budget_amount']) }}.
-      {% elif status == 'warn' %}₹{{ "{:,.0f}".format(cb['budget_amount'] - spent) }} remaining — approaching limit.
-      {% else %}₹{{ "{:,.0f}".format(cb['budget_amount'] - spent) }} remaining this month.{% endif %}
+      {% if status == 'over' %}Budget exceeded by ₹{{ "{:,.0f}".format(spent - cb['amount']) }}.
+      {% elif status == 'warn' %}₹{{ "{:,.0f}".format(cb['amount'] - spent) }} remaining — approaching limit.
+      {% else %}₹{{ "{:,.0f}".format(cb['amount'] - spent) }} remaining this month.{% endif %}
     </p>
   </div>
 
   <!-- Edit form -->
   <div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-7 mb-6">
-    <h3 class="font-bold text-white mb-5">Update Monthly Limit</h3>
+    <h3 class="font-bold text-white mb-1">Update Monthly Limit</h3>
+    <p class="text-xs text-slate-500 mb-5">Changes apply to <strong class="text-slate-300">{{ month_name }}</strong> only. Default template is unaffected.</p>
+    {% if default_row %}
+    <p class="text-xs text-slate-600 mb-4">Default: ₹{{ "{:,.0f}".format(default_row['amount']) }} / month</p>
+    {% endif %}
     <form method="POST" class="space-y-5">
       <input type="hidden" name="action" value="update">
       <div>
@@ -73,17 +77,17 @@
         <div class="relative">
           <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
           <input type="number" name="budget_amount" required min="1" step="1"
-            value="{{ cb['budget_amount']|int }}"
+            value="{{ cb['amount']|int }}"
             class="w-full h-13 bg-slate-900/60 border border-slate-800 rounded-xl pl-9 pr-4 py-3 text-white text-xl font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"/>
         </div>
-        <p class="text-xs text-slate-600 mt-2">Current limit: ₹{{ "{:,.0f}".format(cb['budget_amount']) }} / month</p>
+        <p class="text-xs text-slate-600 mt-2">Current limit: ₹{{ "{:,.0f}".format(cb['amount']) }} / month</p>
       </div>
       <div class="flex gap-3">
         <button type="submit"
           class="flex-1 h-12 bg-primary text-white font-bold rounded-xl hover:brightness-110 primary-glow transition-all flex items-center justify-center gap-2">
           <span class="material-symbols-outlined">save</span> Save Changes
         </button>
-        <a href="{{ url_for('budget_monthly') }}"
+        <a href="{{ url_for('budget_bp.budget_monthly', month=cb['month'], year=cb['year']) }}"
            class="flex-1 h-12 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all flex items-center justify-center">
           Cancel
         </a>
@@ -95,8 +99,14 @@
   <div class="bg-[#0f172a] rounded-2xl border border-red-500/15 p-6">
     <h3 class="font-bold text-slate-300 mb-1 text-sm">Danger Zone</h3>
     <p class="text-slate-600 text-xs mb-4">Removing this budget won't affect your transactions.</p>
-    <form method="POST" onsubmit="return confirm('Remove budget for {{ cb['category'] }}?');">
+    <form method="POST" id="delete-form" data-category="{{ cb['category'] }}">
       <input type="hidden" name="action" value="delete">
+      <script>
+        document.getElementById('delete-form').addEventListener('submit', function(e) {
+          const cat = this.dataset.category;
+          if (!confirm('Remove budget for ' + cat + '?')) e.preventDefault();
+        });
+      </script>
       <button type="submit"
         class="flex items-center gap-2 text-expense text-sm font-bold hover:underline transition-colors">
         <span class="material-symbols-outlined text-sm">delete</span> Remove Budget

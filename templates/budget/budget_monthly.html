@@ -7,10 +7,10 @@
 <span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
 
 <!-- Header row -->
-<div class="flex items-start justify-between mb-8 gap-4">
+<div class="flex flex-wrap items-start justify-between mb-8 gap-4">
   <div>
     <div class="flex items-center gap-2 text-slate-500 text-sm mb-1">
-      <a href="{{ url_for('budget') }}" class="hover:text-primary transition-colors">Budget</a>
+      <a href="{{ url_for('budget_bp.budget') }}" class="hover:text-primary transition-colors">Budget</a>
       <span class="material-symbols-outlined text-sm">chevron_right</span>
       <span class="text-slate-300">Monthly</span>
     </div>
@@ -20,18 +20,19 @@
 
   <!-- Month filter -->
   <form method="GET" class="flex items-center gap-2 shrink-0">
-    <select name="month" onchange="this.form.submit()"
+    <!-- Select has no name — hidden fields carry the actual values -->
+    <select id="month-sel"
       class="bg-[#0f172a] border border-slate-800 text-slate-200 text-sm rounded-xl px-4 py-2.5 focus:ring-primary focus:border-primary appearance-none pr-8 cursor-pointer"
       style="background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 viewBox=%220 0 20 20%22><path stroke=%22%2364748b%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%221.5%22 d=%22M6 8l4 4 4-4%22/></svg>');background-position:right .5rem center;background-repeat:no-repeat;background-size:1.5em">
       {% for opt in month_options %}
-        <option value="{{ opt.month }}" {{ 'selected' if opt.month==sel_month and opt.year==sel_year else '' }}
-          {% if loop.index > 1 %}{# We only show current year months; use data attr for year #}{% endif %}>
+        <option value="{{ opt.month }}_{{ opt.year }}"
+          {{ 'selected' if opt.month==sel_month and opt.year==sel_year else '' }}>
           {{ opt.label }}
         </option>
       {% endfor %}
     </select>
-    <!-- Hidden year field synced via JS -->
-    <input type="hidden" name="year" id="year-hidden" value="{{ sel_year }}">
+    <input type="hidden" name="month" id="month-hidden" value="{{ sel_month }}">
+    <input type="hidden" name="year"  id="year-hidden"  value="{{ sel_year }}">
   </form>
 </div>
 
@@ -95,14 +96,24 @@
 
 <!-- Action row -->
 <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
-  <div class="flex gap-3">
+  <div class="flex gap-3 flex-wrap">
+    <a href="{{ url_for('defaults_bp.default_budgets') }}"
+       class="flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
+      <span class="material-symbols-outlined text-sm">settings</span> Default Settings
+    </a>
+    {% if has_defaults %}
+    <button type="button" onclick="document.getElementById('apply-defaults-modal').classList.remove('hidden')"
+      class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-500/20 transition-all">
+      <span class="material-symbols-outlined text-sm">auto_fix_high</span> Add Default
+    </button>
+    {% endif %}
     {% if monthly_budget %}
     <button onclick="document.getElementById('set-monthly-modal').classList.remove('hidden')"
       class="flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-200 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
       <span class="material-symbols-outlined text-sm">edit</span> Edit Budget
     </button>
     {% endif %}
-    <a href="{{ url_for('add_transaction') }}"
+    <a href="{{ url_for('transactions_bp.add_transaction') }}"
        class="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:brightness-110 primary-glow transition-all">
       <span class="material-symbols-outlined text-sm">add</span> Add Expense
     </a>
@@ -133,7 +144,7 @@
   {% set icon = cat_icons.get(cb.category, 'category') %}
   {% set bar_color = '#ef4444' if cb.status=='over' else ('#f59e0b' if cb.status=='warn' else p[0]) %}
 
-  <a href="{{ url_for('edit_category_budget', cb_id=cb.id) }}"
+  <a href="{{ url_for('budget_bp.edit_category_budget', mcb_id=cb.id) }}"
      class="group bg-[#0f172a] rounded-2xl border p-6 flex flex-col gap-4 transition-all cursor-pointer
        {{ 'border-red-500/20 hover:border-red-500/30' if cb.status=='over' else ('border-amber-500/15 hover:border-amber-500/25' if cb.status=='warn' else 'border-slate-800 hover:border-slate-700') }}">
 
@@ -281,29 +292,97 @@
   </div>
 </div>
 
+<!-- ── MODAL: Apply Defaults ── -->
+<div id="apply-defaults-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-[#0d141c] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
+    <div class="flex items-center justify-between p-6 border-b border-slate-800">
+      <div class="flex items-center gap-3">
+        <div class="size-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-emerald-400 text-xl">auto_fix_high</span>
+        </div>
+        <div>
+          <p class="font-bold text-white">Add Default Budgets</p>
+          <p class="text-xs text-slate-500">{{ sel_month_name }}</p>
+        </div>
+      </div>
+      <button onclick="document.getElementById('apply-defaults-modal').classList.add('hidden')"
+        class="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+      <p class="text-slate-300 text-sm">Apply your default template to <strong class="text-white">{{ sel_month_name }}</strong>. Choose how to handle existing entries:</p>
+
+      <!-- Option 1: Fill missing only -->
+      <form method="POST">
+        <input type="hidden" name="action" value="apply_defaults">
+        <input type="hidden" name="overwrite" value="0">
+        <input type="hidden" name="post_month" value="{{ sel_month }}">
+        <input type="hidden" name="post_year"  value="{{ sel_year }}">
+        <button type="submit"
+          class="w-full text-left bg-slate-800/60 border border-slate-700 hover:border-primary/40 rounded-xl p-4 transition-all group">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-primary text-xl shrink-0">playlist_add</span>
+            <div>
+              <p class="font-semibold text-white text-sm">Fill Missing Only</p>
+              <p class="text-xs text-slate-500 mt-0.5">Add defaults for categories not yet set. Your existing entries stay untouched.</p>
+            </div>
+          </div>
+        </button>
+      </form>
+
+      <!-- Option 2: Reset all -->
+      <form method="POST">
+        <input type="hidden" name="action" value="apply_defaults">
+        <input type="hidden" name="overwrite" value="1">
+        <input type="hidden" name="post_month" value="{{ sel_month }}">
+        <input type="hidden" name="post_year"  value="{{ sel_year }}">
+        <button type="submit"
+          class="w-full text-left bg-slate-800/60 border border-slate-700 hover:border-amber-500/40 rounded-xl p-4 transition-all group">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-amber-400 text-xl shrink-0">restart_alt</span>
+            <div>
+              <p class="font-semibold text-white text-sm">Reset All to Defaults</p>
+              <p class="text-xs text-slate-500 mt-0.5">Replace all category budgets this month with the default template.</p>
+            </div>
+          </div>
+        </button>
+      </form>
+
+      <button type="button" onclick="document.getElementById('apply-defaults-modal').classList.add('hidden')"
+        class="w-full h-10 bg-slate-800 border border-slate-700 text-slate-400 text-sm font-semibold rounded-xl hover:bg-slate-700 transition-all">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  // Sync year hidden field with month select option
-  const monthSel = document.querySelector('select[name=month]');
+  // Month filter: value is "month_year" e.g. "3_2026"
+  // Split it, update hidden year field, then submit with clean month value
+  const monthSel   = document.getElementById('month-sel');
   const yearHidden = document.getElementById('year-hidden');
-  const yearMap = {
-    {% for opt in month_options %}'{{ opt.month }}_{{ opt.year }}':'{{ opt.year }}',{% endfor %}
-  };
-  // On change pick the year from the option label
+
+  const monthHidden = document.getElementById('month-hidden');
+
   if (monthSel) {
-    monthSel.addEventListener('change', function() {
-      // We store all options as "month_year" in select value
+    monthSel.addEventListener('change', function () {
+      const [m, y] = this.value.split('_');
+      monthHidden.value = m;   // update hidden month field
+      yearHidden.value  = y;   // update hidden year field
+      this.closest('form').submit();
     });
   }
 
-  ['set-monthly-modal','add-cat-modal'].forEach(id => {
+  ['set-monthly-modal','add-cat-modal','apply-defaults-modal'].forEach(id => {
     const el = document.getElementById(id);
     el.addEventListener('click', e => { if(e.target===el) el.classList.add('hidden'); });
   });
   document.addEventListener('keydown', e => {
-    if(e.key==='Escape') ['set-monthly-modal','add-cat-modal'].forEach(id =>
+    if(e.key==='Escape') ['set-monthly-modal','add-cat-modal','apply-defaults-modal'].forEach(id =>
       document.getElementById(id).classList.add('hidden'));
   });
 </script>
