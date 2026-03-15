@@ -18,6 +18,37 @@
     .flash-auto { transition: opacity 0.5s ease; }
     .primary-glow { box-shadow: 0 0 15px rgba(32,148,243,0.4); }
     .expense-glow { box-shadow: 0 0 10px rgba(239,68,68,0.3); }
+
+    /* Force dark background on inputs — overrides browser native & autofill styles */
+    .dark-input,
+    .dark-input:focus,
+    .dark-input:active,
+    .dark-input:-webkit-autofill,
+    .dark-input:-webkit-autofill:focus {
+      background-color: #141d26 !important;
+      -webkit-box-shadow: 0 0 0px 1000px #141d26 inset !important;
+      -webkit-text-fill-color: #f1f5f9 !important;
+      color: #f1f5f9 !important;
+    }
+    select.dark-input option {
+      background-color: #141d26;
+      color: #f1f5f9;
+    }
+    /* Modal inputs use a darker shade */
+    .modal-input,
+    .modal-input:focus,
+    .modal-input:active,
+    .modal-input:-webkit-autofill,
+    .modal-input:-webkit-autofill:focus {
+      background-color: #111c2d !important;
+      -webkit-box-shadow: 0 0 0px 1000px #111c2d inset !important;
+      -webkit-text-fill-color: #f1f5f9 !important;
+      color: #f1f5f9 !important;
+    }
+    select.modal-input option {
+      background-color: #111c2d;
+      color: #f1f5f9;
+    }
   </style>
   {% block extra_css %}{% endblock %}
 </head>
@@ -41,7 +72,7 @@
     </div>
 
     <!-- Nav -->
-    <nav class="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
+    <nav class="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar pb-4">
 
       <a href="{{ url_for('dashboard_bp.dashboard') }}"
         class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
@@ -85,17 +116,52 @@
         <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Loans & EMI</span>
       </a>
 
-      <a href="{{ url_for('analysis.overview') }}"
-        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
-          {% if request.endpoint and request.endpoint.startswith('analysis.') %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
-        <span class="material-symbols-outlined shrink-0">analytics</span>
-        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Analysis</span>
-      </a>
+      <!-- Analysis parent + sub-menu -->
+      {% set in_analysis = request.endpoint and request.endpoint.startswith('analysis.') %}
+      <div>
+        <div class="flex items-center rounded-xl transition-all
+          {{ 'bg-primary/10 text-primary border-l-4 border-primary' if in_analysis else 'text-slate-400 hover:bg-primary/5 hover:text-primary' }}">
+          <a href="{{ url_for('analysis.overview') }}"
+            class="flex items-center gap-4 px-4 py-3 flex-1 min-w-0">
+            <span class="material-symbols-outlined shrink-0">analytics</span>
+            <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Analysis</span>
+          </a>
+          <button onclick="toggleAnalysisMenu()" class="pr-4 py-3 sidebar-label label-transition">
+            <span class="material-symbols-outlined text-sm shrink-0 transition-transform duration-200"
+              id="analysis-chevron" style="{{ 'transform:rotate(180deg)' if in_analysis else '' }}">expand_more</span>
+          </button>
+        </div>
+
+        <!-- Sub-links -->
+        <div id="analysis-submenu"
+          class="sidebar-label label-transition overflow-hidden transition-all duration-200"
+          style="max-height:{{ '300px' if in_analysis else '0' }}; opacity:{{ '1' if in_analysis else '0' }};">
+          <div class="ml-4 mt-1 space-y-0.5 border-l border-slate-700/50 pl-3">
+            {% set sub_links = [
+              ('analysis.overview',      'Overview',       'dashboard'),
+              ('analysis.spending',      'Spending',       'query_stats'),
+              ('analysis.budget',        'Budget',         'account_balance_wallet'),
+              ('analysis.savings',       'Savings',        'savings'),
+              ('analysis.health_score',  'Health Score',   'favorite'),
+              ('analysis.debt',          'Debt',           'credit_card'),
+              ('analysis.loan_payoff',   'Loan Payoff',    'show_chart'),
+            ] %}
+            {% for endpoint, label, icon in sub_links %}
+            <a href="{{ url_for(endpoint) }}"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all
+                {{ 'text-primary bg-primary/10 font-semibold' if request.endpoint == endpoint else 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/50' }}">
+              <span class="material-symbols-outlined text-sm shrink-0">{{ icon }}</span>
+              <span>{{ label }}</span>
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
 
     </nav>
 
     <!-- Monthly Spend Widget -->
-    <div class="sidebar-label label-transition px-4 pb-3 shrink-0 overflow-hidden">
+    <div class="sidebar-label label-transition px-4 pb-4 pt-2 shrink-0 overflow-hidden border-t border-slate-800/60">
       <div class="p-4 bg-charcoal/40 rounded-2xl border border-border-muted/30">
         <div class="flex justify-between items-end mb-2">
           <div>
@@ -222,6 +288,17 @@
   setTimeout(() => {
     document.querySelectorAll('.flash-auto').forEach(f => f.style.opacity = '0');
   }, 4000);
+
+  // ── Analysis sub-menu toggle ──
+  function toggleAnalysisMenu() {
+    const menu    = document.getElementById('analysis-submenu');
+    const chevron = document.getElementById('analysis-chevron');
+    if (!menu) return;
+    const isOpen  = menu.style.maxHeight !== '0px' && menu.style.maxHeight !== '';
+    menu.style.maxHeight = isOpen ? '0' : '300px';
+    menu.style.opacity   = isOpen ? '0' : '1';
+    if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  }
 
   // ── Sidebar collapse ──
   const sidebar    = document.getElementById('main-sidebar');

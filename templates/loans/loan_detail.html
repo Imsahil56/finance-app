@@ -6,19 +6,12 @@
 <span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
 <span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
 
-{% set type_map = {
-  'Home Loan': ('primary','account_balance'),
-  'Car Loan': ('amber','directions_car'),
-  'Personal Loan': ('purple','person'),
-  'Education Loan': ('emerald','school'),
-  'Credit Card Loan': ('rose','credit_card'),
-  'Other': ('slate','receipt_long'),
-} %}
-{% set color, icon = type_map.get(loan.loan_type, ('slate','receipt_long')) %}
+{% set color = loan.type_color %}
+{% set icon  = loan.type_icon %}
 
 <!-- Breadcrumb -->
 <div class="flex items-center gap-2 text-slate-500 text-sm mb-6">
-  <a href="{{ url_for('loans_bp.loans') }}" class="hover:text-primary transition-colors">Loans</a>
+  <a href="{{ url_for('loans_bp.loans') }}" class="hover:text-primary transition-colors">Loans & EMI</a>
   <span class="material-symbols-outlined text-sm">chevron_right</span>
   <span class="text-slate-300">{{ loan.loan_name }}</span>
 </div>
@@ -26,7 +19,7 @@
 <!-- Header -->
 <div class="flex flex-wrap items-start justify-between gap-4 mb-8">
   <div class="flex items-center gap-4">
-    <div class="size-14 rounded-2xl bg-{{ color }}-500/10 flex items-center justify-center">
+    <div class="size-14 rounded-2xl bg-{{ color }}-500/10 border border-{{ color }}-500/20 flex items-center justify-center">
       <span class="material-symbols-outlined text-{{ color }}-400 text-3xl">{{ icon }}</span>
     </div>
     <div>
@@ -36,49 +29,75 @@
           {{ 'bg-emerald-500/10 text-emerald-400' if loan.status == 'active' else 'bg-slate-700 text-slate-400' }}">
           {{ loan.status }}
         </span>
+        {% if loan.nearly_paid and loan.status == 'active' %}
+        <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400">
+          Nearly Paid 🎉
+        </span>
+        {% endif %}
       </div>
       <p class="text-slate-500 text-sm mt-1">{{ loan.loan_type }} · Started {{ loan.start_date }}</p>
     </div>
   </div>
-  <div class="flex gap-3 flex-wrap">
+  <div class="flex gap-2 flex-wrap">
+    {% if loan.status == 'active' %}
+    <button onclick="document.getElementById('extra-payment-modal').classList.remove('hidden')"
+      class="flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-primary/20 transition-all">
+      <span class="material-symbols-outlined text-sm">add_circle</span> Extra Payment
+    </button>
+    {% endif %}
     <button onclick="document.getElementById('edit-modal').classList.remove('hidden')"
-      class="flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
+      class="flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
       <span class="material-symbols-outlined text-sm">edit</span> Edit
     </button>
     {% if loan.status == 'active' %}
     <button onclick="document.getElementById('close-modal').classList.remove('hidden')"
-      class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-500/20 transition-all">
+      class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-emerald-500/20 transition-all">
       <span class="material-symbols-outlined text-sm">check_circle</span> Close Loan
     </button>
     {% endif %}
   </div>
 </div>
 
-<!-- Key Metrics -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+<!-- Key Metrics Grid -->
+<div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
   <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
-    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Loan Amount</p>
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Principal Amount</p>
     <p class="text-2xl font-black text-white">₹{{ "{:,.0f}".format(loan.loan_amount) }}</p>
+    <p class="text-xs text-slate-600 mt-1">original loan amount</p>
   </div>
   <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Monthly EMI</p>
     <p class="text-2xl font-black text-amber-400">₹{{ "{:,.0f}".format(loan.monthly_emi) }}</p>
+    <p class="text-xs text-slate-600 mt-1">per month</p>
   </div>
   <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
-    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Remaining</p>
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Remaining Balance</p>
     <p class="text-2xl font-black text-rose-400">₹{{ "{:,.0f}".format(loan.remaining_balance) }}</p>
+    <p class="text-xs text-slate-600 mt-1">outstanding principal</p>
   </div>
   <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
-    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Interest Rate</p>
-    <p class="text-2xl font-black text-{{ color }}-400">{{ loan.interest_rate }}% p.a.</p>
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Interest Rate</p>
+    <p class="text-2xl font-black text-{{ color }}-400">{{ loan.interest_rate }}%</p>
+    <p class="text-xs text-slate-600 mt-1">per annum</p>
+  </div>
+  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Total Interest</p>
+    <p class="text-2xl font-black text-rose-300">₹{{ "{:,.0f}".format(loan.total_interest) }}</p>
+    <p class="text-xs text-slate-600 mt-1">over full tenure</p>
+  </div>
+  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Loan Tenure</p>
+    <p class="text-2xl font-black text-white">{{ loan.tenure_months }}<span class="text-sm font-normal text-slate-500 ml-1">mo</span></p>
+    <p class="text-xs text-slate-600 mt-1">{{ loan.start_date }} → {{ loan.end_date_display }}</p>
   </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+<!-- Progress + Timeline + Cost -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
 
   <!-- Repayment Progress -->
   <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6">
-    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-5">Repayment Progress</h3>
+    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-5">Repayment Progress</h3>
     <div class="flex justify-between items-end mb-3">
       <div>
         <p class="text-[10px] text-slate-500 mb-0.5">Paid</p>
@@ -89,30 +108,41 @@
         <p class="text-2xl font-black text-slate-500">₹{{ "{:,.0f}".format(loan.loan_amount) }}</p>
       </div>
     </div>
+    {% set bar_colors = {
+      'blue':   '#3b82f6',
+      'amber':  '#f59e0b',
+      'purple': '#a855f7',
+      'emerald':'#10b981',
+      'rose':   '#f43f5e',
+      'cyan':   '#06b6d4',
+      'orange': '#f97316',
+      'slate':  '#64748b',
+    } %}
+    {% set bar_color = '#10b981' if loan.paid_pct >= 90 else bar_colors.get(color, '#3b82f6') %}
     <div class="relative mb-3">
       <div class="w-full h-5 bg-slate-800 rounded-full overflow-hidden">
-        <div class="h-full rounded-full transition-all duration-1000 bg-{{ color }}-500" style="width:{{ loan.paid_pct }}%"></div>
+        <div class="h-full rounded-full transition-all duration-1000" style="width:{{ loan.paid_pct }}%; background-color:{{ bar_color }};"></div>
       </div>
       <div class="absolute inset-0 flex items-center justify-center">
         <span class="text-xs font-black text-white drop-shadow">{{ loan.paid_pct }}%</span>
       </div>
     </div>
-    <p class="text-xs text-slate-500 text-center">{{ loan.paid_pct }}% repaid · ₹{{ "{:,.0f}".format(loan.remaining_balance) }} left</p>
+    <p class="text-xs text-slate-500 text-center">{{ loan.paid_pct }}% repaid · ₹{{ "{:,.0f}".format(loan.remaining_balance) }} remaining</p>
   </div>
 
-  <!-- EMI Timeline -->
+  <!-- Repayment Timeline -->
   <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6">
-    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-5">EMI Timeline</h3>
+    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-5">Repayment Timeline</h3>
     <div class="grid grid-cols-3 gap-3 mb-4">
       <div class="bg-slate-800/50 rounded-xl p-3 text-center">
         <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Total</p>
         <p class="text-xl font-black text-white">{{ loan.tenure_months }}</p>
-        <p class="text-[10px] text-slate-600">months</p>
+        <p class="text-[10px] text-slate-600">EMIs</p>
       </div>
-      <div class="bg-{{ color }}-500/10 rounded-xl p-3 text-center">
-        <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Done</p>
-        <p class="text-xl font-black text-{{ color }}-400">{{ loan.completed_months }}</p>
-        <p class="text-[10px] text-slate-600">months</p>
+      <div class="rounded-xl p-3 text-center" style="background-color:{{ bar_color }}1a;">
+        <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Paid</p>
+        <p class="text-xl font-black" style="color:{{ bar_color }};">{{ paid_count }}</p>
+        <p class="text-[10px] text-slate-600">EMIs</p>
       </div>
       <div class="bg-slate-800/50 rounded-xl p-3 text-center">
         <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Left</p>
@@ -120,17 +150,19 @@
         <p class="text-[10px] text-slate-600">months</p>
       </div>
     </div>
+    <p class="text-[10px] text-slate-500 text-center mb-2">{{ paid_count }} EMIs paid of {{ loan.tenure_months }}</p>
     <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden mb-2">
-      <div class="h-full rounded-full bg-{{ color }}-500" style="width:{{ loan.timeline_pct }}%"></div>
+      <div class="h-full rounded-full" style="width:{{ loan.timeline_pct }}%; background-color:{{ bar_color }};"></div>
     </div>
     <div class="flex justify-between text-[10px] text-slate-600">
-      <span>{{ loan.start_date }}</span><span>{{ loan.end_date }}</span>
+      <span>{{ loan.start_date }}</span>
+      <span>{{ loan.end_date }}</span>
     </div>
   </div>
 
-  <!-- Loan Cost Breakdown -->
+  <!-- Cost Breakdown -->
   <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6">
-    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-5">Loan Cost Breakdown</h3>
+    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-5">Loan Cost Breakdown</h3>
     <div class="space-y-3">
       <div class="flex justify-between items-center">
         <span class="text-slate-400 text-sm">Principal</span>
@@ -158,55 +190,158 @@
       </div>
     </div>
   </div>
-
 </div>
 
-<!-- Amortization Schedule -->
-{% if schedule %}
-<div class="bg-[#0f172a] border border-slate-800 rounded-2xl overflow-hidden">
-  <div class="flex items-center justify-between p-5 border-b border-slate-800">
-    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest">Amortization Schedule</h3>
-    <span class="text-xs text-slate-600">{{ schedule|length }} payments</span>
-  </div>
-  <div class="overflow-x-auto max-h-96 custom-scrollbar">
-    <table class="w-full text-sm">
-      <thead class="sticky top-0 bg-[#0f172a]">
-        <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-          <th class="px-5 py-3 text-left">#</th>
-          <th class="px-5 py-3 text-left">Payment Date</th>
-          <th class="px-5 py-3 text-right">EMI</th>
-          <th class="px-5 py-3 text-right">Principal</th>
-          <th class="px-5 py-3 text-right">Interest</th>
-          <th class="px-5 py-3 text-right">Balance</th>
-          <th class="px-5 py-3 text-center">Status</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-800/50">
-        {% for row in schedule %}
-        <tr class="hover:bg-slate-800/30 transition-colors
-          {{ 'opacity-50' if row.state == 'paid' else ('bg-primary/5' if row.state == 'current' else '') }}">
-          <td class="px-5 py-3 text-slate-500 font-mono text-xs">{{ row.month_number }}</td>
-          <td class="px-5 py-3 text-slate-300">{{ row.payment_date }}</td>
-          <td class="px-5 py-3 text-right font-semibold text-white">₹{{ "{:,.0f}".format(row.emi) }}</td>
-          <td class="px-5 py-3 text-right text-emerald-400">₹{{ "{:,.0f}".format(row.principal_component) }}</td>
-          <td class="px-5 py-3 text-right text-rose-400">₹{{ "{:,.0f}".format(row.interest_component) }}</td>
-          <td class="px-5 py-3 text-right text-slate-400">₹{{ "{:,.0f}".format(row.remaining_balance) }}</td>
-          <td class="px-5 py-3 text-center">
-            {% if row.state == 'paid' %}
-              <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold">Paid</span>
-            {% elif row.state == 'current' %}
-              <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">Due</span>
-            {% else %}
-              <span class="text-[10px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full font-bold">Upcoming</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<!-- Extra Payment Section (anchor target) -->
+{% if loan.status == 'active' %}
+<div id="extra-payment" class="bg-primary/5 border border-primary/20 rounded-2xl p-6 mb-6">
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <h3 class="text-sm font-bold text-white mb-1 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[18px]">add_circle</span>
+        Make an Extra Payment
+      </h3>
+      <p class="text-xs text-slate-500">Pay extra toward principal to reduce interest and close the loan faster.</p>
+    </div>
+    <button onclick="document.getElementById('extra-payment-modal').classList.remove('hidden')"
+      class="flex items-center gap-2 bg-primary text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:brightness-110 primary-glow transition-all shrink-0">
+      <span class="material-symbols-outlined text-sm">payments</span> Add Extra Payment
+    </button>
   </div>
 </div>
 {% endif %}
+
+<!-- Amortization Schedule (collapsible) -->
+{% if schedule %}
+<div class="bg-[#0f172a] border border-slate-800 rounded-2xl overflow-hidden">
+
+  <!-- Header — always visible, click to expand -->
+  <button id="amort-toggle"
+    onclick="toggleAmortization()"
+    class="w-full flex items-center justify-between p-5 hover:bg-slate-800/30 transition-colors text-left group">
+    <div>
+      <h3 class="text-sm font-bold text-white">Amortization Schedule</h3>
+      <p class="text-xs text-slate-500 mt-0.5">
+        Full repayment breakdown — {{ schedule|length }} payments ·
+        <span id="amort-toggle-hint" class="text-primary">click to expand</span>
+      </p>
+    </div>
+    <div class="flex items-center gap-4">
+      <!-- Legend (hidden when collapsed) -->
+      <div id="amort-legend" class="hidden items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+        <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-emerald-500 inline-block"></span> Paid</span>
+        <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-primary inline-block"></span> Due Now</span>
+        <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-slate-600 inline-block"></span> Upcoming</span>
+      </div>
+      <!-- Chevron -->
+      <div class="size-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center group-hover:bg-slate-700 transition-colors">
+        <span id="amort-chevron" class="material-symbols-outlined text-slate-400 text-lg transition-transform duration-300">expand_more</span>
+      </div>
+    </div>
+  </button>
+
+  <!-- Collapsible body -->
+  <div id="amort-body"
+    style="max-height:0; overflow:hidden; transition: max-height 0.4s ease;">
+    <div class="border-t border-slate-800 overflow-x-auto custom-scrollbar" style="max-height:480px; overflow-y:auto;">
+      <table class="w-full text-sm">
+        <thead class="sticky top-0 bg-[#0f172a] z-10">
+          <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800">
+            <th class="px-5 py-3 text-left">Month</th>
+            <th class="px-5 py-3 text-left">Payment Date</th>
+            <th class="px-5 py-3 text-right">EMI</th>
+            <th class="px-5 py-3 text-right">Principal</th>
+            <th class="px-5 py-3 text-right">Interest</th>
+            <th class="px-5 py-3 text-right">Balance</th>
+            <th class="px-5 py-3 text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/50">
+          {% for row in schedule %}
+          <tr class="hover:bg-slate-800/30 transition-colors
+            {% if row.state == 'paid' %}opacity-50
+            {% elif row.state == 'current' %}bg-primary/5 border-l-2 border-l-primary{% endif %}">
+            <td class="px-5 py-3 text-slate-500 font-mono text-xs">{{ row.month_number }}</td>
+            <td class="px-5 py-3 text-slate-300 text-xs">
+              {{ row.payment_date }}
+              {% if row.state == 'current' %}
+              <span class="ml-1 text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">THIS MONTH</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3 text-right font-semibold text-white">₹{{ "{:,.0f}".format(row.emi) }}</td>
+            <td class="px-5 py-3 text-right text-emerald-400 font-medium">₹{{ "{:,.0f}".format(row.principal_component) }}</td>
+            <td class="px-5 py-3 text-right text-rose-400 font-medium">₹{{ "{:,.0f}".format(row.interest_component) }}</td>
+            <td class="px-5 py-3 text-right text-slate-400">₹{{ "{:,.0f}".format(row.remaining_balance) }}</td>
+            <td class="px-5 py-3 text-center">
+              {% if row.state == 'paid' %}
+              <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2.5 py-0.5 rounded-full font-bold">Paid</span>
+              {% elif row.state == 'current' %}
+              <span class="text-[10px] bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-bold">Due</span>
+              {% else %}
+              <span class="text-[10px] bg-slate-800 text-slate-500 px-2.5 py-0.5 rounded-full font-bold">Upcoming</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endif %}
+
+
+<!-- ── MODAL: Extra Payment ── -->
+<div id="extra-payment-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-[#0d141c] border border-primary/20 rounded-2xl w-full max-w-md shadow-2xl p-6">
+    <div class="flex items-center gap-3 mb-2">
+      <div class="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
+        <span class="material-symbols-outlined text-primary text-xl">payments</span>
+      </div>
+      <div>
+        <p class="font-bold text-white">Extra Principal Payment</p>
+        <p class="text-xs text-slate-500">Reduces balance and recalculates schedule</p>
+      </div>
+    </div>
+
+    <div class="bg-slate-800/40 rounded-xl p-4 my-4 grid grid-cols-2 gap-3">
+      <div>
+        <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Current Balance</p>
+        <p class="font-bold text-white">₹{{ "{:,.0f}".format(loan.remaining_balance) }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Monthly EMI</p>
+        <p class="font-bold text-amber-400">₹{{ "{:,.0f}".format(loan.monthly_emi) }}</p>
+      </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('loans_bp.extra_payment', loan_id=loan.id) }}" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Extra Payment Amount (₹) *</label>
+        <div class="relative">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+          <input type="number" name="extra_amount" required min="1" step="1"
+            placeholder="e.g. 50000"
+            class="w-full bg-slate-900/60 border border-slate-700 rounded-xl pl-8 pr-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary text-sm font-bold"/>
+        </div>
+      </div>
+      <p class="text-xs text-slate-600 bg-slate-800/50 rounded-xl p-3">
+        <span class="material-symbols-outlined text-xs align-middle">info</span>
+        This amount goes directly toward reducing your principal balance. The remaining amortization schedule will be recalculated automatically.
+      </p>
+      <div class="flex gap-3">
+        <button type="submit" class="flex-1 h-11 bg-primary text-white font-bold rounded-xl hover:brightness-110 primary-glow transition-all">
+          Apply Payment
+        </button>
+        <button type="button" onclick="document.getElementById('extra-payment-modal').classList.add('hidden')"
+          class="flex-1 h-11 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 
 
 <!-- ── MODAL: Edit Loan ── -->
@@ -239,7 +374,7 @@
       </div>
       <p class="text-xs text-slate-600 bg-slate-800/50 rounded-xl p-3">
         <span class="material-symbols-outlined text-xs align-middle">info</span>
-        EMI, interest rate, and tenure cannot be changed after loan creation (per financial rules).
+        EMI, rate, and tenure are fixed after loan creation per financial rules.
       </p>
       <div class="flex gap-3 pt-1">
         <button type="submit" class="flex-1 h-11 bg-amber-500 text-white font-bold rounded-xl hover:brightness-110 transition-all">Save Changes</button>
@@ -249,6 +384,7 @@
     </form>
   </div>
 </div>
+
 
 <!-- ── MODAL: Close Loan ── -->
 <div id="close-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -272,14 +408,53 @@
 
 {% block extra_js %}
 <script>
-  ['edit-modal','close-modal'].forEach(id => {
-    document.getElementById(id).addEventListener('click', function(e) {
-      if (e.target === this) this.classList.add('hidden');
-    });
+  const modals = ['edit-modal', 'close-modal', 'extra-payment-modal'];
+
+  modals.forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', function(e) {
+        if (e.target === this) this.classList.add('hidden');
+      });
+    }
   });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')
-      ['edit-modal','close-modal'].forEach(id => document.getElementById(id).classList.add('hidden'));
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      modals.forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+    }
   });
+
+  // Auto-open extra payment modal if URL has #extra-payment
+  if (window.location.hash === '#extra-payment') {
+    const modal = document.getElementById('extra-payment-modal');
+    if (modal) modal.classList.remove('hidden');
+  }
+
+  /* ── Amortization collapse ── */
+  var amortOpen = false;
+  function toggleAmortization() {
+    const body    = document.getElementById('amort-body');
+    const chevron = document.getElementById('amort-chevron');
+    const hint    = document.getElementById('amort-toggle-hint');
+    const legend  = document.getElementById('amort-legend');
+    amortOpen = !amortOpen;
+    if (amortOpen) {
+      body.style.maxHeight = '560px';
+      chevron.style.transform = 'rotate(180deg)';
+      hint.textContent = 'click to collapse';
+      legend.classList.remove('hidden');
+      legend.classList.add('flex');
+    } else {
+      body.style.maxHeight = '0';
+      chevron.style.transform = 'rotate(0deg)';
+      hint.textContent = 'click to expand';
+      legend.classList.remove('flex');
+      legend.classList.add('hidden');
+    }
+  }
 </script>
 {% endblock %}

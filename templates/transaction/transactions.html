@@ -22,6 +22,49 @@
 
 <!-- ── Filter Bar ── -->
 <div class="bg-charcoal/50 border border-border-muted rounded-2xl p-4 mb-6">
+
+  <!-- Date Period Pills -->
+  <div class="flex items-center gap-2 mb-3 flex-wrap">
+    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mr-1">Period</span>
+    {% set periods = [
+      ('this_month', 'This Month'),
+      ('last_month', 'Last Month'),
+      ('last_3',     'Last 3 Months'),
+      ('this_year',  'This Year'),
+      ('all',        'All Time'),
+    ] %}
+    {% for val, label in periods %}
+    <button
+      data-period="{{ val }}"
+      onclick="setDatePeriod('{{ val }}')"
+      class="date-period-pill px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+        {{ 'bg-primary text-white' if val == 'this_month' else 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700' }}">
+      {{ label }}
+    </button>
+    {% endfor %}
+    <!-- Custom date range -->
+    <button onclick="toggleCustomDate()" id="custom-date-btn"
+      class="date-period-pill px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-800 text-slate-400 hover:text-white border border-slate-700 flex items-center gap-1.5">
+      <span class="material-symbols-outlined text-sm">date_range</span> Custom
+    </button>
+  </div>
+
+  <!-- Custom date inputs (hidden by default) -->
+  <div id="custom-date-row" class="hidden mb-3 flex items-center gap-3 flex-wrap">
+    <div class="flex items-center gap-2">
+      <label class="text-[10px] text-slate-500 font-bold uppercase">From</label>
+      <input type="date" id="date-from" onchange="applyDateFilter()"
+        class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary [color-scheme:dark]"/>
+    </div>
+    <div class="flex items-center gap-2">
+      <label class="text-[10px] text-slate-500 font-bold uppercase">To</label>
+      <input type="date" id="date-to" onchange="applyDateFilter()"
+        class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary [color-scheme:dark]"/>
+    </div>
+    <button onclick="clearCustomDate()" class="text-xs text-slate-500 hover:text-white transition-colors">Clear</button>
+  </div>
+
+  <div class="pt-2">
   <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 items-end">
 
     <!-- Type dropdown -->
@@ -100,6 +143,7 @@
     </div>
 
   </div>
+  </div><!-- /border-t wrapper -->
 
   <!-- Active filter pill -->
   <div id="active-filter-row" class="hidden mt-3 flex items-center gap-2">
@@ -140,14 +184,17 @@
            data-source="{{ t['source_type'] or 'manual' }}"
            data-category="{{ t['category'] | lower }}"
            data-search="{{ (t['description'] or '') | lower }} {{ t['category'] | lower }}"
-           data-amount="{{ t['amount'] }}">
+           data-amount="{{ t['amount'] }}"
+           data-date="{{ t['date'] }}">
 
         <!-- Colored left accent -->
-        <div class="absolute left-0 top-0 bottom-0 w-1
-          {% if t['source_type'] == 'obligation' %}bg-purple-500
-          {% elif t['source_type'] == 'loan' %}bg-primary
-          {% elif t['type'] == 'income' %}bg-income
-          {% else %}bg-expense{% endif %}"></div>
+        {% if t['source_type'] == 'obligation' %}{% set accent = '#a855f7' %}
+        {% elif t['source_type'] == 'loan' %}{% set accent = '#2094f3' %}
+        {% elif t['is_recurring'] and t['type'] == 'expense' %}{% set accent = '#f59e0b' %}
+        {% elif t['is_recurring'] and t['type'] == 'income' %}{% set accent = '#34d399' %}
+        {% elif t['type'] == 'income' %}{% set accent = '#22c55e' %}
+        {% else %}{% set accent = '#ef4444' %}{% endif %}
+        <div class="absolute left-0 top-0 bottom-0 w-1" style="background:{{ accent }};"></div>
 
         <!-- Date -->
         <div class="flex flex-col items-center justify-center min-w-[60px] border-r border-border-muted/30 mr-6 shrink-0">
@@ -166,13 +213,21 @@
               {{ t['type'] }}
             </span>
             {% if t['source_type'] == 'obligation' %}
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0">Commitment</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[10px]">event_repeat</span>Commitment
+            </span>
             {% elif t['source_type'] == 'loan' %}
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary shrink-0">Loan Payment</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary shrink-0 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[10px]">account_balance</span>Loan EMI
+            </span>
             {% elif t['is_recurring'] and t['type'] == 'income' %}
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">Fixed Income</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[10px]">repeat</span>Fixed Income
+            </span>
             {% elif t['is_recurring'] and t['type'] == 'expense' %}
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0">Recurring</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[10px]">repeat</span>Recurring
+            </span>
             {% endif %}
           </div>
           <p class="text-slate-400 text-sm">{{ t['category'] }}</p>
@@ -241,6 +296,70 @@
     applyFilters();
   }
 
+  // ── Date period filter ──
+  var activeDateFrom = null;
+  var activeDateTo   = null;
+
+  function getDateRange(period) {
+    var now   = new Date();
+    var today = now.toISOString().slice(0, 10);
+    var y = now.getFullYear(), m = now.getMonth();
+    if (period === 'this_month') {
+      return [new Date(y, m, 1).toISOString().slice(0,10), today];
+    } else if (period === 'last_month') {
+      var lm = new Date(y, m, 0); // last day of prev month
+      return [new Date(lm.getFullYear(), lm.getMonth(), 1).toISOString().slice(0,10),
+              lm.toISOString().slice(0,10)];
+    } else if (period === 'last_3') {
+      return [new Date(y, m - 2, 1).toISOString().slice(0,10), today];
+    } else if (period === 'this_year') {
+      return [new Date(y, 0, 1).toISOString().slice(0,10), today];
+    }
+    return [null, null]; // 'all'
+  }
+
+  function setDatePeriod(period) {
+    // Style pills
+    document.querySelectorAll('.date-period-pill').forEach(function(btn) {
+      if (btn.dataset.period === period) {
+        btn.className = btn.className.replace('bg-slate-800 text-slate-400 hover:text-white border border-slate-700', 'bg-primary text-white');
+      } else {
+        btn.className = btn.className.replace('bg-primary text-white', 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700');
+      }
+    });
+    // Hide custom
+    document.getElementById('custom-date-row').classList.add('hidden');
+    var range = getDateRange(period);
+    activeDateFrom = range[0];
+    activeDateTo   = range[1];
+    applyFilters();
+  }
+
+  function toggleCustomDate() {
+    var row = document.getElementById('custom-date-row');
+    row.classList.toggle('hidden');
+    if (!row.classList.contains('hidden')) {
+      // Deselect all period pills
+      document.querySelectorAll('.date-period-pill[data-period]').forEach(function(btn) {
+        btn.className = btn.className.replace('bg-primary text-white', 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700');
+      });
+    }
+  }
+
+  function applyDateFilter() {
+    activeDateFrom = document.getElementById('date-from').value || null;
+    activeDateTo   = document.getElementById('date-to').value   || null;
+    applyFilters();
+  }
+
+  function clearCustomDate() {
+    document.getElementById('date-from').value = '';
+    document.getElementById('date-to').value = '';
+    activeDateFrom = null; activeDateTo = null;
+    document.getElementById('custom-date-row').classList.add('hidden');
+    applyFilters();
+  }
+
   function applyFilters() {
     const search   = document.getElementById('filter-search').value.toLowerCase();
     const category = document.getElementById('filter-category').value.toLowerCase();
@@ -261,7 +380,12 @@
       const amt         = parseFloat(card.dataset.amount);
       const amtMatch    = amt >= minAmt && amt <= maxAmt;
 
-      const show = typeMatch && catMatch && searchMatch && amtMatch;
+      // Date filter
+      const cardDate = card.dataset.date || '';
+      const dateMatch = (!activeDateFrom || cardDate >= activeDateFrom) &&
+                        (!activeDateTo   || cardDate <= activeDateTo);
+
+      const show = typeMatch && catMatch && searchMatch && amtMatch && dateMatch;
       card.style.display = show ? '' : 'none';
       if (show) visible++;
     });
@@ -289,15 +413,26 @@
 
   function resetFilters() {
     activeFilter = 'all';
+    activeDateFrom = null; activeDateTo = null;
     const sel = document.getElementById('filter-type-select');
     if (sel) sel.value = 'all';
     document.getElementById('filter-search').value = '';
     document.getElementById('filter-category').value = '';
     document.getElementById('filter-min').value = '';
     document.getElementById('filter-max').value = '';
+    document.getElementById('date-from').value = '';
+    document.getElementById('date-to').value = '';
+    document.getElementById('custom-date-row').classList.add('hidden');
     const row = document.getElementById('active-filter-row');
     if (row) { row.classList.add('hidden'); row.classList.remove('flex'); }
+    // Reset date pills — highlight 'all'
+    document.querySelectorAll('.date-period-pill[data-period]').forEach(function(btn) {
+      btn.className = btn.className.replace('bg-primary text-white', 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700');
+    });
     applyFilters();
   }
+
+  // Default: filter to this month on load
+  setDatePeriod('this_month');
 </script>
 {% endblock %}

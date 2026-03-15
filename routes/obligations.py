@@ -66,12 +66,68 @@ def obligations():
     ensure_pending_current_month(db, uid)
 
     all_obs = db.execute(
-        'SELECT * FROM obligations WHERE user_id=? ORDER BY status ASC, name ASC', (uid,)
+        'SELECT * FROM obligations WHERE user_id=? ORDER BY status ASC, source_type ASC, name ASC', (uid,)
     ).fetchall()
+
+    # ── Summary stats ─────────────────────────────────────────────────────────
+    today = date_cls.today()
+    active_obs = [o for o in all_obs if o['status'] == 'active']
+    total_monthly = sum(o['amount'] for o in active_obs if o['frequency'] == 'monthly')
+
+    # Upcoming in next 7 days
+    in_7 = today + timedelta(days=7)
+    upcoming = db.execute(
+        '''SELECT po.*, ob.name, ob.amount, ob.source_type
+           FROM pending_obligations po
+           JOIN obligations ob ON ob.id = po.obligation_id
+           WHERE ob.user_id=? AND po.status='pending'
+             AND po.due_date >= ? AND po.due_date <= ?
+           ORDER BY po.due_date ASC''',
+        (uid, today.isoformat(), in_7.isoformat())
+    ).fetchall()
+    upcoming_total  = sum(r['amount'] for r in upcoming)
+    upcoming_names  = ', '.join(r['name'] for r in upcoming[:3])
+    if len(upcoming) > 3:
+        upcoming_names += f' +{len(upcoming)-3} more'
+
+    # Loan installments
+    loan_obs = [o for o in active_obs if o['source_type'] == 'loan']
+    loan_emi_total = sum(o['amount'] for o in loan_obs)
+
+    # Icon + color map by category / source
+    CATEGORY_ICONS = {
+        'Rent & Housing': ('home',             '#6366f1'),
+        'Transport':      ('directions_car',   '#f59e0b'),
+        'Education':      ('school',           '#10b981'),
+        'Health & Medical':('favorite',        '#ec4899'),
+        'Utilities':      ('bolt',             '#f97316'),
+        'Subscriptions':  ('subscriptions',    '#8b5cf6'),
+        'Food & Dining':  ('restaurant',       '#ef4444'),
+        'Loan EMI':       ('account_balance',  '#2094f3'),
+        'Other':          ('receipt_long',     '#64748b'),
+    }
+
+    enriched = []
+    for ob in all_obs:
+        d = dict(ob)
+        cat   = d.get('category') or 'Other'
+        meta  = CATEGORY_ICONS.get(cat, CATEGORY_ICONS['Other'])
+        if ob['source_type'] == 'loan':
+            meta = ('account_balance', '#2094f3')
+        d['icon']  = meta[0]
+        d['color'] = meta[1]
+        enriched.append(d)
 
     m_exp, m_pct = get_monthly_spend()
     return render_template('obligations/obligations.html',
-        obligations=all_obs,
+        obligations=enriched,
+        total_monthly=total_monthly,
+        upcoming_total=upcoming_total,
+        upcoming_names=upcoming_names,
+        upcoming_count=len(upcoming),
+        loan_emi_total=loan_emi_total,
+        loan_count=len(loan_obs),
+        active_count=len(active_obs),
         sidebar_expense=m_exp, sidebar_pct=m_pct,
     )
 
@@ -88,6 +144,7 @@ def add_obligation():
     due_day   = request.form.get('due_day', '1').strip() or '1'
     start     = request.form.get('start_date', '').strip()
     end       = request.form.get('end_date', '').strip() or None
+    category  = request.form.get('category', 'Other').strip()
 
     if not all([name, amount, start]):
         flash('Please fill all required fields.', 'error')
@@ -96,11 +153,11 @@ def add_obligation():
     try:
         db.execute(
             'INSERT INTO obligations (user_id, name, amount, frequency, due_day, '
-            'start_date, end_date, status, source_type) VALUES (?,?,?,?,?,?,?,?,?)',
-            (uid, name, float(amount), frequency, int(due_day), start, end, 'active', 'manual')
+            'start_date, end_date, status, source_type, category) VALUES (?,?,?,?,?,?,?,?,?,?)',
+            (uid, name, float(amount), frequency, int(due_day), start, end, 'active', 'manual', category)
         )
         db.commit()
-        flash(f'Obligation "{name}" added.', 'success')
+        flash(f'Commitment "{name}" added.', 'success')
     except (ValueError, TypeError):
         flash('Invalid data.', 'error')
 
@@ -164,24 +221,26 @@ def approve_pending(pending_id):
     if not row:
         return jsonify({'error': 'not found'}), 404
 
-    # Pick the right category:
-    # - Loan EMI → use the loan_type mapped to an expense category
-    # - Manual recurring → 'Other'
-    category = 'Other'
-    if row['source_type'] == 'loan' and row['source_id']:
-        loan = db.execute(
-            'SELECT loan_type FROM loans WHERE id=?', (row['source_id'],)
-        ).fetchone()
-        if loan:
-            loan_cat_map = {
-                'Home Loan':        'Rent & Housing',
-                'Car Loan':         'Transport',
-                'Personal Loan':    'Other',
-                'Education Loan':   'Education',
-                'Credit Card Loan': 'Other',
-                'Other':            'Other',
-            }
-            category = loan_cat_map.get(loan['loan_type'], 'Other')
+    # Use the category stored on the obligation itself.
+    # Loan obligations store 'Loan EMI'; manual ones store their own category.
+    # Fall back to 'Other' if somehow missing.
+    ob_full = db.execute(
+        'SELECT category FROM obligations WHERE id=?', (row['ob_id'],)
+    ).fetchone()
+    category = (ob_full['category'] if ob_full and ob_full['category'] else 'Other')
+
+    # Guard: don't insert if a transaction already exists for this
+    # obligation + due_date (prevents double-entry if seeded data overlaps)
+    existing = db.execute(
+        '''SELECT id FROM txn
+           WHERE user_id=? AND source_type IN ('obligation','loan')
+           AND source_id=? AND date=? AND amount=?''',
+        (uid, row['ob_id'], row['due_date'], row['amount'])
+    ).fetchone()
+    if existing:
+        db.execute("UPDATE pending_obligations SET status='approved' WHERE id=?", (pending_id,))
+        db.commit()
+        return jsonify({'ok': True, 'message': f'Already recorded for {row["name"]}'})
 
     db.execute(
         'INSERT INTO txn (user_id, type, amount, category, description, date, '

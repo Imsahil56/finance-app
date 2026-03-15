@@ -1,10 +1,10 @@
 """
 routes/dashboard.py
-Dashboard blueprint — main overview page with charts and summary cards.
+Dashboard blueprint — summary cards with period filter (This Week / This Month / Overall).
 """
 
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 from flask import Blueprint, render_template, session
 
@@ -13,37 +13,58 @@ from routes.db import get_db, login_required
 dashboard_bp = Blueprint('dashboard_bp', __name__)
 
 
+def _sum_rows(rows, t):
+    return sum(r['amount'] for r in rows if r['type'] == t)
+
+
+def _category_map(rows):
+    cats = {}
+    for r in rows:
+        if r['type'] == 'expense':
+            cats[r['category']] = cats.get(r['category'], 0) + r['amount']
+    return cats
+
+
 @dashboard_bp.route('/dashboard')
 @login_required
 def dashboard():
     db  = get_db()
     uid = session['user_id']
     now = datetime.now()
+    today = date.today()
     month, year = now.month, now.year
-    month_str   = f'{month:02d}'
+    month_str = f'{month:02d}'
 
-    # ── All-time totals (balance cards) ──────────────────────────────────────
-    rows = db.execute(
-        'SELECT type, amount FROM txn WHERE user_id=?', (uid,)
+    # ── This-week date range (Mon–today) ─────────────────────────────────────
+    week_start = today - timedelta(days=today.weekday())   # Monday
+    week_start_str = week_start.isoformat()
+    today_str      = today.isoformat()
+
+    # ── Fetch rows for each period ────────────────────────────────────────────
+    all_rows = db.execute(
+        'SELECT type, category, amount, date FROM txn WHERE user_id=?', (uid,)
     ).fetchall()
-    total_income  = sum(r['amount'] for r in rows if r['type'] == 'income')
-    total_expense = sum(r['amount'] for r in rows if r['type'] == 'expense')
-    balance       = total_income - total_expense
 
-    # ── Current-month totals ──────────────────────────────────────────────────
-    monthly_rows = db.execute(
-        "SELECT type, category, amount FROM txn "
-        "WHERE user_id=? AND strftime('%m', date)=? AND strftime('%Y', date)=?",
-        (uid, month_str, str(year))
-    ).fetchall()
-    monthly_income  = sum(r['amount'] for r in monthly_rows if r['type'] == 'income')
-    monthly_expense = sum(r['amount'] for r in monthly_rows if r['type'] == 'expense')
+    monthly_rows = [r for r in all_rows
+                    if r['date'][:7] == f'{year}-{month_str}']
 
-    # ── Category spend (current month) ───────────────────────────────────────
-    category_data: dict[str, float] = {}
-    for r in monthly_rows:
-        if r['type'] == 'expense':
-            category_data[r['category']] = category_data.get(r['category'], 0) + r['amount']
+    weekly_rows  = [r for r in all_rows
+                    if week_start_str <= r['date'] <= today_str]
+
+    # ── Period summaries ──────────────────────────────────────────────────────
+    def period_summary(rows):
+        income  = _sum_rows(rows, 'income')
+        expense = _sum_rows(rows, 'expense')
+        return {
+            'income':   income,
+            'expense':  expense,
+            'balance':  income - expense,
+            'cats':     _category_map(rows),
+        }
+
+    p_overall = period_summary(all_rows)
+    p_month   = period_summary(monthly_rows)
+    p_week    = period_summary(weekly_rows)
 
     # ── Recent transactions ───────────────────────────────────────────────────
     recent = db.execute(
@@ -51,18 +72,25 @@ def dashboard():
         (uid,)
     ).fetchall()
 
-    # ── Monthly budget progress ───────────────────────────────────────────────
+    # ── Monthly budget ────────────────────────────────────────────────────────
     monthly_budget = db.execute(
         'SELECT * FROM monthly_budget WHERE user_id=? AND month=? AND year=?',
         (uid, month, year)
     ).fetchone()
+    monthly_budget_amt = monthly_budget['budget_amount'] if monthly_budget else 0
     monthly_budget_pct = 0
-    if monthly_budget and monthly_budget['budget_amount']:
+    if monthly_budget_amt:
         monthly_budget_pct = min(
-            round(monthly_expense / monthly_budget['budget_amount'] * 100), 100
+            round(p_month['expense'] / monthly_budget_amt * 100), 100
         )
 
-    # ── Category budgets (monthly_category_budget, fall back to defaults) ────
+    # Weekly budget (pro-rated: monthly / 4.33)
+    weekly_budget_amt = round(monthly_budget_amt / 4.33) if monthly_budget_amt else 0
+    weekly_budget_pct = 0
+    if weekly_budget_amt:
+        weekly_budget_pct = min(round(p_week['expense'] / weekly_budget_amt * 100), 100)
+
+    # ── Category budgets ──────────────────────────────────────────────────────
     cat_budgets = db.execute(
         'SELECT * FROM monthly_category_budget WHERE user_id=? AND month=? AND year=?',
         (uid, month, year)
@@ -75,7 +103,7 @@ def dashboard():
     cat_budget_data = []
     for cb in cat_budgets:
         budget_amt = cb['amount'] if 'amount' in cb.keys() else cb['budget_amount']
-        spent = category_data.get(cb['category'], 0)
+        spent = p_month['cats'].get(cb['category'], 0)
         pct   = min(round(spent / budget_amt * 100), 100) if budget_amt else 0
         cat_budget_data.append({
             'category': cb['category'],
@@ -85,19 +113,14 @@ def dashboard():
             'over':     spent > budget_amt,
         })
 
-    # ── Income vs Expense chart (monthly, unique labels across years) ─────────
-    all_txn_rows = db.execute(
-        'SELECT date, type, amount FROM txn WHERE user_id=? ORDER BY date ASC',
-        (uid,)
-    ).fetchall()
-
+    # ── Income vs Expense chart ───────────────────────────────────────────────
     monthly_data: OrderedDict = OrderedDict()
-    for row in all_txn_rows:
-        key = row['date'][:7]           # YYYY-MM
+    for row in sorted(all_rows, key=lambda r: r['date']):
+        key = row['date'][:7]
         if key not in monthly_data:
             dt = datetime.strptime(key, '%Y-%m')
             monthly_data[key] = {
-                'label':   dt.strftime('%b %y'),   # "Jan 25" — unique across years
+                'label':   dt.strftime('%b %y'),
                 'income':  0.0,
                 'expense': 0.0,
             }
@@ -106,25 +129,58 @@ def dashboard():
         else:
             monthly_data[key]['expense'] += row['amount']
 
-    # Single-month edge case: drop the year suffix
     if len(monthly_data) == 1:
         key = next(iter(monthly_data))
         monthly_data[key]['label'] = datetime.strptime(key, '%Y-%m').strftime('%b')
 
     income_expense_chart = list(monthly_data.values())
 
+    # ── Per-month category breakdown for donut chart dropdown ────────────────
+    month_cats = {}   # { 'YYYY-MM': {'label': 'Jan 2026', 'cats': {...}} }
+    for row in all_rows:
+        key = row['date'][:7]
+        if key not in month_cats:
+            dt = datetime.strptime(key, '%Y-%m')
+            month_cats[key] = {
+                'label': dt.strftime('%B %Y'),
+                'cats':  {}
+            }
+        if row['type'] == 'expense':
+            c = row['category']
+            month_cats[key]['cats'][c] = month_cats[key]['cats'].get(c, 0) + row['amount']
+
+    # Sort months newest first for the dropdown
+    sorted_month_cats = dict(sorted(month_cats.items(), reverse=True))
+
+    # Overall cats (reuse p_overall)
+    overall_cats = p_overall['cats']
+
     return render_template(
         'dashboard.html',
-        total_income=total_income,
-        total_expense=total_expense,
-        balance=balance,
-        monthly_income=monthly_income,
-        monthly_expense=monthly_expense,
-        category_data=category_data,
-        recent=recent,
-        monthly_budget=monthly_budget,
-        monthly_budget_pct=monthly_budget_pct,
-        cat_budget_data=cat_budget_data,
-        month_name=now.strftime('%B %Y'),
-        income_expense_chart=income_expense_chart,
+        # keep legacy vars for template compat
+        total_income   = p_overall['income'],
+        total_expense  = p_overall['expense'],
+        balance        = p_overall['balance'],
+        monthly_income = p_month['income'],
+        monthly_expense= p_month['expense'],
+        category_data  = p_month['cats'],
+        # period data for JS switcher
+        p_overall      = p_overall,
+        p_month        = p_month,
+        p_week         = p_week,
+        monthly_budget_amt  = monthly_budget_amt,
+        weekly_budget_amt   = weekly_budget_amt,
+        monthly_budget_pct  = monthly_budget_pct,
+        weekly_budget_pct   = weekly_budget_pct,
+        # donut chart
+        sorted_month_cats   = sorted_month_cats,
+        overall_cats        = overall_cats,
+        current_month_key   = f'{year}-{month_str}',
+        # rest
+        recent         = recent,
+        monthly_budget = monthly_budget,
+        cat_budget_data= cat_budget_data,
+        month_name     = now.strftime('%B %Y'),
+        week_range     = f"{week_start.strftime('%d %b')} – {today.strftime('%d %b')}",
+        income_expense_chart = income_expense_chart,
     )

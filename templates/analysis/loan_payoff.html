@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Loan Payoff — FinanceOS{% endblock %}
+{% block page_title %}Loan Payoff{% endblock %}
+
+{% block extra_css %}
+<style>
+  .sub-card { background:#0d1829; border:1px solid #1e2d45; border-radius:14px; padding:20px; }
+  .metric-label { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#475569; margin-bottom:3px; }
+  .metric-val { font-size:20px; font-weight:900; color:#f1f5f9; line-height:1.1; }
+  .bar-track { background:#1e293b; border-radius:999px; overflow:hidden; }
+  .bar-fill  { height:100%; border-radius:999px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
+
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+  <div class="flex items-center gap-3">
+    <a href="{{ url_for('analysis.overview') }}"
+      class="flex items-center gap-1 text-xs text-slate-500 hover:text-white transition-colors">
+      <span class="material-symbols-outlined text-sm">arrow_back</span> Analysis
+    </a>
+    <span class="text-slate-700">/</span>
+    <h2 class="text-xl font-bold text-white">Loan Payoff Trend</h2>
+  </div>
+  <a href="{{ url_for('loans_bp.loans') }}"
+    class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-all">
+    <span class="material-symbols-outlined text-sm">open_in_new</span> View All Loans
+  </a>
+</div>
+
+<!-- Summary row -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="sub-card">
+    <p class="metric-label">Total Outstanding</p>
+    {% set tot = debt.total_outstanding %}
+    <p class="metric-val">
+      {% if tot >= 10000000 %}₹{{ "%.1f"|format(tot/10000000) }}Cr
+      {% elif tot >= 100000 %}₹{{ "%.1f"|format(tot/100000) }}L
+      {% else %}₹{{ "{:,.0f}".format(tot) }}{% endif %}
+    </p>
+  </div>
+  <div class="sub-card">
+    <p class="metric-label">Monthly EMI</p>
+    <p class="metric-val text-primary">₹{{ "{:,.0f}".format(debt.total_emi) }}</p>
+  </div>
+  <div class="sub-card">
+    <p class="metric-label">Active Loans</p>
+    <p class="metric-val text-primary">{{ debt.active_count }}</p>
+  </div>
+  <div class="sub-card">
+    <p class="metric-label">Est. Debt-Free</p>
+    {% if debt.payoff_trend %}
+    <p class="metric-val text-emerald-400">{{ debt.payoff_trend[-1].label }}</p>
+    {% else %}
+    <p class="metric-val" style="color:#475569;">—</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Combined payoff chart -->
+<div class="sub-card mb-6">
+  <div class="flex items-center justify-between mb-1">
+    <h3 class="text-sm font-bold text-white">Combined Loan Balance</h3>
+    <span class="flex items-center gap-1 text-[10px] text-slate-500">
+      <span class="size-2 rounded-full bg-primary inline-block"></span>Remaining Balance
+    </span>
+  </div>
+  {% if debt.payoff_trend %}
+  {% set pts = debt.payoff_trend %}{% set n = pts|length %}{% set mb2 = pts|map(attribute='balance')|max %}
+  <p class="text-[10px] text-slate-600 mb-4">Estimated loan payoff timeline based on current repayment schedule</p>
+  <div class="relative" style="height:160px;">
+    <div class="absolute inset-0 flex flex-col justify-between pb-6 pointer-events-none">
+      {% for _ in range(5) %}<div style="width:100%; border-top:1px solid #1e293b;"></div>{% endfor %}
+    </div>
+    {# Chart geometry only — no text in stretchy SVG #}
+    {% if n > 1 and mb2 > 0 %}
+    {% set min_b = pts|map(attribute='balance')|min %}
+    {% set range_b = mb2 - min_b if mb2 > min_b else 1 %}
+    {% set pad = range_b * 0.15 %}
+    {% set y_min = min_b - pad %}
+    {% set y_max = mb2 + pad %}
+    {% set y_range = y_max - y_min %}
+    {% set sy_pct  = (8 + (1 - (pts[0].balance  - y_min)/y_range) * 60)|round(1) %}
+    {% set ey_pct  = (8 + (1 - (pts[-1].balance - y_min)/y_range) * 60)|round(1) %}
+    {# HTML label overlay — never stretches #}
+    <div class="absolute top-0 left-1 pointer-events-none" style="top:{{ sy_pct }}%; transform:translateY(-50%);">
+      <span style="font-size:10px; color:#64748b; font-weight:600; white-space:nowrap;">
+        {% if mb2 >= 100000 %}₹{{ "%.1f"|format(mb2/100000) }}L{% else %}₹{{ "{:,.0f}".format(mb2) }}{% endif %}
+      </span>
+    </div>
+    <div class="absolute left-1 pointer-events-none" style="bottom:20px;">
+      <span style="font-size:10px; color:#64748b; white-space:nowrap;">
+        {% if min_b >= 100000 %}₹{{ "%.1f"|format(min_b/100000) }}L{% else %}₹{{ "{:,.0f}".format(min_b) }}{% endif %}
+      </span>
+    </div>
+    {# End pill label #}
+    <div class="absolute right-1 pointer-events-none" style="top:{{ ey_pct }}%; transform:translateY(-50%);">
+      <span class="inline-block px-2 py-0.5 rounded text-white font-bold" style="background:#3b82f6; font-size:11px; white-space:nowrap;">
+        {% if mb2 >= 100000 %}₹{{ "%.1f"|format(mb2/100000) }}L{% else %}₹{{ "{:,.0f}".format(mb2) }}{% endif %}
+      </span>
+    </div>
+    {% endif %}
+    <svg class="w-full h-full" viewBox="0 0 100 80" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="pg2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.02"/>
+        </linearGradient>
+      </defs>
+      {% if n > 1 and mb2 > 0 %}
+      {% set min_b2 = pts|map(attribute='balance')|min %}
+      {% set pad2   = (mb2 - min_b2) * 0.15 if mb2 > min_b2 else 1 %}
+      {% set yr2    = (mb2 + pad2) - (min_b2 - pad2) %}
+      {% set ym2    = min_b2 - pad2 %}
+      <path fill="url(#pg2)"
+        d="M{% for i in range(n) %}{{ (i/(n-1)*100)|round(1) }},{{ (8+(1-(pts[i].balance-ym2)/yr2)*60)|round(1) }} {% endfor %}100,75 0,75 Z"/>
+      <polyline fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+        points="{% for i in range(n) %}{{ (i/(n-1)*100)|round(1) }},{{ (8+(1-(pts[i].balance-ym2)/yr2)*60)|round(1) }} {% endfor %}"/>
+      {% set sy2 = (8+(1-(pts[0].balance-ym2)/yr2)*60)|round(1) %}
+      <circle cx="0"   cy="{{ sy2 }}" r="3" fill="#3b82f6" stroke="#0d1829" stroke-width="1.5"/>
+      {% set ey3 = (8+(1-(pts[-1].balance-ym2)/yr2)*60)|round(1) %}
+      <circle cx="100" cy="{{ ey3 }}" r="3" fill="#10b981" stroke="#0d1829" stroke-width="1.5"/>
+      {% endif %}
+    </svg>
+    <div class="flex justify-between text-[9px] text-slate-500 px-0.5 mt-1">
+      {% for pt in pts %}<span style="font-size:8px;">{{ pt.label }}</span>{% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="flex items-center justify-center text-slate-600 text-sm" style="height:200px;">No active loans to display</div>
+  {% endif %}
+</div>
+
+<!-- Per-loan cards -->
+{% if loans %}
+<h3 class="text-sm font-bold text-white mb-3">Active Loan Details</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {% for loan in loans %}
+  {% set paid_pct = loan.paid_pct if loan.paid_pct is defined else 0 %}
+  {% set bar_clr = '#10b981' if paid_pct >= 75 else ('#3b82f6' if paid_pct >= 40 else '#f59e0b') %}
+  <div class="sub-card">
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <p class="text-sm font-bold text-white">{{ loan.loan_name }}</p>
+        <p class="text-[10px] text-slate-500 mt-0.5">{{ loan.loan_type }}</p>
+      </div>
+      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+        style="background:{{ '#10b98115' if loan.status == 'active' else '#47556915' }}; color:{{ '#10b981' if loan.status == 'active' else '#64748b' }};">
+        {{ loan.status|capitalize }}
+      </span>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <p class="metric-label">EMI</p>
+        <p class="text-sm font-bold text-primary">₹{{ "{:,.0f}".format(loan.monthly_emi) }}</p>
+      </div>
+      <div>
+        <p class="metric-label">Interest</p>
+        <p class="text-sm font-bold text-white">{{ loan.interest_rate }}% p.a.</p>
+      </div>
+    </div>
+    <div>
+      <div class="flex justify-between text-[10px] mb-1">
+        <span class="text-slate-500">Loan Amount</span>
+        <span class="font-semibold text-white">₹{{ "{:,.0f}".format(loan.loan_amount) }}</span>
+      </div>
+    </div>
+    <a href="{{ url_for('loans_bp.loan_detail', loan_id=loan.id) }}"
+      class="mt-3 flex items-center justify-center gap-1 rounded-lg text-[11px] font-medium text-primary hover:underline"
+      style="height:28px; border:1px solid #1e293b;">
+      View Details →
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

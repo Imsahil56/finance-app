@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Budget Analysis — FinanceOS{% endblock %}
+{% block page_title %}Budget{% endblock %}
+
+{% block extra_css %}
+<style>
+  .sub-card { background:#0d1829; border:1px solid #1e2d45; border-radius:14px; padding:20px; }
+  .metric-label { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#475569; margin-bottom:3px; }
+  .metric-val { font-size:22px; font-weight:900; color:#f1f5f9; line-height:1.1; }
+  .bar-track { background:#1e293b; border-radius:999px; overflow:hidden; }
+  .bar-fill  { height:100%; border-radius:999px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
+
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+  <div class="flex items-center gap-3">
+    <a href="{{ url_for('analysis.overview') }}"
+      class="flex items-center gap-1 text-xs text-slate-500 hover:text-white transition-colors">
+      <span class="material-symbols-outlined text-sm">arrow_back</span> Analysis
+    </a>
+    <span class="text-slate-700">/</span>
+    <h2 class="text-xl font-bold text-white">Budget Analysis</h2>
+  </div>
+</div>
+
+<!-- Summary stats -->
+{% set cats = (perf.category_breakdown or [])|sort(attribute='utilization', reverse=True) %}
+{% set over_count = cats|selectattr('utilization','ge',100)|list|length %}
+{% set at_risk = cats|selectattr('utilization','ge',80)|selectattr('utilization','lt',100)|list|length %}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="sub-card">
+    <p class="metric-label">Avg Utilization</p>
+    {% set avg_u = perf.avg_utilization|round|int if perf.avg_utilization else 0 %}
+    <p class="metric-val" style="color:{{ '#10b981' if avg_u<80 else ('#f59e0b' if avg_u<100 else '#ef4444') }};">{{ avg_u }}%</p>
+  </div>
+  <div class="sub-card">
+    <p class="metric-label">Over Budget</p>
+    <p class="metric-val" style="color:{{ '#ef4444' if over_count > 0 else '#10b981' }};">{{ over_count }}</p>
+    <p class="text-[10px] text-slate-500 mt-0.5">categories</p>
+  </div>
+  <div class="sub-card">
+    <p class="metric-label">At Risk</p>
+    <p class="metric-val" style="color:{{ '#f59e0b' if at_risk > 0 else '#10b981' }};">{{ at_risk }}</p>
+    <p class="text-[10px] text-slate-500 mt-0.5">categories</p>
+  </div>
+  <div class="sub-card">
+    <p class="metric-label">On Track</p>
+    <p class="metric-val" style="color:#10b981;">{{ cats|length - over_count - at_risk }}</p>
+    <p class="text-[10px] text-slate-500 mt-0.5">categories</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+  <!-- All category bars -->
+  <div class="sub-card">
+    <h3 class="text-sm font-bold text-white mb-4">Category Utilization</h3>
+    <div class="space-y-3">
+      {% for cat in cats %}
+      {% set ut = cat.utilization|round|int %}
+      {% set bc = '#ef4444' if ut >= 100 else ('#f59e0b' if ut >= 80 else '#10b981') %}
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs text-slate-300">{{ cat.category }}</span>
+          <div class="flex items-center gap-2">
+            {% if ut >= 100 %}
+            <span class="text-[10px] font-bold" style="color:#ef4444;">+₹{{ "{:,.0f}".format(cat.spent - cat.allocated) }} over</span>
+            {% endif %}
+            <span class="text-[10px] font-semibold" style="color:{{ bc }};">{{ ut }}%</span>
+          </div>
+        </div>
+        <div class="flex gap-1 items-center">
+          <div class="flex-1 bar-track" style="height:5px;">
+            <div class="bar-fill" style="width:{{ [ut,100]|min }}%; background:{{ bc }};"></div>
+          </div>
+          <span class="text-[9px] text-slate-600 w-12 text-right shrink-0">
+            ₹{{ "{:,.0f}".format(cat.spent) }}/{{ "{:,.0f}".format(cat.allocated) }}
+          </span>
+        </div>
+      </div>
+      {% else %}
+      <p class="text-sm text-slate-500 text-center py-6">No budget categories set.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Monthly trend -->
+  <div class="sub-card">
+    <h3 class="text-sm font-bold text-white mb-4">Monthly Budget Tracking</h3>
+    {% if perf.monthly_trend %}
+    <div class="space-y-3">
+      {% for mo in perf.monthly_trend[-6:] %}
+      {% set mu = mo.utilization|round|int %}
+      {% set mc = '#ef4444' if mu >= 100 else ('#f59e0b' if mu >= 80 else '#10b981') %}
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs text-slate-300">{{ mo.label }}</span>
+          <div class="flex items-center gap-2">
+            {% if mo.overshot %}<span class="text-[10px] text-rose-400 font-semibold">Over</span>{% endif %}
+            <span class="text-[10px] font-semibold" style="color:{{ mc }};">{{ mu }}%</span>
+          </div>
+        </div>
+        <div class="bar-track" style="height:5px;">
+          <div class="bar-fill" style="width:{{ [mu,100]|min }}%; background:{{ mc }};"></div>
+        </div>
+        <div class="flex justify-between text-[9px] text-slate-600 mt-0.5">
+          <span>₹{{ "{:,.0f}".format(mo.spent) }} spent</span>
+          <span>Budget: ₹{{ "{:,.0f}".format(mo.budget) }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-500 text-center py-6">No monthly trend data yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Risks -->
+{% if budget_risks %}
+<div class="sub-card">
+  <h3 class="text-sm font-bold text-white mb-4">Predicted Budget Risks</h3>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    {% for risk in budget_risks %}
+    {% set rc = '#ef4444' if risk.risk == 'high' else '#f59e0b' %}
+    <div class="rounded-xl p-4" style="background:{{ rc }}0a; border:1px solid {{ rc }}25;">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-sm font-bold text-white">{{ risk.category }}</p>
+        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+          style="background:{{ rc }}20; color:{{ rc }};">{{ risk.risk|upper }}</span>
+      </div>
+      <div class="bar-track mb-1" style="height:5px;">
+        <div class="bar-fill" style="width:{{ [risk.usage_pct,100]|min }}%; background:{{ rc }};"></div>
+      </div>
+      <div class="flex justify-between text-[10px] mt-1" style="color:#475569;">
+        <span>{{ risk.usage_pct }}% used</span>
+        {% if risk.overshoot > 0 %}<span style="color:{{ rc }};">+₹{{ "{:,.0f}".format(risk.overshoot) }} projected</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

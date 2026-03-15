@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Debt Analysis — FinanceOS{% endblock %}
+{% block page_title %}Debt{% endblock %}
+
+{% block extra_css %}
+<style>
+  .sub-card { background:#0d1829; border:1px solid #1e2d45; border-radius:14px; padding:20px; }
+  .metric-label { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#475569; margin-bottom:3px; }
+  .metric-val { font-size:22px; font-weight:900; color:#f1f5f9; line-height:1.1; }
+  .bar-track { background:#1e293b; border-radius:999px; overflow:hidden; }
+  .bar-fill  { height:100%; border-radius:999px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
+
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+  <div class="flex items-center gap-3">
+    <a href="{{ url_for('analysis.overview') }}"
+      class="flex items-center gap-1 text-xs text-slate-500 hover:text-white transition-colors">
+      <span class="material-symbols-outlined text-sm">arrow_back</span> Analysis
+    </a>
+    <span class="text-slate-700">/</span>
+    <h2 class="text-xl font-bold text-white">Debt Analysis</h2>
+  </div>
+  <a href="{{ url_for('loans_bp.loans') }}"
+    class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-primary hover:brightness-110 transition-all">
+    <span class="material-symbols-outlined text-sm">account_balance</span> Manage Loans
+  </a>
+</div>
+
+<!-- Summary stats -->
+{% set tot = debt.total_outstanding %}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="sub-card">
+    <p class="metric-label">Total Debt</p>
+    <p class="metric-val">
+      {% if tot >= 10000000 %}₹{{ "%.1f"|format(tot/10000000) }}Cr
+      {% elif tot >= 100000 %}₹{{ "%.1f"|format(tot/100000) }}L
+      {% else %}₹{{ "{:,.0f}".format(tot) }}{% endif %}
+    </p>
+  </div>
+  <div class="sub-card">
+    <p class="metric-label">Monthly EMI</p>
+    <p class="metric-val text-primary">₹{{ "{:,.0f}".format(debt.total_emi) }}</p>
+  </div>
+  <div class="sub-card">
+    <p class="metric-label">Debt-to-Income</p>
+    <p class="metric-val" style="color:{{ '#10b981' if debt.dti<20 else ('#f59e0b' if debt.dti<=35 else '#ef4444') }};">{{ debt.dti }}%</p>
+    <p class="text-[10px] mt-0.5" style="color:#475569;">{{ debt.dti_label }}</p>
+  </div>
+  <div class="sub-card">
+    <p class="metric-label">Active Loans</p>
+    <p class="metric-val text-primary">{{ debt.active_count }}</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+  <!-- DTI visualization -->
+  <div class="sub-card">
+    <h3 class="text-sm font-bold text-white mb-4">Debt-to-Income Breakdown</h3>
+    {% set dti_c = '#10b981' if debt.dti < 20 else ('#f59e0b' if debt.dti <= 35 else '#ef4444') %}
+
+    <!-- Big DTI display -->
+    <div class="flex items-end gap-2 mb-4">
+      <span style="font-size:48px; font-weight:900; color:{{ dti_c }}; line-height:1;">{{ debt.dti }}</span>
+      <span style="font-size:20px; color:#475569; font-weight:600; padding-bottom:6px;">%</span>
+      <span class="mb-2 ml-2 px-2 py-0.5 rounded-full text-xs font-bold"
+        style="background:{{ dti_c }}15; color:{{ dti_c }};">{{ debt.dti_label }}</span>
+    </div>
+
+    <!-- Segmented bar -->
+    <div class="relative mb-2" style="height:10px;">
+      <div class="w-full h-full rounded-full overflow-hidden flex">
+        <div style="width:20%; background:#10b981; opacity:.7;"></div>
+        <div style="width:15%; background:#f59e0b; opacity:.7;"></div>
+        <div style="width:65%; background:#ef4444; opacity:.25;"></div>
+      </div>
+      <div class="absolute top-0 h-full w-0.5 bg-white rounded-full shadow-lg"
+        style="left:{{ [debt.dti,100]|min }}%; transform:translateX(-50%);"></div>
+      <!-- 35% threshold marker -->
+      <div class="absolute top-0 h-full" style="left:35%; width:2px; background:#f59e0b; border-radius:1px;"></div>
+    </div>
+    <div class="flex justify-between text-[9px] mb-5" style="color:#334155;">
+      <span>0% Safe</span><span style="color:#f59e0b;">35% Limit</span><span>100% Critical</span>
+    </div>
+
+    <!-- EMI vs income breakdown -->
+    {% if debt.monthly_income > 0 %}
+    <div class="rounded-xl p-3" style="background:#0a1120; border:1px solid #1e293b;">
+      <div class="flex justify-between text-xs mb-2">
+        <span class="text-slate-400">Monthly Income</span>
+        <span class="font-bold text-white">₹{{ "{:,.0f}".format(debt.monthly_income) }}</span>
+      </div>
+      <div class="flex justify-between text-xs mb-3">
+        <span class="text-slate-400">Monthly EMI</span>
+        <span class="font-bold text-primary">₹{{ "{:,.0f}".format(debt.total_emi) }}</span>
+      </div>
+      <div class="bar-track" style="height:6px;">
+        <div class="bar-fill" style="width:{{ [debt.dti,100]|min }}%; background:{{ dti_c }};"></div>
+      </div>
+      <p class="text-[10px] mt-1.5" style="color:#475569;">
+        ₹{{ "{:,.0f}".format(debt.total_emi) }} of every ₹{{ "{:,.0f}".format(debt.monthly_income) }} goes to debt.
+      </p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Payoff trend chart -->
+  <div class="sub-card">
+    <h3 class="text-sm font-bold text-white mb-1">Loan Balance Trend</h3>
+    {% if debt.payoff_trend %}
+    {% set pts = debt.payoff_trend %}{% set n = pts|length %}{% set mb2 = pts|map(attribute='balance')|max %}
+    <p class="text-[10px] text-slate-600 mb-3">Projected payoff timeline</p>
+    <div class="relative" style="height:200px;">
+      <div class="absolute inset-0 flex flex-col justify-between pb-5 pointer-events-none">
+        {% for _ in range(4) %}<div style="width:100%; border-top:1px solid #1e293b;"></div>{% endfor %}
+      </div>
+      <svg class="w-full h-full" viewBox="0 0 100 60" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="dg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        {% if n > 1 and mb2 > 0 %}
+        {% set min_b = pts|map(attribute='balance')|min %}
+        {% set range_b = mb2 - min_b if mb2 > min_b else 1 %}
+        {% set pad = range_b * 0.15 %}
+        {% set y_min = min_b - pad %}
+        {% set y_range = (mb2 + pad) - y_min %}
+        <path fill="url(#dg)"
+          d="M{% for i in range(n) %}{{ (i/(n-1)*100)|round(1) }},{{ (8+(1-(pts[i].balance-y_min)/y_range)*55)|round(1) }} {% endfor %}100,68 0,68 Z"/>
+        <polyline fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+          points="{% for i in range(n) %}{{ (i/(n-1)*100)|round(1) }},{{ (8+(1-(pts[i].balance-y_min)/y_range)*55)|round(1) }} {% endfor %}"/>
+        {% set sy = (8+(1-(pts[0].balance-y_min)/y_range)*55)|round(1) %}
+        <circle cx="0" cy="{{ sy }}" r="2.5" fill="#3b82f6" stroke="#0d1829" stroke-width="1"/>
+        {% set ey2 = (8+(1-(pts[-1].balance-y_min)/y_range)*55)|round(1) %}
+        <circle cx="100" cy="{{ ey2 }}" r="2.5" fill="#10b981" stroke="#0d1829" stroke-width="1"/>
+        {% endif %}
+      </svg>
+      {# HTML labels — no stretch #}
+      {% if n > 1 and mb2 > 0 %}
+      {% set min_b2 = pts|map(attribute='balance')|min %}
+      {% set r2 = mb2 - min_b2 if mb2 > min_b2 else 1 %}
+      {% set p2 = r2 * 0.15 %}
+      {% set yr2 = (mb2 + p2) - (min_b2 - p2) %}
+      {% set top_pct = (8+(1-(pts[0].balance-(min_b2-p2))/yr2)*55)|round(1) %}
+      {% set end_pct = (8+(1-(pts[-1].balance-(min_b2-p2))/yr2)*55)|round(1) %}
+      <div class="absolute top-0 left-1 pointer-events-none" style="top:{{ top_pct }}%; transform:translateY(-50%);">
+        <span style="font-size:10px; color:#64748b; font-weight:600; white-space:nowrap;">
+          {% if mb2 >= 100000 %}₹{{ "%.1f"|format(mb2/100000) }}L{% else %}₹{{ "{:,.0f}".format(mb2) }}{% endif %}
+        </span>
+      </div>
+      <div class="absolute left-1 pointer-events-none" style="bottom:24px;">
+        <span style="font-size:10px; color:#64748b; white-space:nowrap;">
+          {% if min_b2 >= 100000 %}₹{{ "%.1f"|format(min_b2/100000) }}L{% else %}₹{{ "{:,.0f}".format(min_b2) }}{% endif %}
+        </span>
+      </div>
+      <div class="absolute right-1 pointer-events-none" style="top:{{ end_pct }}%; transform:translateY(-50%);">
+        <span class="inline-block px-2 py-0.5 rounded text-white font-bold" style="background:#3b82f6; font-size:11px; white-space:nowrap;">
+          {% if mb2 >= 100000 %}₹{{ "%.1f"|format(mb2/100000) }}L{% else %}₹{{ "{:,.0f}".format(mb2) }}{% endif %}
+        </span>
+      </div>
+      {% endif %}
+      <div class="flex justify-between text-[9px] text-slate-600 px-0.5">
+        {% for pt in pts %}<span style="font-size:8px;">{{ pt.label }}</span>{% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="flex items-center justify-center text-slate-600 text-sm" style="height:160px;">No active loans</div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

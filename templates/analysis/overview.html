@@ -1,300 +1,532 @@
 {% extends "base.html" %}
-{% block title %}Analysis Overview — FinanceOS{% endblock %}
+{% block title %}Analysis — FinanceOS{% endblock %}
 {% block page_title %}Analysis{% endblock %}
+
+{% block extra_css %}
+<style>
+  .card { background:#0d1829; border:1px solid #1e2d45; border-radius:16px; }
+  .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .card-title { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:#f1f5f9; }
+  .card-icon { color:#64748b; font-size:18px; }
+  .metric-label { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#475569; margin-bottom:3px; }
+  .metric-primary { font-size:22px; font-weight:900; color:#f1f5f9; line-height:1.1; }
+  .metric-secondary { font-size:16px; font-weight:700; color:#f1f5f9; }
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; }
+  .badge-red   { background:rgba(239,68,68,.15); color:#ef4444; }
+  .badge-amber { background:rgba(245,158,11,.15); color:#f59e0b; }
+  .badge-green { background:rgba(16,185,129,.15); color:#10b981; }
+  .badge-blue  { background:rgba(59,130,246,.15); color:#3b82f6; }
+  .bar-track { background:#1e293b; border-radius:999px; overflow:hidden; }
+  .bar-fill  { height:100%; border-radius:999px; transition:width .4s ease; }
+</style>
+{% endblock %}
 
 {% block content %}
 <span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
-<span id="meta-monthly-pct" data-value="{{ sidebar_pct }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
 
-<!-- ── Period Filters ── -->
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 p-4 rounded-xl border border-slate-800" style="background:#0d141c">
-  <div class="flex items-center gap-1 p-1 rounded-lg" style="background:#182834">
-    {% for p, label in [('last_30','Last 30 Days'),('last_month','Last Month'),('last_quarter','Last Quarter')] %}
-      <a href="{{ url_for('analysis.overview', period=p, compare='1' if compare else '0') }}"
-         class="px-4 py-2 rounded-md text-sm font-semibold transition-all whitespace-nowrap
-           {% if period == p %}bg-primary text-white shadow{% else %}text-slate-400 hover:text-slate-200{% endif %}">
-        {{ label }}
-      </a>
-    {% endfor %}
-    <a href="{{ url_for('analysis.overview', period='custom', compare='1' if compare else '0') }}"
-       class="px-4 py-2 rounded-md text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 whitespace-nowrap">Custom</a>
-  </div>
-  <div class="flex items-center gap-4">
-    <div class="flex items-center gap-3 pr-4 border-r border-slate-700">
-      <span class="text-sm font-medium text-slate-400">Comparison</span>
-      <a href="{{ url_for('analysis.overview', period=period, compare='0' if compare else '1') }}"
-         class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-           {% if compare %}bg-primary{% else %}bg-slate-700{% endif %}">
-        <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-          {% if compare %}translate-x-6{% else %}translate-x-1{% endif %}"></span>
-      </a>
-      <span class="text-xs font-bold {% if compare %}text-primary{% else %}text-slate-500{% endif %}">
-        {{ 'ON' if compare else 'OFF' }}
-      </span>
+{% set pred = predictions %}
+{% set st   = fin_status %}
+{% set sf   = pred.spend_forecast %}
+{% set d    = pred.debt %}
+{% set s    = pred.savings %}
+{% set hf   = pred.health_forecast %}
+
+{# ══════════════════════════
+   FINANCIAL STATUS BANNER
+══════════════════════════ #}
+{% set bclr = '#f59e0b' if st.level == 'yellow' else ('#10b981' if st.level == 'green' else '#ef4444') %}
+{% set bbdr = 'rgba(245,158,11,.25)' if st.level == 'yellow' else ('rgba(16,185,129,.25)' if st.level == 'green' else 'rgba(239,68,68,.25)') %}
+<div class="rounded-2xl mb-6" style="background:#0d1829; border:1px solid {{ bbdr }}; border-left:4px solid {{ bclr }};">
+  {# Top row: icon + title + action button #}
+  <div class="flex items-center justify-between gap-4 px-5 py-4">
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="size-9 rounded-lg flex items-center justify-center shrink-0"
+        style="background:{{ bclr }}18;">
+        <span class="material-symbols-outlined text-base" style="color:{{ bclr }};">
+          {{ 'check_circle' if st.level == 'green' else 'warning' }}
+        </span>
+      </div>
+      <p class="text-sm font-bold text-white">{{ st.level_label }}</p>
     </div>
-    <a href="{{ url_for('analysis.overview', period=period, compare='1' if compare else '0') }}"
-       class="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-5 py-2 rounded-lg font-semibold text-sm transition-all">
-      <span class="material-symbols-outlined text-base">filter_list</span>
-      Apply Filters
+    <a href="{{ url_for('analysis.budget_performance') }}"
+      class="shrink-0 px-5 py-2 rounded-lg text-white text-sm font-bold bg-primary hover:brightness-110 transition-all">
+      Take Action
     </a>
   </div>
-</div>
-
-<!-- ── 2×2 Card Grid ── -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-
-  <!-- Card 1: Spending Deep Dive -->
-  <a href="{{ url_for('analysis.spending') }}"
-     class="group relative overflow-hidden p-6 rounded-2xl border border-slate-800 hover:border-primary/40 transition-all cursor-pointer"
-     style="background:#0d141c">
-    <div class="flex justify-between items-start mb-5">
-      <div>
-        <h3 class="text-base font-bold text-white mb-1">Spending Deep Dive</h3>
-        <div class="flex items-center gap-2">
-          <span class="text-2xl font-bold text-white">₹{{ "{:,.1f}".format(overview.spending.total_expense / 1000) }}k</span>
-          {% if overview.spending.comparison and overview.spending.comparison.change_pct is not none %}
-            {% set chg = overview.spending.comparison.change_pct %}
-            <span class="flex items-center text-xs font-bold px-2 py-0.5 rounded
-              {% if chg > 0 %}text-rose-400 bg-rose-500/10{% else %}text-emerald-400 bg-emerald-500/10{% endif %}">
-              <span class="material-symbols-outlined text-xs">{{ 'trending_up' if chg > 0 else 'trending_down' }}</span>
-              {{ '+' if chg > 0 else '' }}{{ chg }}%
-            </span>
-          {% endif %}
-        </div>
-      </div>
-      <div class="p-2 bg-primary/10 rounded-lg text-primary">
-        <span class="material-symbols-outlined">payments</span>
-      </div>
-    </div>
-
-    <div class="flex items-center justify-between gap-4">
-      <!-- Mini donut -->
-      <div class="relative size-24 shrink-0">
-        <svg class="size-full" viewBox="0 0 36 36">
-          <path fill="none" stroke="#1e293b" stroke-width="4"
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-          <path fill="none" stroke="#2094f3" stroke-width="4" stroke-linecap="round"
-            stroke-dasharray="{{ overview.spending.essential_pct }} 100"
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-        </svg>
-        <div class="absolute inset-0 flex items-center justify-center">
-          <span class="text-xs font-bold text-white">{{ overview.spending.essential_pct }}%</span>
-        </div>
-      </div>
-      <!-- Breakdown bars -->
-      <div class="flex-1 space-y-3">
-        <div>
-          <div class="flex items-center justify-between text-xs mb-1">
-            <span class="text-slate-500">Essential</span>
-            <span class="font-bold text-white">₹{{ "{:,.1f}".format(overview.spending.essential / 1000) }}k</span>
-          </div>
-          <div class="w-full h-1 rounded-full" style="background:#182834">
-            <div class="bg-primary h-1 rounded-full" style="width:{{ overview.spending.essential_pct }}%"></div>
-          </div>
-        </div>
-        <div>
-          <div class="flex items-center justify-between text-xs mb-1">
-            <span class="text-slate-500">Lifestyle</span>
-            <span class="font-bold text-white">₹{{ "{:,.1f}".format(overview.spending.lifestyle / 1000) }}k</span>
-          </div>
-          <div class="w-full h-1 rounded-full" style="background:#182834">
-            {% set lifestyle_pct = 100 - overview.spending.essential_pct %}
-            <div class="bg-slate-500 h-1 rounded-full" style="width:{{ lifestyle_pct }}%"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </a>
-
-  <!-- Card 2: Budget Performance -->
-  <a href="{{ url_for('analysis.budget_performance') }}"
-     class="group relative overflow-hidden p-6 rounded-2xl border border-slate-800 hover:border-primary/40 transition-all cursor-pointer"
-     style="background:#0d141c">
-    <div class="flex justify-between items-start mb-5">
-      <div>
-        <h3 class="text-base font-bold text-white mb-1">Budget Performance</h3>
-        <div class="flex items-center gap-2">
-          <span class="text-2xl font-bold text-white">{{ overview.budget_util }}% <span class="text-sm font-medium text-slate-500">Utilized</span></span>
-          {% if overview.overshoot_cats > 0 %}
-            <span class="flex items-center text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded gap-1">
-              <span class="material-symbols-outlined text-xs">warning</span>
-              {{ overview.overshoot_cats }} Overshoot{{ 's' if overview.overshoot_cats > 1 }}
-            </span>
-          {% else %}
-            <span class="flex items-center text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded gap-1">
-              <span class="material-symbols-outlined text-xs">check_circle</span>
-              On Track
-            </span>
-          {% endif %}
-        </div>
-      </div>
-      <div class="p-2 bg-primary/10 rounded-lg text-primary">
-        <span class="material-symbols-outlined">analytics</span>
-      </div>
-    </div>
-    <!-- Mini bar chart from monthly trend -->
-    <div class="flex items-end justify-between h-20 gap-1.5 pt-2">
-      {% for m in budget_perf.monthly_trend %}
-        {% set bar_h = [m.utilization, 5]|max %}
-        <div class="flex-1 rounded-t-sm transition-all"
-             style="height:{{ [bar_h, 100]|min }}%;
-                    background:{% if m.overshot %}#ef4444{% elif m.utilization > 80 %}#f59e0b{% else %}#2094f3{% endif %}">
-        </div>
-      {% else %}
-        {% for _ in range(6) %}
-          <div class="flex-1 rounded-t-sm h-8" style="background:#182834"></div>
-        {% endfor %}
-      {% endfor %}
-    </div>
-  </a>
-
-  <!-- Card 3: Trends & Comparison -->
-  <a href="{{ url_for('analysis.trends') }}"
-     class="group relative overflow-hidden p-6 rounded-2xl border border-slate-800 hover:border-primary/40 transition-all cursor-pointer"
-     style="background:#0d141c">
-    <div class="flex justify-between items-start mb-5">
-      <div>
-        <h3 class="text-base font-bold text-white mb-1">Trends &amp; Comparison</h3>
-        <div class="flex items-center gap-2">
-          {% if overview.savings_growth is not none %}
-            <span class="text-2xl font-bold {{ 'text-emerald-400' if overview.savings_growth >= 0 else 'text-rose-400' }}">
-              {{ '+' if overview.savings_growth >= 0 else '' }}{{ overview.savings_growth }}%
-            </span>
-            <span class="text-sm font-medium text-slate-500">Savings Growth</span>
-          {% else %}
-            <span class="text-2xl font-bold text-slate-500">—</span>
-            <span class="text-sm text-slate-500">No prior data</span>
-          {% endif %}
-        </div>
-      </div>
-      <div class="p-2 bg-primary/10 rounded-lg text-primary">
-        <span class="material-symbols-outlined">show_chart</span>
-      </div>
-    </div>
-    <!-- Mini SVG line from week_data -->
-    <div class="h-20 relative mt-2">
-      {% set week = overview.week_data %}
-      {% if week %}
-        {% set max_v = [week|map(attribute='expense')|max, 1]|max %}
-        <svg class="w-full h-full" viewBox="0 0 100 30" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="trendGrad" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stop-color="#2094f3" stop-opacity="0.3"/>
-              <stop offset="100%" stop-color="#2094f3" stop-opacity="0"/>
-            </linearGradient>
-          </defs>
-          {% set points = [] %}
-          {% for d in week %}
-            {% set x = (loop.index0 / (week|length - 1) * 100) | round(1) %}
-            {% set y = (30 - (d.expense / max_v * 25)) | round(1) %}
-            {% if points.append(x ~ ',' ~ y) %}{% endif %}
-          {% endfor %}
-          <polyline fill="none" stroke="#2094f3" stroke-width="2" stroke-linecap="round"
-            points="{{ points | join(' ') }}"/>
-          <polygon fill="url(#trendGrad)"
-            points="{{ points | join(' ') }} 100,30 0,30"/>
-        </svg>
-      {% endif %}
-      <div class="mt-1 flex items-center justify-between text-[10px] text-slate-500 font-medium">
-        <span>Mon</span>
-        <span class="flex items-center gap-1 text-emerald-400">
-          <span class="material-symbols-outlined text-xs">arrow_upward</span> Trending Up
-        </span>
-        <span>Sun</span>
-      </div>
-    </div>
-  </a>
-
-  <!-- Card 4: Financial Health -->
-  <a href="{{ url_for('analysis.health_score') }}"
-     class="group relative overflow-hidden p-6 rounded-2xl border border-slate-800 hover:border-primary/40 transition-all cursor-pointer"
-     style="background:#0d141c">
-    <div class="flex justify-between items-start mb-5">
-      <div>
-        <h3 class="text-base font-bold text-white mb-1">Financial Health</h3>
-        <div class="flex items-center gap-2">
-          <span class="text-2xl font-bold text-white">{{ health.score }}/100</span>
-          <span class="text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider
-            {% if health.score >= 80 %}text-emerald-400 bg-emerald-500/10
-            {% elif health.score >= 60 %}text-primary bg-primary/10
-            {% elif health.score >= 40 %}text-amber-400 bg-amber-500/10
-            {% else %}text-rose-400 bg-rose-500/10{% endif %}">
-            {{ health.status }}
-          </span>
-        </div>
-      </div>
-      <div class="p-2 bg-primary/10 rounded-lg text-primary">
-        <span class="material-symbols-outlined">health_and_safety</span>
-      </div>
-    </div>
-    <div class="flex items-center gap-6">
-      <!-- Mini score circle -->
-      <div class="relative size-24 shrink-0">
-        <svg class="size-full -rotate-90" viewBox="0 0 36 36">
-          <circle cx="18" cy="18" r="16" fill="none" stroke="#1e293b" stroke-width="3"/>
-          <circle cx="18" cy="18" r="16" fill="none"
-            stroke="{{ '#10b981' if health.score >= 80 else ('#2094f3' if health.score >= 60 else ('#f59e0b' if health.score >= 40 else '#ef4444')) }}"
-            stroke-width="3" stroke-linecap="round"
-            stroke-dasharray="{{ health.score }} 100"/>
-        </svg>
-        <div class="absolute inset-0 flex flex-col items-center justify-center">
-          <span class="text-base font-bold text-white">{{ health.score }}</span>
-          <span class="text-[9px] text-slate-500 uppercase font-bold">Score</span>
-        </div>
-      </div>
-      <div class="flex-1 space-y-2">
-        <p class="text-xs text-slate-500 italic leading-relaxed">
-          "Your saving habits are better than 88% of users this month."
-        </p>
-        {% if health.improvement is not none and health.improvement > 0 %}
-          <div class="flex items-center gap-1 text-emerald-400 font-bold text-xs">
-            <span class="material-symbols-outlined text-sm">verified</span>
-            +{{ health.improvement }} pt improvement
-          </div>
-        {% endif %}
-        <button class="text-xs font-bold text-primary hover:underline">View Advice →</button>
-      </div>
-    </div>
-  </a>
-
-</div>
-
-<!-- ── Insights Banner ── -->
-{% if insights %}
-  <div class="space-y-3">
-    {% for ins in insights %}
-      <div class="flex items-start gap-4 p-4 rounded-xl border
-        {% if ins.color == 'rose' %}border-rose-500/20 bg-rose-500/5
-        {% elif ins.color == 'amber' %}border-amber-500/20 bg-amber-500/5
-        {% elif ins.color == 'emerald' %}border-emerald-500/20 bg-emerald-500/5
-        {% else %}border-primary/20 bg-primary/5{% endif %}">
-        <div class="size-10 shrink-0 rounded-full flex items-center justify-center
-          {% if ins.color == 'rose' %}bg-rose-500/10 text-rose-400
-          {% elif ins.color == 'amber' %}bg-amber-500/10 text-amber-400
-          {% elif ins.color == 'emerald' %}bg-emerald-500/10 text-emerald-400
-          {% else %}bg-primary/10 text-primary{% endif %}">
-          <span class="material-symbols-outlined text-lg">{{ ins.icon }}</span>
-        </div>
-        <div class="flex-1">
-          <p class="text-sm font-bold text-white">{{ ins.title }}</p>
-          <p class="text-xs text-slate-500 mt-0.5">{{ ins.body }}</p>
-        </div>
-      </div>
+  {# Issue chips row #}
+  {% if st.issues %}
+  <div class="flex flex-wrap gap-2 px-5 pb-3">
+    {% for iss in st.issues %}
+    {% set ic = '#ef4444' if iss.severity == 'critical' else ('#f59e0b' if iss.severity == 'warning' else '#94a3b8') %}
+    <span class="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full"
+      style="background:{{ ic }}12; color:{{ ic }}; border:1px solid {{ ic }}25;">
+      <span class="size-1.5 rounded-full shrink-0" style="background:{{ ic }};"></span>
+      {{ iss.text }}
+    </span>
     {% endfor %}
   </div>
-{% else %}
-  <div class="flex items-center gap-4 p-4 rounded-xl border border-primary/20 bg-primary/5">
-    <div class="size-10 shrink-0 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-      <span class="material-symbols-outlined">lightbulb</span>
+  {% endif %}
+  {# Suggested actions row #}
+  {% if st.action %}
+  <div class="flex items-center gap-2 px-5 pb-3 flex-wrap" style="border-top:1px solid #1e293b; padding-top:10px;">
+    <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Recommended:</span>
+    <span class="text-xs text-slate-400">{{ st.action }}</span>
+  </div>
+  {% endif %}
+</div>
+
+{# ══════════════════════════
+   3-COLUMN ANALYTICS GRID
+══════════════════════════ #}
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
+
+{# ── 1. SPENDING DEEP DIVE ── #}
+<div class="card p-6 flex flex-col" style="min-height:300px;">
+  <div class="card-header">
+    <div class="card-title">
+      <span class="material-symbols-outlined card-icon">query_stats</span>
+      Spending Deep Dive
     </div>
-    <div class="flex-1">
-      <p class="text-sm font-medium text-white">
-        Want deeper insights?
-        <span class="font-normal text-slate-500"> Add transactions and budgets to unlock personalised analysis.</span>
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('analysis.spending') }}" class="text-[10px] text-primary hover:underline font-medium">Details →</a>
+      {% if sf.on_track is not none %}
+      <span class="badge {{ 'badge-green' if sf.on_track else 'badge-red' }}">
+        {{ 'On Track' if sf.on_track else 'Over Budget' }}
+      </span>
+      {% endif %} </div>
+  </div>
+
+  {# 3 metrics #}
+  <div class="grid grid-cols-3 gap-3 mb-4">
+    <div>
+      <p class="metric-label">Current Spend</p>
+      <p class="metric-primary">₹{{ "{:,.0f}".format(sf.current_spend) }}</p>
+      {% if sf.change_pct is not none %}
+      <p class="text-[10px] mt-0.5 font-medium"
+        style="color:{{ '#10b981' if sf.change_pct < 0 else '#f59e0b' }};">
+        {{ '↓' if sf.change_pct < 0 else '↑' }}{{ sf.change_pct|abs }}%
+      </p>
+      {% endif %}
+    </div>
+    <div>
+      <p class="metric-label">Month-End</p>
+      <p class="metric-primary" style="color:#3b82f6;">₹{{ "{:,.0f}".format(sf.forecast_spend) }}</p>
+    </div>
+    <div>
+      <p class="metric-label">Monthly</p>
+      <p class="metric-primary">
+        {% if sf.budget > 0 %}₹{{ "{:,.0f}".format(sf.budget) }}{% else %}<span style="color:#475569;">—</span>{% endif %}
       </p>
     </div>
-    <button class="text-sm font-bold text-primary px-4 py-2 hover:bg-primary/10 rounded-lg transition-colors">Dismiss</button>
   </div>
-{% endif %}
+
+  {# 7-day bar chart #}
+  {% if sf.daily_chart %}
+  {% set mx = sf.daily_chart|map(attribute='amount')|max %}
+  <div class="flex items-end gap-1.5 flex-1 mb-2" style="min-height:60px;">
+    {% for day in sf.daily_chart %}
+    {% set bh = ((day.amount/mx*100)|round|int) if mx > 0 else 4 %}
+    <div class="flex-1 flex flex-col items-center gap-0.5 h-full justify-end">
+      <div class="w-full rounded-t"
+        style="height:{{ bh }}%; min-height:3px;
+               background:{{ '#3b82f6' if loop.last else '#1e3a5f' }};
+               opacity:{{ '1' if loop.last else '0.5' }};"></div>
+      <span class="text-[9px]" style="color:#334155;">{{ day.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# Budget bar at bottom #}
+  {% if sf.budget > 0 %}
+  {% set up = [[(sf.current_spend/sf.budget*100)|round|int, 0]|max, 100]|min %}
+  <div class="mt-auto pt-3" style="border-top:1px solid #1e293b;">
+    <div class="flex justify-between text-[10px] mb-1">
+      <span style="color:#475569;">Budget Used</span>
+      <span style="color:{{ '#10b981' if up<80 else ('#f59e0b' if up<100 else '#ef4444') }}; font-weight:600;">{{ up }}%</span>
+    </div>
+    <div class="bar-track" style="height:4px;">
+      <div class="bar-fill" style="width:{{ up }}%; background:{{ '#10b981' if up<80 else ('#f59e0b' if up<100 else '#ef4444') }};"></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{# ── 2. BUDGET PERFORMANCE ── #}
+<div class="card p-6 flex flex-col" style="min-height:300px;">
+  <div class="card-header">
+    <div class="card-title">
+      <span class="material-symbols-outlined card-icon">account_balance_wallet</span>
+      Budget Performance
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('analysis.budget') }}" class="text-[10px] text-primary hover:underline font-medium">Details →</a>
+      {% if budget_perf.avg_utilization is defined and budget_perf.avg_utilization > 0 %}
+      {% set avg_u = budget_perf.avg_utilization|round|int %}
+      <span class="badge {{ 'badge-red' if avg_u >= 100 else ('badge-amber' if avg_u >= 80 else 'badge-green') }}">
+        {{ avg_u }}% Utilized
+      </span>
+      {% endif %} </div>
+  </div>
+
+  {# Budget utilization big metric #}
+  {% if budget_perf.avg_utilization is defined and budget_perf.avg_utilization > 0 %}
+  {% set avg_u = budget_perf.avg_utilization|round|int %}
+  <div class="flex items-end gap-1 mb-3">
+    <p style="font-size:32px; font-weight:900; color:#f1f5f9; line-height:1;">{{ [avg_u, 999]|min }}</p>
+    <p style="font-size:18px; font-weight:700; color:#475569; padding-bottom:3px;">%</p>
+    <p class="text-xs text-slate-500 mb-1 ml-1">Budget Utilization</p>
+  </div>
+  <div class="bar-track mb-4" style="height:6px;">
+    <div class="bar-fill" style="width:{{ [avg_u,100]|min }}%; background:{{ '#ef4444' if avg_u>=100 else ('#f59e0b' if avg_u>=80 else '#10b981') }};"></div>
+  </div>
+  {% endif %}
+
+  {# Category rows #}
+  {% set cats = (budget_perf.category_breakdown or [])|sort(attribute='utilization', reverse=True) %}
+  <div class="flex-1 space-y-3">
+    {% for cat in cats[:4] %}
+    {% set ut = cat.utilization|round|int %}
+    {% set bc = '#ef4444' if ut >= 100 else ('#f59e0b' if ut >= 80 else '#475569') %}
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <span style="font-size:12px; color:#94a3b8;">{{ cat.category }}</span>
+        {% if ut >= 100 %}
+        <span style="font-size:11px; font-weight:600; color:#ef4444;">
+          ₹{{ "{:,.0f}".format(cat.spent - cat.allocated) }} over
+        </span>
+        {% else %}
+        <span style="font-size:11px; color:{{ bc }};">{{ ut }}%</span>
+        {% endif %}
+      </div>
+      <div class="bar-track" style="height:3px;">
+        <div class="bar-fill" style="width:{{ [ut,100]|min }}%; background:{{ bc }};"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <a href="{{ url_for('analysis.budget_performance') }}"
+    class="mt-4 flex items-center justify-center gap-1 rounded-lg text-[11px] font-medium transition-all"
+    style="height:32px; color:#475569; border:1px solid #1e293b;">
+    View full breakdown →
+  </a>
+</div>
+
+{# ── 3. SAVINGS PROJECTION ── #}
+<div class="card p-6 flex flex-col" style="min-height:300px;">
+  <div class="card-header">
+    <div class="card-title">
+      <span class="material-symbols-outlined card-icon">savings</span>
+      Savings Projection
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('analysis.savings') }}" class="text-[10px] text-primary hover:underline font-medium">Details →</a>
+      {% set gp = s.goal_progress %}
+      <span class="badge {{ 'badge-green' if gp >= 75 else ('badge-amber' if gp >= 40 else 'badge-red') }}">
+        {{ 'Ahead of Goal' if gp >= 100 else ('On Track' if gp >= 75 else ('Below Target' if gp < 40 else 'In Progress')) }}
+      </span> </div>
+  </div>
+
+  <div class="flex items-center gap-5 flex-1">
+    {# Circular ring #}
+    <div class="relative shrink-0" style="width:120px;height:120px;">
+      <svg viewBox="0 0 36 36" class="w-full h-full -rotate-90">
+        <circle cx="18" cy="18" r="14" fill="none" stroke="#1e293b" stroke-width="3.5"/>
+        <circle cx="18" cy="18" r="14" fill="none"
+          stroke="{{ '#10b981' if gp >= 75 else ('#3b82f6' if gp >= 40 else '#f59e0b') }}"
+          stroke-width="3.5"
+          stroke-dasharray="{{ [gp,100]|min }} {{ 100 - [gp,100]|min }}"
+          stroke-linecap="round"/>
+      </svg>
+      <div class="absolute inset-0 flex flex-col items-center justify-center">
+        <p style="font-size:17px; font-weight:900; color:#f1f5f9; line-height:1.1;">{{ [gp,999]|min }}%</p>
+        <p style="font-size:8px; color:#475569; text-transform:uppercase; letter-spacing:.05em;">Goal Progress</p>
+      </div>
+    </div>
+
+    <div class="flex-1 space-y-4">
+      <div>
+        <p class="metric-label">Projected Savings</p>
+        {% set ps = s.projected_savings %}
+        <p class="metric-secondary {{ 'text-emerald-400' if ps >= 0 else 'text-rose-400' }}">
+          {{ '-' if ps < 0 else '' }}{% if ps|abs >= 100000 %}₹{{ "%.1f"|format(ps|abs/100000) }}L{% else %}₹{{ "{:,.0f}".format(ps|abs) }}{% endif %}
+        </p>
+      </div>
+      <div>
+        <p class="metric-label">Current Savings</p>
+        {% set cs = s.current_savings %}
+        <p class="metric-secondary">
+          {{ '-' if cs < 0 else '' }}{% if cs|abs >= 100000 %}₹{{ "%.1f"|format(cs|abs/100000) }}L{% else %}₹{{ "{:,.0f}".format(cs|abs) }}{% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {# Goal progress bar at bottom #}
+  <div class="mt-auto pt-3" style="border-top:1px solid #1e293b;">
+    <div class="flex justify-between text-[10px] mb-1">
+      <span style="color:#475569;">Goal Progress</span>
+      {% if s.savings_goal > 0 %}
+      <span style="color:#475569;">Goal: ₹{{ "{:,.0f}".format(s.savings_goal) }}</span>
+      {% endif %}
+    </div>
+    <div class="bar-track" style="height:4px;">
+      <div class="bar-fill" style="width:{{ [gp,100]|min }}%; background:{{ '#10b981' if gp >= 75 else ('#3b82f6' if gp >= 40 else '#f59e0b') }};"></div>
+    </div>
+  </div>
+</div>
+
+{# ── 4. HEALTH SCORE ── #}
+<div class="card p-6 flex flex-col" style="min-height:300px;">
+  <div class="card-header">
+    <div class="card-title">
+      <span class="material-symbols-outlined card-icon">favorite</span>
+      Health Score
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('analysis.health_score') }}" class="text-[10px] text-primary hover:underline font-medium">Details →</a>
+      {% set hf2 = pred.health_forecast %}
+      {% if hf2.will_drop %}
+      <span class="badge badge-red">
+        <span class="material-symbols-outlined" style="font-size:10px;">trending_down</span>
+        {{ health.score - hf2.predicted_score }} pts drop
+      </span>
+      {% else %}
+      <span class="badge badge-green">Stable</span>
+      {% endif %} </div>
+  </div>
+
+  {# Big score #}
+  <div class="flex items-baseline gap-1 mb-1">
+    <span style="font-size:48px; font-weight:900; line-height:1; color:{{ '#10b981' if health.score>=80 else ('#3b82f6' if health.score>=60 else ('#f59e0b' if health.score>=40 else '#ef4444')) }};">
+      {{ health.score }}
+    </span>
+    <span style="font-size:14px; color:#475569; font-weight:600;">/100</span>
+  </div>
+  <p class="text-[10px] mb-4" style="color:#475569;">
+    Project Progress —
+    <span style="color:{{ '#10b981' if hf2.predicted_score >= health.score else '#ef4444' }};">
+      {% if hf2.predicted_score >= health.score %}+{{ hf2.predicted_score - health.score }}%{% else %}-{{ health.score - hf2.predicted_score }}%{% endif %}
+    </span>
+    Recommended:
+    <span style="color:#10b981;">+38%</span>
+  </p>
+
+  {# Health segmented bar #}
+  <div class="relative mb-4" style="height:8px;">
+    <div class="w-full h-full rounded-full overflow-hidden flex">
+      <div style="width:40%; background:#ef4444; opacity:.7;"></div>
+      <div style="width:30%; background:#f59e0b; opacity:.7;"></div>
+      <div style="width:30%; background:#10b981; opacity:.7;"></div>
+    </div>
+    {# Score needle #}
+    <div class="absolute top-1/2 -translate-y-1/2 size-3 rounded-full bg-white shadow-lg"
+      style="left:{{ health.score }}%; transform:translateX(-50%) translateY(-50%); border:2px solid #0d1829;"></div>
+  </div>
+  <div class="flex justify-between text-[9px] mb-4" style="color:#334155;">
+    <span>50%</span><span></span><span>+4%</span>
+  </div>
+
+  {# Component bars #}
+  {% if health.components %}
+  <div class="flex-1 space-y-2">
+    {% for key, comp in health.components.items() %}
+    {% set cp = ((comp.score/comp.max*100)|round|int) if comp.max > 0 else 0 %}
+    <div class="flex items-center gap-2">
+      <span style="font-size:10px; color:#475569; width:108px; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ comp.label }}</span>
+      <div class="flex-1 bar-track" style="height:3px;">
+        <div class="bar-fill" style="width:{{ cp }}%; background:{{ '#10b981' if cp>=70 else ('#f59e0b' if cp>=40 else '#ef4444') }};"></div>
+      </div>
+      <span style="font-size:9px; color:#475569; width:24px; text-align:right; flex-shrink:0;">{{ comp.score }}/{{ comp.max }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="mt-auto pt-3 flex items-center justify-between" style="border-top:1px solid #1e293b;">
+    <span class="text-[10px]" style="color:#475569;">Overall: {{ health.status }}</span>
+    <a href="{{ url_for('analysis.health_score') }}" class="text-[10px] text-primary hover:underline">See Time →</a>
+  </div>
+</div>
+
+{# ── 5. DEBT OVERVIEW ── #}
+<div class="card p-6 flex flex-col" style="min-height:300px;">
+  <div class="card-header">
+    <div class="card-title">
+      <span class="material-symbols-outlined card-icon">credit_card</span>
+      Debt Overview
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('analysis.debt') }}" class="text-[10px] text-primary hover:underline font-medium">Details →</a>
+      <span class="badge {{ 'badge-red' if d.dti > 35 else ('badge-amber' if d.dti > 20 else 'badge-green') }}">
+        {{ d.dti_label }}
+      </span> </div>
+  </div>
+
+  {# Two primary metrics #}
+  <div class="grid grid-cols-2 gap-4 mb-4">
+    <div>
+      <p class="metric-label">Total Debt</p>
+      {% set tot = d.total_outstanding %}
+      <p class="metric-primary">
+        {% if tot >= 10000000 %}₹{{ "%.1f"|format(tot/10000000) }}Cr
+        {% elif tot >= 100000 %}₹{{ "%.1f"|format(tot/100000) }}L
+        {% else %}₹{{ "{:,.0f}".format(tot) }}{% endif %}
+      </p>
+    </div>
+    <div>
+      <p class="metric-label">Monthly EMI</p>
+      <p class="metric-primary">₹{{ "{:,.0f}".format(d.total_emi) }}</p>
+    </div>
+  </div>
+
+  {# DTI bar with 35% marker #}
+  <div class="mb-4">
+    <div class="flex justify-between text-[10px] mb-1.5">
+      <span style="color:#475569;">Debt-to-Income Progress</span>
+      <span style="font-weight:600; color:{{ '#10b981' if d.dti<20 else ('#f59e0b' if d.dti<=35 else '#ef4444') }};">{{ d.dti }}%</span>
+    </div>
+    <div class="relative bar-track" style="height:6px;">
+      <div class="bar-fill" style="width:{{ [d.dti,100]|min }}%; background:{{ '#10b981' if d.dti<20 else ('#f59e0b' if d.dti<=35 else '#ef4444') }};"></div>
+      {# 35% marker #}
+      <div class="absolute top-0 h-full" style="left:35%; width:2px; background:#f59e0b; border-radius:1px;"></div>
+    </div>
+    <div class="flex justify-between text-[9px] mt-1" style="color:#334155;">
+      <span>SAFE</span><span style="color:#f59e0b; margin-left:calc(35% - 16px);">35%</span><span>WARNING</span>
+    </div>
+  </div>
+
+  {# Active loans + info #}
+  <div class="flex items-center justify-between rounded-xl px-3 py-2.5 mb-4"
+    style="background:#111c2d;">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-primary text-sm">account_balance</span>
+      <span style="font-size:13px; color:#94a3b8;">Active Loans</span>
+    </div>
+    <span class="size-6 flex items-center justify-center rounded-full bg-primary text-white font-black"
+      style="font-size:11px;">{{ d.active_count }}</span>
+  </div>
+
+  {% if d.dti > 35 %}
+  <p style="font-size:11px; color:#475569; flex:1;">High debt-to-income ratio affecting eligibility.</p>
+  {% endif %}
+
+  <a href="{{ url_for('loans_bp.loans') }}"
+    class="mt-auto text-[11px] text-primary hover:underline font-medium">View Loans →</a>
+</div>
+
+{# ── 6. LOAN PAYOFF TREND ── #}
+<div class="card p-6 flex flex-col" style="min-height:300px;">
+  <div class="card-header">
+    <div class="card-title">
+      <span class="material-symbols-outlined card-icon">show_chart</span>
+      Loan Payoff Trend
+    </div>
+    <a href="{{ url_for('analysis.loan_payoff') }}" class="text-[10px] text-primary hover:underline font-medium">Details →</a>
+  </div>
+
+  {% if d.payoff_trend %}
+  {% set pts = d.payoff_trend %}{% set n = pts|length %}{% set mb2 = pts|map(attribute='balance')|max %}
+  <p style="font-size:10px; color:#475569; margin-bottom:12px;">
+    Estimated loan balance by {{ pts[-1].label }}
+  </p>
+
+  <div class="flex-1 relative" style="min-height:120px;">
+    {# Subtle grid lines #}
+    <div class="absolute inset-0 flex flex-col justify-between pb-5 pointer-events-none">
+      {% for _ in range(4) %}<div style="width:100%; border-top:1px solid #1e293b;"></div>{% endfor %}
+    </div>
+    <svg class="w-full h-full" viewBox="0 0 100 60" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="payg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.25"/>
+          <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.02"/>
+        </linearGradient>
+      </defs>
+      {% if n > 1 and mb2 > 0 %}
+      {% set min_b = pts|map(attribute='balance')|min %}
+      {% set pad   = (mb2 - min_b) * 0.15 if mb2 > min_b else 1 %}
+      {% set y_min = min_b - pad %}
+      {% set y_range = (mb2 + pad) - y_min %}
+      <path fill="url(#payg)"
+        d="M{% for i in range(n) %}{{ (i/(n-1)*100)|round(1) }},{{ (8+(1-(pts[i].balance-y_min)/y_range)*50)|round(1) }} {% endfor %}100,62 0,62 Z"/>
+      <polyline fill="none" stroke="#3b82f6" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round"
+        points="{% for i in range(n) %}{{ (i/(n-1)*100)|round(1) }},{{ (8+(1-(pts[i].balance-y_min)/y_range)*50)|round(1) }} {% endfor %}"/>
+      {% set sy = (8+(1-(pts[0].balance-y_min)/y_range)*50)|round(1) %}
+      <circle cx="0" cy="{{ sy }}" r="2" fill="#3b82f6"/>
+      {% set ey2 = (8+(1-(pts[-1].balance-y_min)/y_range)*50)|round(1) %}
+      <circle cx="100" cy="{{ ey2 }}" r="2" fill="#10b981"/>
+      {% endif %}
+    </svg>
+    {# HTML end-label — never stretches #}
+    {% if n > 1 and mb2 > 0 %}
+    {% set min_b3 = pts|map(attribute='balance')|min %}
+    {% set p3 = (mb2 - min_b3) * 0.15 if mb2 > min_b3 else 1 %}
+    {% set yr3 = (mb2 + p3) - (min_b3 - p3) %}
+    {% set ep3 = (8+(1-(pts[-1].balance-(min_b3-p3))/yr3)*50)|round(1) %}
+    <div class="absolute right-0 pointer-events-none" style="top:{{ ep3 }}%; transform:translateY(-50%);">
+      <span class="inline-block px-1.5 py-0.5 rounded text-white font-bold" style="background:#3b82f6; font-size:10px; white-space:nowrap;">
+        {% if mb2 >= 100000 %}₹{{ "%.1f"|format(mb2/100000) }}L{% else %}₹{{ "{:,.0f}".format(mb2) }}{% endif %}
+      </span>
+    </div>
+    {% endif %}
+    <div class="flex justify-between mt-1 px-0.5" style="font-size:9px; color:#334155;">
+      {% for pt in pts %}<span style="font-size:8px;">{{ pt.label }}</span>{% endfor %}
+    </div>
+  </div>
+
+  <div class="mt-auto pt-3 flex items-center justify-between" style="border-top:1px solid #1e293b;">
+    <div>
+      <p class="metric-label">Remaining Balance</p>
+      {% set cur = pts[0].balance %}
+      <p style="font-size:14px; font-weight:700; color:#f1f5f9;">
+        {% if cur >= 100000 %}₹{{ "%.1f"|format(cur/100000) }}L{% else %}₹{{ "{:,.0f}".format(cur) }}{% endif %}
+      </p>
+    </div>
+    <a href="{{ url_for('loans_bp.loans') }}" class="text-[10px] text-primary hover:underline">View Loans →</a>
+  </div>
+
+  {% else %}
+  <div class="flex-1 flex items-center justify-center" style="color:#475569; font-size:13px;">No active loans</div>
+  {% endif %}
+</div>
+
+</div>{# /grid #}
+
+{# ══════════════════════════
+   SMART INSIGHTS — full width 3-col
+══════════════════════════ #}
+<div>
+  <div class="flex items-center gap-2 mb-4">
+    <span class="material-symbols-outlined text-sm" style="color:#f59e0b;">auto_awesome</span>
+    <h3 style="font-size:15px; font-weight:700; color:#f1f5f9;">Smart Insights</h3> </div>
+  {% if insights %}
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+    {% set insight_icons = {'account_balance_wallet':'#ef4444','arrow_downward':'#ef4444','query_stats':'#f59e0b','savings':'#10b981','trending_up':'#10b981','trending_down':'#ef4444'} %}
+    {% for ins in insights[:3] %}
+    {% set ic = '#10b981' if ins.color == 'emerald' else ('#f59e0b' if ins.color == 'amber' else '#ef4444') %}
+    {% set ins_names = {'account_balance_wallet':'Budget','arrow_downward':'Income','query_stats':'Spending','savings':'Savings','trending_up':'Growth','trending_down':'Risk'} %}
+    <div class="card p-5 flex items-start gap-4" style="min-height:120px;">
+      <div class="size-9 rounded-xl flex items-center justify-center shrink-0"
+        style="background:{{ ic }}18;">
+        <span class="material-symbols-outlined text-base" style="color:{{ ic }};">{{ ins.icon }}</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-start justify-between gap-2 mb-1">
+          <p style="font-size:13px; font-weight:700; color:#f1f5f9;">{{ ins_names.get(ins.icon, ins.icon|title) }}</p> </div>
+        <p style="font-size:11px; color:#64748b; line-height:1.5;">{{ ins.body }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card p-6 text-center">
+    <p style="font-size:13px; color:#475569;">Add more transactions to generate insights.</p>
+  </div>
+  {% endif %}
+</div>
 
 {% endblock %}

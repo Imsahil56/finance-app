@@ -6,45 +6,87 @@
 <span id="meta-monthly-expense" data-value="{{ monthly_expense }}" class="hidden"></span>
 <span id="meta-monthly-pct"     data-value="{{ monthly_budget_pct }}" class="hidden"></span>
 
-<!-- ══════════════════════════════════════════════
-     4 SUMMARY CARDS
-     All numbers use text-white explicitly — dark mode only app
-════════════════════════════════════════════════ -->
+<!-- Embed period data as JSON for JS switcher -->
+<script id="period-data" type="application/json">
+{
+  "overall": {
+    "income":  {{ p_overall.income  | round(0) | int }},
+    "expense": {{ p_overall.expense | round(0) | int }},
+    "balance": {{ p_overall.balance | round(0) | int }},
+    "budget":  0,
+    "label":   "All Time",
+    "cats": {{ p_overall.cats | tojson }}
+  },
+  "month": {
+    "income":  {{ p_month.income  | round(0) | int }},
+    "expense": {{ p_month.expense | round(0) | int }},
+    "balance": {{ p_month.balance | round(0) | int }},
+    "budget":  {{ monthly_budget_amt | round(0) | int }},
+    "label":   "{{ month_name }}",
+    "cats": {{ p_month.cats | tojson }}
+  },
+  "week": {
+    "income":  {{ p_week.income  | round(0) | int }},
+    "expense": {{ p_week.expense | round(0) | int }},
+    "balance": {{ p_week.balance | round(0) | int }},
+    "budget":  {{ weekly_budget_amt | round(0) | int }},
+    "label":   "{{ week_range }}",
+    "cats": {{ p_week.cats | tojson }}
+  }
+}
+</script>
+
+<!-- Period Filter Pills -->
+<div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <div class="flex items-center gap-1.5 bg-[#0f172a] border border-slate-800 rounded-2xl p-1">
+    <button onclick="setPeriod('month')" id="pill-month"
+      class="period-pill px-4 py-2 rounded-xl text-xs font-bold transition-all bg-primary text-white">
+      This Month
+    </button>
+    <button onclick="setPeriod('week')" id="pill-week"
+      class="period-pill px-4 py-2 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white">
+      This Week
+    </button>
+    <button onclick="setPeriod('overall')" id="pill-overall"
+      class="period-pill px-4 py-2 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white">
+      Overall
+    </button>
+  </div>
+  <p id="period-label" class="text-xs text-slate-500 font-medium">{{ month_name }}</p>
+</div>
+
+<!-- Summary Cards -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 
-  <!-- Total Income -->
+  <!-- Income -->
   <div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800 hover:border-slate-700 transition-all">
     <div class="flex justify-between items-start mb-4">
       <div>
-        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Income</p>
-        <p class="text-[10px] text-slate-500 mt-0.5">All-time</p>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Income</p>
+        <p id="card-income-sub" class="text-[10px] text-slate-500 mt-0.5">{{ month_name }}</p>
       </div>
       <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Earned</span>
     </div>
-    <h3 class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(total_income) }}</h3>
+    <h3 id="card-income-val" class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(p_month.income) }}</h3>
     <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-      <span>This month: <span class="text-slate-300 font-semibold">₹{{ "{:,.0f}".format(monthly_income) }}</span></span>
+      <span id="card-income-foot" class="text-slate-500 text-[10px]"></span>
       <span class="material-symbols-outlined text-emerald-400 text-base">trending_up</span>
     </div>
   </div>
 
-  <!-- Total Expense -->
+  <!-- Expense -->
   <div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800 hover:border-slate-700 transition-all">
     <div class="flex justify-between items-start mb-4">
       <div>
-        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Expense</p>
-        <p class="text-[10px] text-slate-500 mt-0.5">All-time</p>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Expense</p>
+        <p id="card-expense-sub" class="text-[10px] text-slate-500 mt-0.5">{{ month_name }}</p>
       </div>
       <span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Spent</span>
     </div>
-    <h3 class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(total_expense) }}</h3>
+    <h3 id="card-expense-val" class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(p_month.expense) }}</h3>
     <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-      <span>This month: <span class="text-slate-300 font-semibold">₹{{ "{:,.0f}".format(monthly_expense) }}</span></span>
-      {% if monthly_budget %}
-        <span class="text-slate-400 font-medium text-[10px]">Target: ₹{{ "{:,.0f}".format(monthly_budget['budget_amount']) }}</span>
-      {% else %}
-        <span class="material-symbols-outlined text-rose-400 text-base">trending_down</span>
-      {% endif %}
+      <span id="card-expense-foot" class="text-[10px] text-slate-500"></span>
+      <span class="material-symbols-outlined text-rose-400 text-base">trending_down</span>
     </div>
   </div>
 
@@ -52,72 +94,64 @@
   <div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800 hover:border-slate-700 transition-all">
     <div class="flex justify-between items-start mb-4">
       <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Net Balance</p>
-      {% if balance >= 0 %}
-        <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Positive</span>
-      {% else %}
-        <span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Negative</span>
-      {% endif %}
+      <span id="card-balance-badge"
+        class="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide
+          {{ 'text-emerald-400 bg-emerald-500/10' if p_month.balance >= 0 else 'text-rose-400 bg-rose-500/10' }}">
+        {{ 'Positive' if p_month.balance >= 0 else 'Negative' }}
+      </span>
     </div>
-    {% if balance >= 0 %}
-      <h3 class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(balance) }}</h3>
-    {% else %}
-      <h3 class="text-2xl font-bold text-rose-400">-₹{{ "{:,.0f}".format(balance | abs) }}</h3>
-    {% endif %}
+    <h3 id="card-balance-val" class="text-2xl font-bold
+      {{ 'text-white' if p_month.balance >= 0 else 'text-rose-400' }}">
+      {{ '' if p_month.balance >= 0 else '-' }}₹{{ "{:,.0f}".format(p_month.balance | abs) }}
+    </h3>
     <div class="mt-4">
-      {% if total_income > 0 %}
-        {% set savings_pct = [[(((total_income - total_expense) / total_income) * 100) | round(0) | int, 0] | max, 100] | min %}
-        <div class="flex items-center justify-between text-[10px] text-slate-500 mb-1.5">
-          <span>Savings Rate</span>
-          <span class="text-slate-300 font-bold">{{ savings_pct }}%</span>
+      <div class="flex items-center justify-between text-[10px] text-slate-500 mb-1.5">
+        <span>Savings Rate</span>
+        <span id="card-savings-pct" class="text-slate-300 font-bold">
+          {{ [[(((p_month.income - p_month.expense) / p_month.income * 100) | round | int), 0] | max, 100] | min if p_month.income > 0 else 0 }}%
+        </span>
+      </div>
+      <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+        <div id="card-savings-bar" class="h-full bg-primary rounded-full transition-all"
+          style="width:{{ [[(((p_month.income - p_month.expense) / p_month.income * 100) | round | int), 0] | max, 100] | min if p_month.income > 0 else 0 }}%">
         </div>
-        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-          <div class="h-full bg-primary rounded-full transition-all" style="width:{{ savings_pct }}%"></div>
-        </div>
-      {% else %}
-        <p class="text-[10px] text-slate-600">No data yet</p>
-      {% endif %}
+      </div>
     </div>
   </div>
 
-  <!-- Remaining Budget -->
+  <!-- Budget Remaining -->
   <div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800 hover:border-slate-700 transition-all">
     <div class="flex justify-between items-start mb-4">
-      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Remaining Budget</p>
-      {% if monthly_budget %}
-        {% set remaining = monthly_budget['budget_amount'] - monthly_expense %}
-        {% if remaining > 0 %}
-          <span class="text-[10px] font-bold text-violet-400 bg-violet-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Safe</span>
-        {% else %}
-          <span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded-full uppercase tracking-wide">Over</span>
-        {% endif %}
-      {% else %}
-        <span class="text-[10px] font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded-full">No Budget</span>
-      {% endif %}
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Budget Left</p>
+      <span id="card-budget-badge"
+        class="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide
+          {% if not monthly_budget_amt %}text-slate-500 bg-slate-800
+          {% elif monthly_budget_amt > p_month.expense %}text-violet-400 bg-violet-500/10
+          {% else %}text-rose-400 bg-rose-500/10{% endif %}">
+        {% if not monthly_budget_amt %}No Budget
+        {% elif monthly_budget_amt > p_month.expense %}Safe
+        {% else %}Over{% endif %}
+      </span>
     </div>
-    {% if monthly_budget %}
-      {% set remaining = monthly_budget['budget_amount'] - monthly_expense %}
-      {% if remaining >= 0 %}
-        <h3 class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(remaining) }}</h3>
-      {% else %}
-        <h3 class="text-2xl font-bold text-rose-400">-₹{{ "{:,.0f}".format(remaining | abs) }}</h3>
-      {% endif %}
+    {% if monthly_budget_amt %}
+      <h3 id="card-budget-val" class="text-2xl font-bold
+        {{ 'text-white' if monthly_budget_amt >= p_month.expense else 'text-rose-400' }}">
+        {{ '' if monthly_budget_amt >= p_month.expense else '-' }}₹{{ "{:,.0f}".format((monthly_budget_amt - p_month.expense) | abs) }}
+      </h3>
       <div class="mt-4">
         <div class="flex items-center justify-between text-[10px] text-slate-500 mb-1.5">
-          <span>Budget Utilization</span>
-          <span class="text-slate-300 font-bold">{{ monthly_budget_pct }}%</span>
+          <span>Budget Used</span>
+          <span id="card-budget-pct" class="text-slate-300 font-bold">{{ monthly_budget_pct }}%</span>
         </div>
         <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-          {% if monthly_budget_pct < 80 %}
-            <div class="h-full bg-violet-500 rounded-full transition-all" style="width:{{ monthly_budget_pct }}%"></div>
-          {% elif monthly_budget_pct < 100 %}
-            <div class="h-full bg-amber-500 rounded-full transition-all" style="width:{{ monthly_budget_pct }}%"></div>
-          {% else %}
-            <div class="h-full bg-rose-500 rounded-full transition-all" style="width:100%"></div>
-          {% endif %}
+          <div id="card-budget-bar" class="h-full rounded-full transition-all
+            {{ 'bg-violet-500' if monthly_budget_pct < 80 else ('bg-amber-500' if monthly_budget_pct < 100 else 'bg-rose-500') }}"
+            style="width:{{ [monthly_budget_pct, 100] | min }}%">
+          </div>
         </div>
       </div>
     {% else %}
-      <h3 class="text-2xl font-bold text-slate-600">—</h3>
+      <h3 id="card-budget-val" class="text-2xl font-bold text-slate-600">—</h3>
       <p class="mt-4 text-[10px] text-slate-500">
         <a href="{{ url_for('budget_bp.budget') }}" class="text-primary hover:underline">Set a budget →</a>
       </p>
@@ -135,57 +169,51 @@
   <div class="bg-[#0f172a] p-6 rounded-xl border border-slate-800">
     <div class="flex justify-between items-center mb-5">
       <h4 class="text-sm font-semibold text-white">Expense by Category</h4>
-      <span class="text-xs text-slate-500 bg-slate-800 px-2.5 py-1 rounded-full">{{ month_name }}</span>
+      <!-- Month dropdown -->
+      <div class="relative">
+        <select id="donut-month-select" onchange="renderDonut(this.value)"
+          class="appearance-none bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold pl-3 pr-7 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+          <option value="overall">Overall</option>
+          {% for key, val in sorted_month_cats.items() %}
+          <option value="{{ key }}" {{ 'selected' if key == current_month_key else '' }}>
+            {{ val.label }}
+          </option>
+          {% endfor %}
+        </select>
+        <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 text-sm material-symbols-outlined">expand_more</span>
+      </div>
     </div>
 
-    {% if category_data %}
-      {% set cat_colors = ['#2094f3','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16'] %}
-      {% set total_cat = category_data.values() | sum %}
-      {% set sorted_cats = category_data.items() | sort(attribute='1', reverse=True) | list %}
-
-      <!-- SVG Donut: stroke-dashoffset = 100 - cumulative_percent -->
-      <div class="flex items-center justify-center py-2">
-        <div class="relative" style="width:180px;height:180px;">
-          <svg viewBox="0 0 36 36" class="w-full h-full -rotate-90">
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#1e293b" stroke-width="3.5"/>
-            {% set ns = namespace(cum=0) %}
-            {% for cat, amt in sorted_cats %}
-              {% set pct = (amt / total_cat * 100) %}
-              <circle cx="18" cy="18" r="15.9" fill="none"
-                stroke="{{ cat_colors[loop.index0 % cat_colors|length] }}"
-                stroke-width="3.5"
-                stroke-dasharray="{{ pct | round(3) }} {{ (100 - pct) | round(3) }}"
-                stroke-dashoffset="{{ (100 - ns.cum) | round(3) }}"
-                stroke-linecap="butt"/>
-              {% set ns.cum = ns.cum + pct %}
-            {% endfor %}
-          </svg>
-          <div class="absolute inset-0 flex flex-col items-center justify-center">
-            <span class="text-base font-bold text-white">₹{{ "{:,.0f}".format(total_cat) }}</span>
-            <span class="text-[9px] text-slate-500 uppercase tracking-widest font-bold mt-0.5">Total</span>
-          </div>
+    <!-- SVG donut (JS draws segments) -->
+    <div class="flex items-center justify-center py-2">
+      <div class="relative" style="width:180px;height:180px;">
+        <svg id="donut-svg" viewBox="0 0 36 36" class="w-full h-full -rotate-90">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#1e293b" stroke-width="3.5"/>
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <span id="donut-total" class="text-base font-bold text-white">—</span>
+          <span class="text-[9px] text-slate-500 uppercase tracking-widest font-bold mt-0.5">Total</span>
         </div>
       </div>
+    </div>
 
-      <!-- Legend — all categories with real percentages -->
-      <div class="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
-        {% for cat, amt in sorted_cats %}
-          {% set pct = (amt / total_cat * 100) | round(1) %}
-          <div class="flex items-center gap-2 text-xs">
-            <span class="size-2 rounded-full shrink-0" style="background:{{ cat_colors[loop.index0 % cat_colors|length] }}"></span>
-            <span class="text-slate-400 flex-1 truncate">{{ cat }}</span>
-            <span class="font-semibold text-slate-200 shrink-0">{{ pct }}%</span>
-          </div>
-        {% endfor %}
-      </div>
+    <!-- Legend -->
+    <div id="donut-legend" class="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 min-h-[40px]"></div>
 
-    {% else %}
-      <div class="flex flex-col items-center justify-center py-14 text-slate-600">
-        <span class="material-symbols-outlined text-5xl mb-2 opacity-30">donut_large</span>
-        <p class="text-sm">No expense data this month</p>
-      </div>
-    {% endif %}
+    <!-- Empty state -->
+    <div id="donut-empty" class="hidden flex-col items-center justify-center py-10 text-slate-600">
+      <span class="material-symbols-outlined text-5xl mb-2 opacity-30">donut_large</span>
+      <p class="text-sm">No expense data</p>
+    </div>
   </div>
+
+  <!-- Embed all monthly category data as JSON -->
+  <script id="donut-data" type="application/json">
+  {
+    "overall": {{ overall_cats | tojson }},
+    "months":  {{ sorted_month_cats | tojson }}
+  }
+  </script>
 
   <!-- ══ CHART 2: Bar Chart — Income vs Expense ══
        Uses income_expense_chart from backend (real data, all months)
@@ -437,6 +465,175 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+// ══ Period Switcher ══
+(function () {
+  var data;
+  try { data = JSON.parse(document.getElementById('period-data').textContent); } catch(e) { return; }
+
+  var fmt = function(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); };
+
+  window.setPeriod = function(p) {
+    var d = data[p];
+
+    // Update pill styles
+    ['month','week','overall'].forEach(function(k) {
+      var pill = document.getElementById('pill-' + k);
+      if (k === p) {
+        pill.className = 'period-pill px-4 py-2 rounded-xl text-xs font-bold transition-all bg-primary text-white';
+      } else {
+        pill.className = 'period-pill px-4 py-2 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white';
+      }
+    });
+
+    // Period label
+    document.getElementById('period-label').textContent = d.label;
+
+    // Income card
+    document.getElementById('card-income-sub').textContent = d.label;
+    document.getElementById('card-income-val').textContent = fmt(d.income);
+    var incFoot = document.getElementById('card-income-foot');
+    if (p !== 'overall' && data.overall.income > 0) {
+      incFoot.textContent = 'All-time: ' + fmt(data.overall.income);
+    } else { incFoot.textContent = ''; }
+
+    // Expense card
+    document.getElementById('card-expense-sub').textContent = d.label;
+    document.getElementById('card-expense-val').textContent = fmt(d.expense);
+    var expFoot = document.getElementById('card-expense-foot');
+    if (d.budget > 0) {
+      expFoot.textContent = 'Budget: ' + fmt(d.budget);
+    } else if (p !== 'overall') {
+      expFoot.textContent = '';
+    } else { expFoot.textContent = 'All-time total'; }
+
+    // Balance card
+    var bal = d.balance;
+    var balEl = document.getElementById('card-balance-val');
+    balEl.textContent = (bal < 0 ? '-' : '') + fmt(Math.abs(bal));
+    balEl.className = 'text-2xl font-bold ' + (bal >= 0 ? 'text-white' : 'text-rose-400');
+    var badgeEl = document.getElementById('card-balance-badge');
+    badgeEl.textContent = bal >= 0 ? 'Positive' : 'Negative';
+    badgeEl.className = 'text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide ' +
+      (bal >= 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10');
+
+    // Savings rate
+    var savPct = d.income > 0 ? Math.min(Math.max(Math.round((d.income - d.expense) / d.income * 100), 0), 100) : 0;
+    document.getElementById('card-savings-pct').textContent = savPct + '%';
+    document.getElementById('card-savings-bar').style.width = savPct + '%';
+
+    // Budget card
+    var budgetValEl = document.getElementById('card-budget-val');
+    var budgetPctEl = document.getElementById('card-budget-pct');
+    var budgetBarEl = document.getElementById('card-budget-bar');
+    var budgetBadge = document.getElementById('card-budget-badge');
+    if (budgetValEl && d.budget > 0) {
+      var rem = d.budget - d.expense;
+      budgetValEl.textContent = (rem < 0 ? '-' : '') + fmt(Math.abs(rem));
+      budgetValEl.className = 'text-2xl font-bold ' + (rem >= 0 ? 'text-white' : 'text-rose-400');
+      var pct = Math.min(Math.round(d.expense / d.budget * 100), 100);
+      if (budgetPctEl) budgetPctEl.textContent = pct + '%';
+      if (budgetBarEl) {
+        budgetBarEl.style.width = pct + '%';
+        budgetBarEl.style.background = pct < 80 ? '#7c3aed' : (pct < 100 ? '#d97706' : '#ef4444');
+      }
+      if (budgetBadge) {
+        budgetBadge.textContent = rem >= 0 ? 'Safe' : 'Over';
+        budgetBadge.className = 'text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide ' +
+          (rem >= 0 ? 'text-violet-400 bg-violet-500/10' : 'text-rose-400 bg-rose-500/10');
+      }
+    }
+
+    // Sync donut chart to Overall when period pill = overall
+    var sel = document.getElementById('donut-month-select');
+    if (sel && p === 'overall') {
+      sel.value = 'overall';
+      renderDonut('overall');
+    }
+  };
+
+  // Default = month
+  setPeriod('month');
+})();
+</script>
+
+<script>
+// ══ Donut Chart ══
+(function () {
+  var donutData;
+  try { donutData = JSON.parse(document.getElementById('donut-data').textContent); } catch(e) { return; }
+
+  var COLORS = ['#2094f3','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16','#f97316','#a3e635'];
+  var fmt = function(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); };
+
+  window.renderDonut = function(key) {
+    var cats;
+    if (key === 'overall') {
+      cats = donutData.overall;
+    } else {
+      cats = (donutData.months[key] || {}).cats || {};
+    }
+
+    var svg    = document.getElementById('donut-svg');
+    var legend = document.getElementById('donut-legend');
+    var totalEl= document.getElementById('donut-total');
+    var emptyEl= document.getElementById('donut-empty');
+
+    // Remove old segments (keep the background circle = first child)
+    while (svg.children.length > 1) svg.removeChild(svg.lastChild);
+    legend.innerHTML = '';
+
+    var entries = Object.entries(cats).sort(function(a,b){ return b[1]-a[1]; });
+    var total   = entries.reduce(function(s,e){ return s + e[1]; }, 0);
+
+    if (!entries.length || total === 0) {
+      totalEl.textContent = '—';
+      emptyEl.classList.remove('hidden');
+      emptyEl.classList.add('flex');
+      return;
+    }
+    emptyEl.classList.add('hidden');
+    emptyEl.classList.remove('flex');
+
+    totalEl.textContent = fmt(total);
+
+    var cum = 0;
+    entries.forEach(function(entry, i) {
+      var cat = entry[0], amt = entry[1];
+      var pct = amt / total * 100;
+      var color = COLORS[i % COLORS.length];
+
+      // SVG segment
+      var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', '18');
+      circle.setAttribute('cy', '18');
+      circle.setAttribute('r', '15.9');
+      circle.setAttribute('fill', 'none');
+      circle.setAttribute('stroke', color);
+      circle.setAttribute('stroke-width', '3.5');
+      circle.setAttribute('stroke-dasharray', pct.toFixed(3) + ' ' + (100 - pct).toFixed(3));
+      circle.setAttribute('stroke-dashoffset', (100 - cum).toFixed(3));
+      circle.setAttribute('stroke-linecap', 'butt');
+      svg.appendChild(circle);
+      cum += pct;
+
+      // Legend row
+      var row = document.createElement('div');
+      row.className = 'flex items-center gap-2 text-xs';
+      row.innerHTML =
+        '<span class="size-2 rounded-full shrink-0" style="background:' + color + '"></span>' +
+        '<span class="text-slate-400 flex-1 truncate">' + cat + '</span>' +
+        '<span class="font-semibold text-slate-200 shrink-0">' + (amt/total*100).toFixed(1) + '%</span>';
+      legend.appendChild(row);
+    });
+  };
+
+  // Initial render — current month
+  var sel = document.getElementById('donut-month-select');
+  renderDonut(sel ? sel.value : 'overall');
+})();
+</script>
+
 <script>
 // ══ Cash Flow Trend — draw smooth bezier curve from JSON data ══
 (function () {

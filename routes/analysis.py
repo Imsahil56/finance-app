@@ -14,6 +14,7 @@ from services.analytics_service  import (parse_date_range, get_spending_overview
                                           get_analysis_overview)
 from services.health_score_service import compute_health_score
 from services.insight_engine       import generate_insights
+from services import prediction_service
 
 analysis_bp = Blueprint('analysis', __name__, url_prefix='/analysis')
 
@@ -34,12 +35,16 @@ def overview():
     # Aggregated data for all 4 cards
     overview_data = get_analysis_overview(db, uid, start, end, compare)
 
-    # Health score preview
+    # Health score
     health = compute_health_score(db, uid)
 
     # Insights
     budget_perf = get_budget_performance(db, uid)
     insights = generate_insights(db, uid, overview_data['spending'], budget_perf, health)
+
+    # Predictions & debt analytics
+    predictions = prediction_service.get_all_predictions(db, uid, health.get('score', 0))
+    fin_status  = prediction_service.get_financial_status(predictions)
 
     sidebar_expense, sidebar_pct = get_monthly_spend()
 
@@ -47,6 +52,8 @@ def overview():
         period=period, compare=compare, start=start, end=end,
         overview=overview_data, health=health,
         budget_perf=budget_perf, insights=insights,
+        predictions=predictions,
+        fin_status=fin_status,
         sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
     )
 
@@ -164,5 +171,90 @@ def health_score():
 
     return render_template('analysis/health_score.html',
         health=health,
+        sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
+    )
+
+
+# ─────────────────────────────────────────────
+# 6. Savings  /analysis/savings
+# ─────────────────────────────────────────────
+
+@analysis_bp.route('/savings', methods=['GET'])
+@login_required
+def savings():
+    db  = get_db()
+    uid = session['user_id']
+
+    savings_data  = prediction_service.predict_savings(db, uid)
+    wealth        = prediction_service.predict_wealth_projection(db, uid)
+    trends_data   = get_trends_data(db, uid, granularity='monthly')
+    sidebar_expense, sidebar_pct = get_monthly_spend()
+
+    return render_template('analysis/savings.html',
+        savings=savings_data, wealth=wealth,
+        trends=trends_data,
+        sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
+    )
+
+
+# ─────────────────────────────────────────────
+# 7. Budget  /analysis/budget
+# ─────────────────────────────────────────────
+
+@analysis_bp.route('/budget', methods=['GET'])
+@login_required
+def budget():
+    db  = get_db()
+    uid = session['user_id']
+
+    perf         = get_budget_performance(db, uid)
+    budget_risks = prediction_service.predict_budget_risk(db, uid)
+    sidebar_expense, sidebar_pct = get_monthly_spend()
+
+    return render_template('analysis/budget.html',
+        perf=perf, budget_risks=budget_risks,
+        sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
+    )
+
+
+# ─────────────────────────────────────────────
+# 8. Debt  /analysis/debt
+# ─────────────────────────────────────────────
+
+@analysis_bp.route('/debt', methods=['GET'])
+@login_required
+def debt():
+    db  = get_db()
+    uid = session['user_id']
+
+    debt_data = prediction_service.get_debt_analytics(db, uid)
+    sidebar_expense, sidebar_pct = get_monthly_spend()
+
+    return render_template('analysis/debt.html',
+        debt=debt_data,
+        sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
+    )
+
+
+# ─────────────────────────────────────────────
+# 9. Loan Payoff  /analysis/loan-payoff
+# ─────────────────────────────────────────────
+
+@analysis_bp.route('/loan-payoff', methods=['GET'])
+@login_required
+def loan_payoff():
+    db  = get_db()
+    uid = session['user_id']
+
+    debt_data = prediction_service.get_debt_analytics(db, uid)
+    # Get per-loan detail
+    loans = db.execute(
+        "SELECT * FROM loans WHERE user_id=? AND status='active' ORDER BY loan_amount DESC",
+        (uid,)
+    ).fetchall()
+    sidebar_expense, sidebar_pct = get_monthly_spend()
+
+    return render_template('analysis/loan_payoff.html',
+        debt=debt_data, loans=loans,
         sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
     )
