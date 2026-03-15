@@ -213,13 +213,14 @@ def set_budget():
 # Runs regardless of how Flask is launched (flask run, python app.py, gunicorn…)
 with app.app_context():
     init_db()
-@app.route("/seed")
-def seed():
-    import seed_underbudget
-    seed_underbudget.run()
-    return "Database seeded!"
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+@app.route("/seed")
+def seed():
+    import seed_underbudget
+    seed_underbudget.run()
+    return "Database seeded!"
