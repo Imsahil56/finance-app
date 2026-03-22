@@ -1,0 +1,785 @@
+{% extends "base.html" %}
+{% block title %}Add New Loan — FinanceOS{% endblock %}
+{% block page_title %}Add Loan{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --s2:#161929; --s3:#1c1f32; --s4:#13162a;
+  --bd:rgba(255,255,255,.06); --bd2:rgba(255,255,255,.08);
+  --tx:#e8eaf6; --tx2:#a0a3bd; --tx3:#484e6e;
+  --ind:#6366f1; --ind2:#818cf8;
+  --grn:#22c55e; --red:#f87171; --amb:#fbbf24;
+}
+@keyframes fadeUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+@keyframes countUp { from{opacity:0;transform:translateY(6px)}  to{opacity:1;transform:none} }
+.fu  { animation:fadeUp .35s cubic-bezier(.4,0,.2,1) both; }
+.val-update { animation:countUp .25s ease both; }
+
+/* ── Layout ── */
+.al-grid { display:grid; grid-template-columns:1fr 310px; gap:22px; align-items:start; }
+
+/* ── Form card — secondary/flat ── */
+.al-form-card {
+  background:#171A2F; border:1px solid var(--bd);
+  border-radius:16px; overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);
+  transition:border-color .25s;
+}
+.al-form-header {
+  padding:14px 20px; border-bottom:1px solid var(--bd);
+  display:flex; align-items:center; gap:12px;
+}
+.al-form-body { padding:18px 20px; display:flex; flex-direction:column; gap:16px; }
+
+/* ── Section titles ── */
+.al-section-title {
+  font-size:9px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--tx3); margin-bottom:10px;
+}
+
+/* ── Advanced options collapsible ── */
+.adv-toggle {
+  display:flex; align-items:center; gap:6px; cursor:pointer;
+  font-size:11px; font-weight:600; color:var(--tx3);
+  background:none; border:none; font-family:inherit; padding:0;
+  transition:color .15s;
+}
+.adv-toggle:hover { color:var(--tx2); }
+.adv-toggle .adv-chevron { font-size:14px; transition:transform .2s ease; }
+.adv-toggle.open .adv-chevron { transform:rotate(180deg); }
+.adv-body {
+  display:none; padding-top:10px;
+}
+.adv-body.open { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+/* ── Loan type dropdown ── */
+.lt-select-wrap { position:relative; }
+.lt-select-wrap::after {
+  content:'expand_more'; font-family:'Material Symbols Outlined';
+  position:absolute; right:10px; top:50%; transform:translateY(-50%);
+  font-size:16px; color:var(--tx3); pointer-events:none;
+}
+.lt-select-wrap select.al-input { padding-right:32px; }
+
+/* ── Input fields — compact & de-emphasised ── */
+.al-fields { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.al-label {
+  display:block; font-size:9px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.08em;
+  color:var(--tx3); margin-bottom:4px;
+}
+.al-helper { font-size:10px; color:var(--tx3); margin-top:3px; }
+.al-input {
+  width:100%; background:#0e1020; border:1px solid rgba(255,255,255,.05);
+  border-radius:8px; padding:9px 11px; font-size:13px; color:var(--tx);
+  outline:none; font-family:inherit; height:40px;
+  transition:border-color .2s ease, box-shadow .2s ease;
+}
+.al-input:focus {
+  border-color:var(--ind);
+  box-shadow:0 0 0 2px rgba(99,102,241,.2);
+}
+.al-input::placeholder { color:var(--tx3); font-size:12px; }
+.al-input[type="date"]  { color-scheme:dark; }
+select.al-input { appearance:none; cursor:pointer; }
+.al-prefix-wrap { position:relative; }
+.al-prefix {
+  position:absolute; left:11px; top:50%; transform:translateY(-50%);
+  font-size:13px; font-weight:600; color:var(--tx3); pointer-events:none;
+}
+.al-suffix {
+  position:absolute; right:11px; top:50%; transform:translateY(-50%);
+  font-size:11px; font-weight:600; color:var(--tx3); pointer-events:none;
+}
+.al-prefix-wrap .al-input { padding-left:24px; }
+.al-suffix-wrap .al-input { padding-right:30px; }
+
+/* ── Suggest badges ── */
+.al-suggest-row { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+.al-suggest-badge {
+  font-size:10px; font-weight:600; padding:3px 10px; border-radius:6px;
+  background:#13162A; border:1px solid var(--bd); color:var(--tx2);
+  cursor:pointer; transition:all .15s;
+}
+.al-suggest-badge:hover { border-color:var(--ind); color:var(--ind2); }
+
+/* ── EMI calculator — enhanced ── */
+.emi-result {
+  background:rgba(99,102,241,.07); border:1px solid rgba(99,102,241,.18);
+  border-radius:12px; padding:18px;
+  display:grid; grid-template-columns:repeat(3,1fr); gap:12px; text-align:center;
+}
+.emi-result-lbl {
+  font-size:9px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.1em; color:rgba(165,168,248,.45); margin-bottom:5px;
+}
+.emi-result-val { font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; }
+
+/* Principal vs interest breakdown bar */
+.pi-bar-wrap { margin-top:14px; }
+.pi-bar-label-row { display:flex; justify-content:space-between; margin-bottom:5px; }
+.pi-bar-lbl { font-size:10px; font-weight:600; }
+.pi-bar-track { height:6px; background:rgba(255,255,255,.06); border-radius:99px; overflow:hidden; display:flex; }
+.pi-bar-principal { height:100%; border-radius:99px 0 0 99px; background:var(--ind); transition:width .5s ease; }
+.pi-bar-interest  { height:100%; border-radius:0 99px 99px 0; background:var(--amb); transition:width .5s ease; }
+
+/* ── Payment settings ── */
+.payment-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.freq-btn-group { display:flex; gap:6px; }
+.freq-btn {
+  flex:1; padding:8px; border-radius:7px; font-size:12px; font-weight:600;
+  border:1px solid rgba(255,255,255,.05); background:#0e1020; color:var(--tx2);
+  cursor:pointer; font-family:inherit; transition:all .2s ease;
+}
+.freq-btn.active { background:var(--ind); border-color:var(--ind); color:#fff; }
+.freq-btn:not(.active):hover { border-color:var(--ind); color:var(--tx); }
+
+/* ── Sidebar ── */
+.al-side { display:flex; flex-direction:column; gap:16px; position:sticky; top:16px; }
+
+/* ── PRIMARY: Preview card ── */
+.preview-card {
+  background:linear-gradient(135deg,#1C1F3F 0%,#14182E 100%);
+  border:1px solid rgba(99,102,241,.35); border-radius:16px; padding:22px;
+  box-shadow:0 20px 60px rgba(99,102,241,.25);
+  position:relative; overflow:hidden;
+  transition:box-shadow .25s ease;
+}
+.preview-card::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(circle at 80% 20%,rgba(99,102,241,.25),transparent 60%);
+}
+.preview-card:hover { box-shadow:0 25px 70px rgba(99,102,241,.35); }
+.preview-eyebrow {
+  font-size:9px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; color:rgba(165,168,248,.6); margin-bottom:14px;
+}
+/* Donut — gradient stroke via linearGradient */
+.preview-donut-wrap { position:relative; width:120px; height:120px; margin:0 auto 18px; }
+.preview-donut-wrap svg { transform:rotate(-90deg); }
+.preview-donut-inner {
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+}
+.preview-donut-val { font-size:22px; font-weight:900; color:#fff; line-height:1; }
+.preview-donut-lbl { font-size:8px; color:rgba(255,255,255,.35); margin-top:3px; text-transform:uppercase; letter-spacing:.06em; }
+
+/* Big EMI display */
+.preview-emi-hero { text-align:center; margin-bottom:16px; }
+.preview-emi-lbl { font-size:9px; color:rgba(165,168,248,.5); text-transform:uppercase; letter-spacing:.1em; margin-bottom:3px; }
+.preview-emi-val { font-size:28px; font-weight:900; color:#fff; letter-spacing:-.5px; font-variant-numeric:tabular-nums; }
+
+.preview-stats { display:flex; flex-direction:column; gap:7px; }
+.preview-stat-row { display:flex; justify-content:space-between; align-items:center; }
+.preview-stat-lbl { font-size:11px; color:rgba(255,255,255,.35); }
+.preview-stat-val { font-size:12px; font-weight:700; color:rgba(255,255,255,.85); font-variant-numeric:tabular-nums; }
+.preview-divider { height:1px; background:rgba(255,255,255,.05); margin:3px 0; }
+
+/* Risk badge */
+.risk-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:10px; font-weight:700; padding:4px 10px; border-radius:99px;
+  margin-top:12px; letter-spacing:.04em; text-transform:uppercase;
+}
+
+/* ── SECONDARY: Budget impact ── */
+.impact-card {
+  background:linear-gradient(135deg,#171A2F,#13162A);
+  border:1px solid var(--bd); border-radius:16px; padding:18px;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);
+  transition:border-color .25s;
+}
+.impact-card:hover { border-color:rgba(99,102,241,.2); }
+.impact-title { font-size:9px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--tx3); margin-bottom:12px; }
+.impact-row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+.impact-pct   { font-size:26px; font-weight:900; color:var(--tx); line-height:1; }
+.impact-risk  { font-size:10px; font-weight:700; padding:2px 8px; border-radius:6px; }
+.impact-sub   { font-size:11px; color:var(--tx3); margin-bottom:10px; }
+.impact-bar-track { height:5px; background:rgba(255,255,255,.05); border-radius:99px; overflow:hidden; margin-bottom:8px; }
+.impact-bar-fill  { height:100%; border-radius:99px; transition:width .5s ease, background .3s ease; }
+.impact-disposable { font-size:11px; color:var(--tx3); }
+.impact-disposable strong { color:var(--tx2); }
+
+/* ── TERTIARY: Smart insights ── */
+.insights-card {
+  background:#171A2F; border:1px solid var(--bd); border-radius:16px; padding:18px;
+  transition:border-color .2s;
+}
+.insights-card:hover { border-color:rgba(99,102,241,.15); }
+.insights-title { font-size:9px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--tx3); margin-bottom:12px; }
+.insight-row { display:flex; gap:10px; align-items:flex-start; margin-bottom:9px; }
+.insight-row:last-child { margin-bottom:0; }
+.insight-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+.insight-text { font-size:11px; color:var(--tx2); line-height:1.5; }
+.insight-text strong { color:var(--ind2); }
+
+/* ── Footer ── */
+.al-footer { display:flex; gap:10px; padding:14px 20px; border-top:1px solid var(--bd); }
+.al-btn-primary {
+  flex:1; padding:12px; border-radius:10px;
+  background:linear-gradient(135deg,#6366f1,#818cf8);
+  color:#fff; font-size:13px; font-weight:700; border:none; cursor:pointer; font-family:inherit;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  box-shadow:0 6px 20px rgba(99,102,241,.3); transition:filter .2s,box-shadow .2s;
+}
+.al-btn-primary:hover { filter:brightness(1.1); box-shadow:0 10px 28px rgba(99,102,241,.4); }
+.al-btn-cancel {
+  padding:12px 22px; border-radius:10px; background:transparent;
+  border:1px solid var(--bd); color:var(--tx2);
+  font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;
+  text-decoration:none; display:flex; align-items:center;
+  transition:border-color .15s,color .15s;
+}
+.al-btn-cancel:hover { border-color:var(--tx3); color:var(--tx); }
+</style>
+{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
+
+{# Breadcrumb #}
+<div style="display:flex; align-items:center; gap:6px; margin-bottom:18px;">
+  <a href="{{ url_for('loans_bp.loans') }}"
+    style="font-size:12px; color:var(--tx3); text-decoration:none; transition:color .15s;"
+    onmouseover="this.style.color='var(--tx2)'" onmouseout="this.style.color='var(--tx3)'">
+    Loans & EMI
+  </a>
+  <span class="material-symbols-outlined" style="font-size:14px; color:var(--tx3);">chevron_right</span>
+  <span style="font-size:12px; color:var(--tx2); font-weight:600;">Add New Loan</span>
+</div>
+
+<div class="al-grid fu">
+
+  {# ════ FORM ════ #}
+  <div class="al-form-card">
+    <div class="al-form-header">
+      <div style="width:40px; height:40px; border-radius:11px; background:rgba(99,102,241,.15);
+           border:1px solid rgba(99,102,241,.25); display:flex; align-items:center; justify-content:center;">
+        <span class="material-symbols-outlined" style="font-size:20px; color:var(--ind2);">account_balance</span>
+      </div>
+      <div>
+        <p style="font-size:15px; font-weight:700; color:var(--tx);">Loan Details</p>
+        <p style="font-size:11px; color:var(--tx3);">EMI is calculated automatically</p>
+      </div>
+      {# Suggest badges #}
+      <div style="margin-left:auto; display:flex; gap:6px;">
+        <span class="al-suggest-badge" onclick="fillSuggestion('typical')">Typical Home Loan</span>
+        <span class="al-suggest-badge" onclick="fillSuggestion('easy')">Easy EMI</span>
+      </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('loans_bp.add_loan') }}" id="add-loan-form">
+      <div class="al-form-body">
+
+        {# Core fields — 2-col grid: Name|Type, Lender|Amount, Rate|Term, Date #}
+        <div class="al-fields">
+          <div>
+            <label class="al-label">Loan Name</label>
+            <input name="loan_name" id="inp-name" type="text"
+              placeholder="e.g. SBI Home Loan" required class="al-input"
+              oninput="updatePreview()"/>
+          </div>
+          <div>
+            <label class="al-label">Loan Type</label>
+            <div class="lt-select-wrap">
+              <select name="loan_type" id="inp-loan-type" class="al-input"
+                onchange="selectLoanType(this)">
+                {% for lt in loan_types %}
+                {% set meta = loan_type_meta.get(lt, {}) %}
+                <option value="{{ lt }}" {{ 'selected' if loop.first }}>{{ lt }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="al-label">Lender</label>
+            <input name="lender" id="inp-lender" type="text"
+              placeholder="e.g. JPMorgan Chase" class="al-input"/>
+          </div>
+          <div>
+            <label class="al-label">Principal Amount</label>
+            <div class="al-prefix-wrap">
+              <span class="al-prefix">₹</span>
+              <input name="loan_amount" id="inp-amount" type="number"
+                placeholder="450000" required min="1" step="1"
+                class="al-input" oninput="calcEMI()"/>
+            </div>
+          </div>
+          <div>
+            <label class="al-label">Interest Rate</label>
+            <div class="al-prefix-wrap al-suffix-wrap" style="position:relative;">
+              <span class="al-suffix">%</span>
+              <input name="interest_rate" id="inp-rate" type="number"
+                placeholder="8.5" required min="0" step="0.01"
+                class="al-input" style="padding-right:30px;" oninput="calcEMI()"/>
+            </div>
+            <div class="al-suggest-row" id="rate-suggestions"></div>
+          </div>
+          <div>
+            <label class="al-label">Term</label>
+            <div style="display:flex; gap:5px;">
+              <input id="inp-tenure-val" name="_tenure_display" type="number"
+                placeholder="20" min="1" required class="al-input"
+                oninput="calcEMI()"/>
+              <select id="inp-tenure-unit" class="al-input" style="width:84px; flex-shrink:0;"
+                onchange="calcEMI()">
+                <option value="years">Years</option>
+                <option value="months">Months</option>
+              </select>
+              <input type="hidden" id="inp-tenure-months" name="tenure_months"/>
+            </div>
+          </div>
+          <div>
+            <label class="al-label">Start Date</label>
+            <input name="start_date" id="inp-start" type="date" required class="al-input"/>
+          </div>
+        </div>
+
+        {# Advanced Options — collapsible #}
+        <div>
+          <button type="button" class="adv-toggle" id="adv-toggle"
+            onclick="toggleAdv()">
+            <span class="material-symbols-outlined adv-chevron">expand_more</span>
+            Advanced Options
+            <span style="font-size:10px; color:var(--tx3); font-weight:400; margin-left:2px;">(Processing Fee · Insurance)</span>
+          </button>
+          <div class="adv-body" id="adv-body">
+            <div>
+              <label class="al-label">Processing Fee</label>
+              <div class="al-prefix-wrap">
+                <span class="al-prefix">₹</span>
+                <input name="processing_fee" type="number" placeholder="0"
+                  min="0" step="1" class="al-input"/>
+              </div>
+              <p class="al-helper">One-time fee charged by lender</p>
+            </div>
+            <div>
+              <label class="al-label">Insurance</label>
+              <div class="al-prefix-wrap">
+                <span class="al-prefix">₹</span>
+                <input name="insurance" type="number" placeholder="0"
+                  min="0" step="1" class="al-input"/>
+              </div>
+              <p class="al-helper">Optional loan protection insurance</p>
+            </div>
+          </div>
+        </div>
+
+        {# EMI Calculator section #}
+        <div>
+          <div class="al-section-title">EMI Calculator</div>
+          <div class="emi-result" id="emi-result">
+            <div>
+              <div class="emi-result-lbl">Monthly EMI</div>
+              <div class="emi-result-val" id="preview-emi" style="color:var(--ind2);">—</div>
+            </div>
+            <div>
+              <div class="emi-result-lbl">Total Interest</div>
+              <div class="emi-result-val" id="preview-interest" style="color:var(--amb);">—</div>
+            </div>
+            <div>
+              <div class="emi-result-lbl">Total Payment</div>
+              <div class="emi-result-val" id="preview-total" style="color:var(--tx);">—</div>
+            </div>
+          </div>
+          {# Principal vs Interest breakdown bar #}
+          <div class="pi-bar-wrap" id="pi-bar-section" style="display:none;">
+            <div class="pi-bar-label-row">
+              <span class="pi-bar-lbl" style="color:var(--ind2);">● Principal</span>
+              <span class="pi-bar-lbl" style="color:var(--amb);">● Interest</span>
+            </div>
+            <div class="pi-bar-track">
+              <div class="pi-bar-principal" id="pi-principal" style="width:50%;"></div>
+              <div class="pi-bar-interest"  id="pi-interest"  style="width:50%;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:4px;">
+              <span style="font-size:10px; color:var(--tx3);" id="pi-principal-lbl">—</span>
+              <span style="font-size:10px; color:var(--tx3);" id="pi-interest-lbl">—</span>
+            </div>
+          </div>
+        </div>
+
+        {# Payment settings #}
+        <div>
+          <div class="al-section-title">Payment Settings</div>
+          <div class="payment-row">
+            <div>
+              <label class="al-label">Payment Frequency</label>
+              <div class="freq-btn-group">
+                <button type="button" class="freq-btn active" onclick="setFreq(this,'monthly')">Monthly</button>
+                <button type="button" class="freq-btn" onclick="setFreq(this,'biweekly')">Bi-weekly</button>
+              </div>
+            </div>
+            <div>
+              <label class="al-label">First EMI Date</label>
+              <input name="first_emi_date" id="inp-first-emi" type="date" class="al-input"/>
+            </div>
+          </div>
+          <input type="hidden" name="payment_frequency" id="inp-freq" value="monthly"/>
+        </div>
+
+      </div>{# /form-body #}
+
+      {# Footer #}
+      <div class="al-footer">
+        <button type="submit" class="al-btn-primary">
+          <span class="material-symbols-outlined" style="font-size:17px;">add_circle</span>
+          Add Loan
+        </button>
+        <a href="{{ url_for('loans_bp.loans') }}" class="al-btn-cancel">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  {# ════ SIDEBAR ════ #}
+  <div class="al-side fu" style="animation-delay:.08s;">
+
+    {# Live Preview card — PRIMARY #}
+    <div class="preview-card">
+      <div class="preview-eyebrow">Preview</div>
+
+      {# Big EMI value #}
+      <div class="preview-emi-hero">
+        <div class="preview-emi-lbl">Monthly EMI</div>
+        <div class="preview-emi-val" id="prev-emi-hero">—</div>
+      </div>
+
+      {# Donut with gradient stroke #}
+      <div class="preview-donut-wrap">
+        <svg viewBox="0 0 36 36" width="120" height="120">
+          <defs>
+            <linearGradient id="donut-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%"   stop-color="#6366f1"/>
+              <stop offset="100%" stop-color="#818cf8"/>
+            </linearGradient>
+          </defs>
+          <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="3.5"/>
+          <circle id="donut-fill" cx="18" cy="18" r="14" fill="none"
+            stroke="url(#donut-gradient)" stroke-width="3.5"
+            stroke-dasharray="0 100" stroke-linecap="round"
+            style="transition:stroke-dasharray .6s ease; filter:drop-shadow(0 0 4px rgba(99,102,241,.6));"/>
+        </svg>
+        <div class="preview-donut-inner">
+          <div class="preview-donut-val" id="donut-pct-label">0%</div>
+          <div class="preview-donut-lbl">Interest</div>
+        </div>
+      </div>
+
+      <div class="preview-stats">
+        <div class="preview-stat-row">
+          <span class="preview-stat-lbl">Amount</span>
+          <span class="preview-stat-val" id="prev-amount">—</span>
+        </div>
+        <div class="preview-divider"></div>
+        <div class="preview-stat-row">
+          <span class="preview-stat-lbl">Duration</span>
+          <span class="preview-stat-val" id="prev-duration">—</span>
+        </div>
+        <div class="preview-divider"></div>
+        <div class="preview-stat-row">
+          <span class="preview-stat-lbl">Interest Rate</span>
+          <span class="preview-stat-val" id="prev-rate">—</span>
+        </div>
+        <div class="preview-divider"></div>
+        <div class="preview-stat-row">
+          <span class="preview-stat-lbl">Total Interest</span>
+          <span class="preview-stat-val" id="prev-total-interest" style="color:var(--amb);">—</span>
+        </div>
+      </div>
+
+      {# Risk badge #}
+      <div id="risk-badge" class="risk-badge" style="display:none;"></div>
+    </div>
+
+    {# Budget Impact — SECONDARY #}
+    <div class="impact-card">
+      <div class="impact-title">Budget Impact</div>
+      <div class="impact-row">
+        <div class="impact-pct" id="impact-pct">—</div>
+        <span class="impact-risk" id="impact-risk" style="display:none;"></span>
+      </div>
+      <div class="impact-sub" id="impact-sub">Enter loan details to see impact</div>
+      <div class="impact-bar-track">
+        <div class="impact-bar-fill" id="impact-bar" style="width:0%;"></div>
+      </div>
+      <div class="impact-disposable" id="impact-disposable" style="margin-top:8px; display:none;">
+        Disposable: <strong id="impact-disposable-val">—</strong>/mo
+      </div>
+    </div>
+
+    {# Smart Insights #}
+    <div class="insights-card">
+      <div class="insights-title">Smart Insights</div>
+      <div id="insights-list">
+        <div class="insight-row">
+          <div class="insight-dot" style="background:var(--tx3);"></div>
+          <p class="insight-text" style="color:var(--tx3);">Fill in loan details to see personalized insights.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const MONTHLY_INCOME = {{ monthly_income }};
+const LOAN_RATE_HINTS = {
+  'Home Loan':             [7.5, 8.5, 9.0],
+  'Car Loan':              [8.5, 9.5, 10.5],
+  'Personal Loan':         [10.5, 13.0, 16.0],
+  'Education Loan':        [7.0, 8.5, 10.0],
+  'Credit Card EMI':       [13.0, 16.0, 18.0],
+  'Consumer Durable Loan': [10.0, 12.0, 14.0],
+  'Business Loan':         [11.0, 13.5, 15.0],
+  'Other':                 [9.0, 12.0, 15.0],
+};
+
+function toggleAdv() {
+  const btn  = document.getElementById('adv-toggle');
+  const body = document.getElementById('adv-body');
+  const open = body.classList.contains('open');
+  btn.classList.toggle('open', !open);
+  body.classList.toggle('open', !open);
+}
+
+function fmt(v) {
+  return '₹' + Math.round(v).toLocaleString('en-IN');
+}
+
+// ── Count-up animation ──
+function animateVal(el, text) {
+  if (!el) return;
+  el.classList.remove('val-update');
+  void el.offsetWidth; // reflow
+  el.textContent = text;
+  el.classList.add('val-update');
+}
+
+// ── Loan type card selection ──
+function selectLoanType(sel) {
+  updateRateHints(sel.value);
+  calcEMI();
+}
+
+function updateRateHints(loanType) {
+  const hints = LOAN_RATE_HINTS[loanType] || [];
+  const row = document.getElementById('rate-suggestions');
+  row.innerHTML = hints.map(r =>
+    `<span class="al-suggest-badge" onclick="document.getElementById('inp-rate').value=${r};calcEMI()">${r}%</span>`
+  ).join('');
+}
+
+// ── EMI calculation ──
+function calcEMI() {
+  const p = parseFloat(document.getElementById('inp-amount').value) || 0;
+  const r = parseFloat(document.getElementById('inp-rate').value) || 0;
+  const tv = parseFloat(document.getElementById('inp-tenure-val').value) || 0;
+  const unit = document.getElementById('inp-tenure-unit').value;
+  const n = unit === 'years' ? tv * 12 : tv;
+  document.getElementById('inp-tenure-months').value = Math.round(n);
+
+  if (p <= 0 || n <= 0) { resetPreview(); return; }
+
+  let emi, totalPayment, totalInterest;
+  const mRate = r / 12 / 100;
+  if (mRate === 0) {
+    emi = p / n; totalPayment = p; totalInterest = 0;
+  } else {
+    const f = Math.pow(1 + mRate, n);
+    emi = p * mRate * f / (f - 1);
+    totalPayment = emi * n;
+    totalInterest = totalPayment - p;
+  }
+
+  // ── EMI result boxes (animated) ──
+  animateVal(document.getElementById('preview-emi'),      fmt(emi));
+  animateVal(document.getElementById('preview-interest'), fmt(totalInterest));
+  animateVal(document.getElementById('preview-total'),    fmt(totalPayment));
+
+  // ── Principal vs Interest breakdown bar ──
+  const piSection = document.getElementById('pi-bar-section');
+  if (piSection) {
+    piSection.style.display = 'block';
+    const pPct = Math.round(p / totalPayment * 100);
+    const iPct = 100 - pPct;
+    document.getElementById('pi-principal').style.width = pPct + '%';
+    document.getElementById('pi-interest').style.width  = iPct + '%';
+    document.getElementById('pi-principal-lbl').textContent = `Principal ${pPct}%`;
+    document.getElementById('pi-interest-lbl').textContent  = `Interest ${iPct}%`;
+  }
+
+  // ── Sidebar preview (animated) ──
+  animateVal(document.getElementById('prev-emi-hero'),       fmt(emi));
+  animateVal(document.getElementById('prev-amount'),         fmt(p));
+  animateVal(document.getElementById('prev-rate'),           r + '% p.a.');
+  animateVal(document.getElementById('prev-duration'),       Math.round(n) + ' Months');
+  animateVal(document.getElementById('prev-total-interest'), fmt(totalInterest));
+
+  // ── Donut — interest % of total, gradient stroke ──
+  const intPct = totalPayment > 0 ? Math.round(totalInterest / totalPayment * 100) : 0;
+  document.getElementById('donut-fill').setAttribute('stroke-dasharray', `${intPct} ${100 - intPct}`);
+  animateVal(document.getElementById('donut-pct-label'), intPct + '%');
+
+  // ── Risk badge ──
+  const riskBadge = document.getElementById('risk-badge');
+  let riskLabel, riskColor, riskBg;
+  if (intPct > 60 || (MONTHLY_INCOME > 0 && emi / MONTHLY_INCOME > 0.4)) {
+    riskLabel = '⚠ High Risk'; riskColor = '#f87171'; riskBg = 'rgba(248,113,113,.12)';
+  } else if (intPct > 40 || (MONTHLY_INCOME > 0 && emi / MONTHLY_INCOME > 0.25)) {
+    riskLabel = '◉ Moderate'; riskColor = '#fbbf24'; riskBg = 'rgba(251,191,36,.12)';
+  } else {
+    riskLabel = '✓ Low Risk'; riskColor = '#22c55e'; riskBg = 'rgba(34,197,94,.12)';
+  }
+  riskBadge.style.display = 'inline-flex';
+  riskBadge.style.color = riskColor;
+  riskBadge.style.background = riskBg;
+  riskBadge.style.border = `1px solid ${riskColor}30`;
+  riskBadge.textContent = riskLabel;
+
+  updateBudgetImpact(emi, p, totalInterest, totalPayment);
+  updateInsights(p, r, emi, n, totalInterest, totalPayment);
+}
+
+function updateBudgetImpact(emi, p, interest, total) {
+  const pct = MONTHLY_INCOME > 0 ? Math.round(emi / MONTHLY_INCOME * 100) : 0;
+  const bar = Math.min(pct, 100);
+
+  let barColor, riskText, riskColor, riskBg;
+  if (pct > 40) {
+    barColor = 'var(--red)'; riskText = 'High'; riskColor = '#f87171'; riskBg = 'rgba(248,113,113,.15)';
+  } else if (pct > 25) {
+    barColor = 'var(--amb)'; riskText = 'Moderate'; riskColor = '#fbbf24'; riskBg = 'rgba(251,191,36,.12)';
+  } else {
+    barColor = 'var(--grn)'; riskText = 'Safe'; riskColor = '#22c55e'; riskBg = 'rgba(34,197,94,.12)';
+  }
+
+  animateVal(document.getElementById('impact-pct'), pct > 0 ? pct + '%' : '—');
+  document.getElementById('impact-sub').textContent = 'of monthly income · Threshold: 28%';
+  document.getElementById('impact-bar').style.width = bar + '%';
+  document.getElementById('impact-bar').style.background = barColor;
+
+  const riskEl = document.getElementById('impact-risk');
+  if (riskEl && pct > 0) {
+    riskEl.style.display = 'inline-block';
+    riskEl.textContent = riskText;
+    riskEl.style.color = riskColor;
+    riskEl.style.background = riskBg;
+  }
+
+  if (MONTHLY_INCOME > 0 && emi > 0) {
+    const disposable = MONTHLY_INCOME - emi;
+    const dispEl = document.getElementById('impact-disposable');
+    const dispVal = document.getElementById('impact-disposable-val');
+    if (dispEl) dispEl.style.display = 'block';
+    if (dispVal) {
+      dispVal.textContent = fmt(Math.max(0, disposable));
+      dispVal.style.color = disposable < 0 ? 'var(--red)' : 'var(--tx2)';
+    }
+  }
+}
+
+function updateInsights(p, r, emi, n, interest, total) {
+  const list = document.getElementById('insights-list');
+  const insights = [];
+  const incomeShare = MONTHLY_INCOME > 0 ? Math.round(emi / MONTHLY_INCOME * 100) : 0;
+  const intPct = total > 0 ? Math.round(interest / total * 100) : 0;
+
+  insights.push({
+    color: incomeShare > 40 ? 'var(--red)' : incomeShare > 25 ? 'var(--amb)' : 'var(--grn)',
+    text: `Total interest payable: <strong>${fmt(interest)}</strong> (${intPct}% of total payment)`,
+  });
+
+  if (MONTHLY_INCOME > 0) {
+    insights.push({
+      color: incomeShare > 40 ? 'var(--red)' : 'var(--ind2)',
+      text: `This EMI is <strong>${incomeShare}%</strong> of your monthly income. Remaining: <strong>${fmt(Math.max(0, MONTHLY_INCOME - emi))}</strong>/mo.`,
+    });
+  }
+
+  // EMI bump savings
+  if (emi > 0 && n > 12 && r > 0) {
+    const bumpEMI = emi * 1.1;
+    const rMonth = r / 12 / 100;
+    const newN = Math.log(bumpEMI / (bumpEMI - p * rMonth)) / Math.log(1 + rMonth);
+    const monthsSaved = Math.max(0, Math.round(n - newN));
+    const intSaved = Math.max(0, interest - (bumpEMI * newN - p));
+    if (monthsSaved > 0) {
+      insights.push({
+        color: 'var(--ind2)',
+        text: `Increase EMI by <strong>${fmt(emi * 0.1)}</strong> → save <strong>${fmt(intSaved)}</strong> in interest over <strong>${monthsSaved} months</strong>.`,
+      });
+    }
+  }
+
+  // Rate vs market
+  const loanTypeEl = document.getElementById('inp-loan-type');
+  const loanType = loanTypeEl ? loanTypeEl.value : 'Other';
+  const hints = LOAN_RATE_HINTS[loanType] || [];
+  const avgRate = hints.length ? hints.reduce((a,b) => a+b, 0) / hints.length : 0;
+  if (avgRate > 0 && r > 0) {
+    const diff = Math.abs(r - avgRate).toFixed(1);
+    insights.push({
+      color: r > avgRate ? 'var(--amb)' : 'var(--grn)',
+      text: r > avgRate
+        ? `Lender rate is <strong>${diff}% higher</strong> than market avg for ${loanType}s — consider negotiating.`
+        : `Lender rate is <strong>${diff}% lower</strong> than the market average for ${loanType}s.`,
+    });
+  }
+
+  list.innerHTML = insights.map(ins => `
+    <div class="insight-row">
+      <div class="insight-dot" style="background:${ins.color};"></div>
+      <p class="insight-text">${ins.text}</p>
+    </div>
+  `).join('');
+}
+
+function resetPreview() {
+  const ids = ['preview-emi','preview-interest','preview-total',
+               'prev-emi-hero','prev-amount','prev-rate','prev-duration','prev-total-interest'];
+  ids.forEach(id => { const el = document.getElementById(id); if(el) el.textContent='—'; });
+  document.getElementById('donut-fill').setAttribute('stroke-dasharray','0 100');
+  document.getElementById('donut-pct-label').textContent = '0%';
+  const rb = document.getElementById('risk-badge');
+  if (rb) rb.style.display = 'none';
+  const pi = document.getElementById('pi-bar-section');
+  if (pi) pi.style.display = 'none';
+}
+
+function setFreq(btn, val) {
+  document.querySelectorAll('.freq-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('inp-freq').value = val;
+}
+
+function fillSuggestion(type) {
+  const sel = document.getElementById('inp-loan-type');
+  if (type === 'typical') {
+    document.getElementById('inp-amount').value = 4500000;
+    document.getElementById('inp-rate').value = 8.5;
+    document.getElementById('inp-tenure-val').value = 20;
+    document.getElementById('inp-tenure-unit').value = 'years';
+    if (sel) { sel.value = 'Home Loan'; selectLoanType(sel); }
+  } else if (type === 'easy') {
+    document.getElementById('inp-amount').value = 200000;
+    document.getElementById('inp-rate').value = 10.5;
+    document.getElementById('inp-tenure-val').value = 24;
+    document.getElementById('inp-tenure-unit').value = 'months';
+    if (sel) { sel.value = 'Personal Loan'; selectLoanType(sel); }
+  }
+  calcEMI();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('inp-start').value = today;
+  document.getElementById('inp-first-emi').value = today;
+  const sel = document.getElementById('inp-loan-type');
+  if (sel) updateRateHints(sel.value);
+});
+</script>
+{% endblock %}

@@ -84,6 +84,25 @@ def dashboard():
             round(p_month['expense'] / monthly_budget_amt * 100), 100
         )
 
+    # ── Budget exhaustion date ─────────────────────────────────────────────
+    budget_exhaust_label = None
+    import calendar as _cal
+    days_in_month  = _cal.monthrange(year, month)[1]
+    days_elapsed   = max(today.day, 1)
+    days_remaining_month = days_in_month - today.day
+    if monthly_budget_amt and p_month['expense'] > 0:
+        avg_daily = p_month['expense'] / days_elapsed
+        remaining_budget = monthly_budget_amt - p_month['expense']
+        if remaining_budget <= 0:
+            budget_exhaust_label = 'Budget exhausted'
+        elif avg_daily > 0:
+            days_until_exhaust = remaining_budget / avg_daily
+            if days_until_exhaust <= days_remaining_month:
+                exhaust_date = today + timedelta(days=int(days_until_exhaust))
+                budget_exhaust_label = exhaust_date.strftime('~%b %d')
+            else:
+                budget_exhaust_label = 'Ends month safely'
+
     # Weekly budget (pro-rated: monthly / 4.33)
     weekly_budget_amt = round(monthly_budget_amt / 4.33) if monthly_budget_amt else 0
     weekly_budget_pct = 0
@@ -172,6 +191,8 @@ def dashboard():
         weekly_budget_amt   = weekly_budget_amt,
         monthly_budget_pct  = monthly_budget_pct,
         weekly_budget_pct   = weekly_budget_pct,
+        budget_exhaust_label = budget_exhaust_label,
+        days_remaining_month = days_remaining_month,
         # donut chart
         sorted_month_cats   = sorted_month_cats,
         overall_cats        = overall_cats,

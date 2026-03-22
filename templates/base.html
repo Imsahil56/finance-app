@@ -1,278 +1,579 @@
 <!DOCTYPE html>
-<html class="dark" lang="en">
+<html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
   <title>{% block title %}FinanceOS{% endblock %}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+
+  <!-- DM Sans — clean, technical, non-generic -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <!-- Material Symbols for icons -->
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <!-- Compiled Tailwind -->
   <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
+
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
-    .sidebar-transition { transition: width 0.3s ease; }
-    .label-transition { transition: opacity 0.2s ease, max-width 0.3s ease; }
+    /* ── Design tokens ── */
+    :root {
+      --bg:      #13151a;
+      --bg2:     #1a1d24;
+      --bg3:     #21252e;
+      --bg4:     #272b36;
+      --bd:      #2a2f3d;
+      --bd2:     #353b4d;
+      --tx:      #eef0f6;
+      --tx2:     #7b82a0;
+      --tx3:     #4a5070;
+      --blue:    #6366f1;
+      --blue2:   #818cf8;
+      --green:   #22c55e;
+      --red:     #ef4444;
+      --amber:   #f59e0b;
+    }
+
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(99,102,241,0.15), transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(168,85,247,0.10), transparent 40%),
+        radial-gradient(circle at 50% 100%, rgba(59,130,246,0.08), transparent 50%),
+        #0B0E17;
+      color: var(--tx);
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Soft blur layer — adds depth, prevents flatness */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.08), transparent 60%);
+      filter: blur(80px);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* ── Material Symbols ── */
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      font-size: 20px;
+      line-height: 1;
+      display: inline-block;
+    }
+
+    /* ── App shell ── */
+    .app-shell { display: flex; height: 100vh; overflow: hidden; background: transparent; }
+
+    /* ═══════════════════════════════════════
+       SIDEBAR
+    ═══════════════════════════════════════ */
+    .sidebar {
+      width: 220px;
+      background: rgba(20, 22, 36, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-right: 1px solid var(--bd);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width .25s cubic-bezier(.4,0,.2,1);
+      overflow: hidden;
+    }
+    .sidebar.collapsed { width: 64px; }
+
+    /* Brand */
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 18px 15px 16px;
+      border-bottom: 1px solid var(--bd);
+      flex-shrink: 0;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .brand-icon {
+      width: 34px; height: 34px;
+      background: var(--blue);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .brand-icon .material-symbols-outlined { font-size: 18px; color: white; }
+    .brand-name {
+      font-size: 17px; font-weight: 700; color: var(--tx);
+      letter-spacing: -.3px; transition: opacity .2s;
+    }
+    .sidebar.collapsed .brand-name { opacity: 0; width: 0; overflow: hidden; }
+
+    /* Nav */
+    .sidebar-nav {
+      flex: 1;
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .sidebar-nav::-webkit-scrollbar { width: 3px; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 99px; }
+
+    .nav-section-label {
+      font-size: 9px; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--tx3);
+      padding: 10px 8px 4px;
+      white-space: nowrap; overflow: hidden;
+      transition: opacity .2s;
+    }
+    .sidebar.collapsed .nav-section-label { opacity: 0; }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 11px;
+      padding: 9px 10px; border-radius: 10px;
+      font-size: 13px; font-weight: 500; color: var(--tx2);
+      text-decoration: none; border: none; background: transparent;
+      cursor: pointer; transition: all .15s;
+      white-space: nowrap; overflow: hidden; width: 100%;
+    }
+    .nav-item:hover { background: var(--bg3); color: var(--tx); }
+    .nav-item.active {
+      background: rgba(99,102,241,.12);
+      color: var(--blue2);
+      border-left: 2px solid var(--blue);
+      padding-left: 8px;
+      border-radius: 0 10px 10px 0;
+    }
+    .nav-item .material-symbols-outlined { flex-shrink: 0; font-size: 19px; }
+    .nav-item .nav-label { transition: opacity .2s, max-width .25s; }
+    .sidebar.collapsed .nav-label { opacity: 0; max-width: 0; overflow: hidden; }
+    .nav-item .nav-chevron {
+      margin-left: auto; font-size: 16px; color: var(--tx3);
+      transition: transform .2s; flex-shrink: 0;
+    }
+    .sidebar.collapsed .nav-chevron { opacity: 0; max-width: 0; overflow: hidden; }
+    .nav-item.danger:hover { background: rgba(239,68,68,.08); color: var(--red); }
+
+    /* Analysis sub-menu */
+    .sub-menu {
+      overflow: hidden; transition: max-height .2s ease, opacity .2s;
+      max-height: 0; opacity: 0;
+    }
+    .sub-menu.open { max-height: 320px; opacity: 1; }
+    .sidebar.collapsed .sub-menu { max-height: 0 !important; opacity: 0 !important; }
+    .sub-menu-inner {
+      margin: 2px 0 2px 30px;
+      border-left: 1px solid var(--bd2);
+      padding-left: 8px;
+      display: flex; flex-direction: column; gap: 1px;
+    }
+    .sub-nav-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 8px; border-radius: 8px;
+      font-size: 12px; font-weight: 500; color: var(--tx3);
+      text-decoration: none; transition: all .15s; white-space: nowrap;
+    }
+    .sub-nav-item:hover { background: var(--bg3); color: var(--tx2); }
+    .sub-nav-item.active { color: var(--blue2); background: rgba(99,102,241,.08); }
+    .sub-nav-item .material-symbols-outlined { font-size: 15px; }
+
+    /* Spend widget */
+    .spend-widget {
+      padding: 12px 10px; border-top: 1px solid var(--bd); flex-shrink: 0;
+    }
+    .spend-inner {
+      background: var(--bg3); border: 1px solid var(--bd);
+      border-radius: 12px; padding: 12px;
+      transition: opacity .2s;
+    }
+    .sidebar.collapsed .spend-inner { opacity: 0; pointer-events: none; }
+    .spend-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+    .spend-label { font-size: 10px; font-weight: 700; text-transform: uppercase;
+                   letter-spacing: .08em; color: var(--tx3); }
+    .spend-amount { font-size: 18px; font-weight: 700; color: var(--red);
+                    font-variant-numeric: tabular-nums; }
+    .spend-pct { font-size: 11px; font-weight: 600; color: var(--tx2); }
+    .spend-track { height: 4px; background: var(--bd); border-radius: 99px; overflow: hidden; }
+    .spend-fill { height: 100%; background: var(--red); border-radius: 99px;
+                  transition: width .7s cubic-bezier(.4,0,.2,1); width: 0%; }
+
+    /* ═══════════════════════════════════════
+       MAIN AREA
+    ═══════════════════════════════════════ */
+    .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; background: transparent; }
+
+    /* Topbar */
+    .topbar {
+      height: 58px; display: flex; align-items: center;
+      justify-content: space-between; padding: 0 24px;
+      background: rgba(20, 22, 36, 0.80);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--bd);
+      flex-shrink: 0; gap: 16px;
+      position: relative; z-index: 100;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .collapse-btn {
+      width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--bd);
+      background: var(--bg3); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--tx2); transition: all .15s; flex-shrink: 0;
+    }
+    .collapse-btn:hover { border-color: var(--bd2); color: var(--tx); }
+    .collapse-btn .material-symbols-outlined { font-size: 18px; }
+    .topbar-title { font-size: 17px; font-weight: 700; color: var(--tx); letter-spacing: -.2px; }
+
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+    /* Notification bell */
+    .notif-wrapper { position: relative; }
+    .notif-btn {
+      width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--bd);
+      background: var(--bg3); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--tx2); transition: all .15s; position: relative;
+    }
+    .notif-btn:hover { border-color: var(--bd2); color: var(--tx); }
+    .notif-btn .material-symbols-outlined { font-size: 19px; }
+    #notif-badge {
+      position: absolute; top: 6px; right: 6px;
+      width: 8px; height: 8px; background: var(--blue);
+      border-radius: 50%; border: 1.5px solid var(--bg2);
+    }
+
+    /* Notification panel */
+    #notif-panel {
+      position: absolute; right: 0; top: calc(100% + 8px);
+      width: 320px; background: var(--bg2); border: 1px solid var(--bd);
+      border-radius: 16px; box-shadow: 0 16px 40px rgba(0,0,0,.4);
+      z-index: 200; overflow: hidden;
+    }
+    .notif-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 1px solid var(--bd);
+    }
+    .notif-head-title { font-size: 13px; font-weight: 700; color: var(--tx); }
+    #notif-count { font-size: 10px; font-weight: 700; color: var(--tx3); }
+    #notif-list { max-height: 320px; overflow-y: auto; padding: 4px 0; }
+    #notif-list::-webkit-scrollbar { width: 3px; }
+    #notif-list::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 99px; }
+
+    /* Pending item inside notif panel */
+    .pending-item {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 10px 16px; transition: background .15s;
+    }
+    .pending-item:hover { background: var(--bg3); }
+    .pending-name { font-size: 13px; font-weight: 600; color: var(--tx); }
+    .pending-due  { font-size: 11px; color: var(--tx3); margin-top: 1px; }
+    .pending-amount { font-size: 13px; font-weight: 700; color: var(--tx);
+                      font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .approve-btn {
+      font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+      background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2);
+      color: #4ade80; cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .approve-btn:hover { background: rgba(34,197,94,.2); }
+    .skip-btn {
+      font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+      background: var(--bg3); border: 1px solid var(--bd);
+      color: var(--tx2); cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .skip-btn:hover { background: var(--bg4); }
+
+    /* User pill in topbar */
+    .user-topbar {
+      display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px;
+      background: var(--bg3); border: 1px solid var(--bd); border-radius: 99px;
+      cursor: pointer; transition: border-color .15s; position: relative;
+    }
+    .user-topbar:hover { border-color: var(--bd2); }
+    .user-topbar-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(99,102,241,.2); border: 1px solid rgba(99,102,241,.35);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--blue2);
+    }
+    .user-topbar-name { font-size: 13px; font-weight: 600; color: var(--tx); }
+
+    /* User dropdown */
+    .user-dropdown {
+      position: absolute; right: 0; top: calc(100% + 8px);
+      width: 180px; background: var(--bg2); border: 1px solid var(--bd);
+      border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.3);
+      z-index: 200; overflow: hidden;
+      opacity: 0; visibility: hidden; transition: all .15s;
+    }
+    .user-topbar:hover .user-dropdown,
+    .user-topbar:focus-within .user-dropdown { opacity: 1; visibility: visible; }
+    .dropdown-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; font-size: 13px; font-weight: 500;
+      color: var(--tx2); text-decoration: none; transition: all .15s;
+    }
+    .dropdown-item:hover { background: var(--bg3); color: var(--tx); }
+    .dropdown-item.danger:hover { background: rgba(239,68,68,.08); color: var(--red); }
+    .dropdown-item .material-symbols-outlined { font-size: 16px; }
+
+    /* Flash messages */
+    .flash-bar { padding: 8px 24px 0; display: flex; flex-direction: column; gap: 6px; }
+    .flash-msg {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 500;
+      transition: opacity .4s;
+    }
+    .flash-msg .material-symbols-outlined { font-size: 16px; flex-shrink: 0; }
+    .flash-success { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2); color: #4ade80; }
+    .flash-error   { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.2);  color: #f87171; }
+    .flash-info    { background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.2); color: var(--blue2); }
+
+    /* Page content */
+    .page-content {
+      flex: 1; overflow-y: auto; padding: 22px 28px;
+      background: transparent;
+    }
+    .page-content::-webkit-scrollbar { width: 5px; }
+    .page-content::-webkit-scrollbar-track { background: transparent; }
+    .page-content::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 99px; }
+
+    /* ── Utility classes for child templates ── */
+    .primary-glow  { box-shadow: 0 0 16px rgba(99,102,241,.4); }
+    .expense-glow  { box-shadow: 0 0 10px rgba(239,68,68,.3); }
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #314f68; border-radius: 10px; }
-    .flash-auto { transition: opacity 0.5s ease; }
-    .primary-glow { box-shadow: 0 0 15px rgba(32,148,243,0.4); }
-    .expense-glow { box-shadow: 0 0 10px rgba(239,68,68,0.3); }
-
-    /* Force dark background on inputs — overrides browser native & autofill styles */
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 10px; }
     .dark-input,
     .dark-input:focus,
     .dark-input:active,
     .dark-input:-webkit-autofill,
     .dark-input:-webkit-autofill:focus {
-      background-color: #141d26 !important;
-      -webkit-box-shadow: 0 0 0px 1000px #141d26 inset !important;
-      -webkit-text-fill-color: #f1f5f9 !important;
-      color: #f1f5f9 !important;
+      background-color: var(--bg3) !important;
+      -webkit-box-shadow: 0 0 0px 1000px var(--bg3) inset !important;
+      -webkit-text-fill-color: var(--tx) !important;
+      color: var(--tx) !important;
     }
-    select.dark-input option {
-      background-color: #141d26;
-      color: #f1f5f9;
-    }
-    /* Modal inputs use a darker shade */
+    select.dark-input option { background-color: var(--bg3); color: var(--tx); }
     .modal-input,
     .modal-input:focus,
     .modal-input:active,
     .modal-input:-webkit-autofill,
     .modal-input:-webkit-autofill:focus {
-      background-color: #111c2d !important;
-      -webkit-box-shadow: 0 0 0px 1000px #111c2d inset !important;
-      -webkit-text-fill-color: #f1f5f9 !important;
-      color: #f1f5f9 !important;
+      background-color: var(--bg2) !important;
+      -webkit-box-shadow: 0 0 0px 1000px var(--bg2) inset !important;
+      -webkit-text-fill-color: var(--tx) !important;
+      color: var(--tx) !important;
     }
-    select.modal-input option {
-      background-color: #111c2d;
-      color: #f1f5f9;
-    }
+    select.modal-input option { background-color: var(--bg2); color: var(--tx); }
   </style>
+
   {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display transition-colors duration-300">
 
+<body>
 {% if session.user_id %}
-<div class="flex h-screen overflow-hidden">
 
-  <!-- ── Sidebar ── -->
-  <aside id="main-sidebar"
-    class="sidebar-transition w-64 bg-background-dark border-r border-border-muted flex flex-col shrink-0 overflow-hidden">
+{% set in_analysis = request.endpoint and request.endpoint.startswith('analysis.') %}
+{% set active_tab  = request.args.get('tab', 'overview') %}
+
+<div class="app-shell">
+
+  <!-- ═══════════════════════════════════════
+       SIDEBAR
+  ═══════════════════════════════════════ -->
+  <aside class="sidebar" id="main-sidebar">
 
     <!-- Brand -->
-    <div class="p-6 flex items-center gap-3 shrink-0">
-      <div class="size-8 bg-primary rounded flex items-center justify-center text-white shrink-0">
-        <span class="material-symbols-outlined text-xl">account_balance_wallet</span>
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <span class="material-symbols-outlined">account_balance_wallet</span>
       </div>
-      <h1 class="sidebar-label label-transition text-xl font-bold tracking-tight text-slate-100 whitespace-nowrap overflow-hidden">
-        FinanceOS
-      </h1>
+      <span class="brand-name">FinanceOS</span>
     </div>
 
-    <!-- Nav -->
-    <nav class="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar pb-4">
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+
+      <span class="nav-section-label">Main</span>
 
       <a href="{{ url_for('dashboard_bp.dashboard') }}"
-        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
-          {% if request.endpoint == 'dashboard' %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
-        <span class="material-symbols-outlined shrink-0">dashboard</span>
-        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Dashboard</span>
-      </a>
-
-      <a href="{{ url_for('transactions_bp.add_transaction') }}"
-        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
-          {% if request.endpoint == 'add_transaction' %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
-        <span class="material-symbols-outlined shrink-0">add_circle</span>
-        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Add Transaction</span>
+         class="nav-item {{ 'active' if request.endpoint == 'dashboard_bp.dashboard' else '' }}">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span class="nav-label">Dashboard</span>
       </a>
 
       <a href="{{ url_for('transactions_bp.transactions') }}"
-        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
-          {% if request.endpoint == 'transactions' %}bg-primary/10 text-primary border-l-4 border-primary shadow-[0_0_20px_rgba(32,148,243,0.1)]{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
-        <span class="material-symbols-outlined shrink-0">swap_horiz</span>
-        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Transactions</span>
+         class="nav-item {{ 'active' if request.endpoint and request.endpoint.startswith('transactions_bp.') else '' }}">
+        <span class="material-symbols-outlined">swap_horiz</span>
+        <span class="nav-label">Transactions</span>
       </a>
 
-      <a href="{{ url_for('obligations_bp.obligations') }}"
-        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
-          {% if request.endpoint and request.endpoint.startswith('obligations_bp.') %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
-        <span class="material-symbols-outlined shrink-0">repeat</span>
-        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Commitments</span>
-      </a>
+      <span class="nav-section-label">Finance</span>
 
-      <a href="{{ url_for('budget_bp.budget') }}"
-        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
-          {% if request.endpoint in ('budget_bp.budget','budget_bp.budget_monthly','defaults_bp.default_budgets','budget_bp.budget_yearly','budget_bp.edit_category_budget') %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
-        <span class="material-symbols-outlined shrink-0">account_balance_wallet</span>
-        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Budget</span>
-      </a>
-
-      <a href="{{ url_for('loans_bp.loans') }}"
-        class="flex items-center gap-4 px-4 py-3 rounded-xl transition-all
-          {% if request.endpoint and request.endpoint.startswith('loans_bp.') %}bg-primary/10 text-primary border-l-4 border-primary{% else %}text-slate-400 hover:bg-primary/5 hover:text-primary{% endif %}">
-        <span class="material-symbols-outlined shrink-0">account_balance</span>
-        <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Loans & EMI</span>
-      </a>
-
-      <!-- Analysis parent + sub-menu -->
-      {% set in_analysis = request.endpoint and request.endpoint.startswith('analysis.') %}
+      <!-- Budget with sub-menu -->
+      {% set in_budget = request.endpoint in ('budget_bp.budget','budget_bp.budget_monthly','defaults_bp.default_budgets','budget_bp.budget_yearly','budget_bp.edit_category_budget','defaults_bp.edit_default_budget') %}
       <div>
-        <div class="flex items-center rounded-xl transition-all
-          {{ 'bg-primary/10 text-primary border-l-4 border-primary' if in_analysis else 'text-slate-400 hover:bg-primary/5 hover:text-primary' }}">
-          <a href="{{ url_for('analysis.overview') }}"
-            class="flex items-center gap-4 px-4 py-3 flex-1 min-w-0">
-            <span class="material-symbols-outlined shrink-0">analytics</span>
-            <span class="sidebar-label label-transition font-semibold whitespace-nowrap overflow-hidden">Analysis</span>
+        <div class="nav-item {{ 'active' if in_budget else '' }}" style="padding:0;">
+          <a href="{{ url_for('budget_bp.budget') }}"
+            style="display:flex; align-items:center; gap:12px; flex:1; padding:10px 14px; text-decoration:none; color:inherit;">
+            <span class="material-symbols-outlined" style="flex-shrink:0;">account_balance_wallet</span>
+            <span class="nav-label">Budget</span>
           </a>
-          <button onclick="toggleAnalysisMenu()" class="pr-4 py-3 sidebar-label label-transition">
-            <span class="material-symbols-outlined text-sm shrink-0 transition-transform duration-200"
-              id="analysis-chevron" style="{{ 'transform:rotate(180deg)' if in_analysis else '' }}">expand_more</span>
+          <button onclick="toggleBudget()"
+            style="padding:10px 12px 10px 0; background:none; border:none; cursor:pointer; color:inherit; display:flex; align-items:center;">
+            <span class="material-symbols-outlined nav-chevron" id="budget-chevron"
+                  style="{{ 'transform:rotate(180deg)' if in_budget else '' }}">expand_more</span>
           </button>
         </div>
-
-        <!-- Sub-links -->
-        <div id="analysis-submenu"
-          class="sidebar-label label-transition overflow-hidden transition-all duration-200"
-          style="max-height:{{ '300px' if in_analysis else '0' }}; opacity:{{ '1' if in_analysis else '0' }};">
-          <div class="ml-4 mt-1 space-y-0.5 border-l border-slate-700/50 pl-3">
-            {% set sub_links = [
-              ('analysis.overview',      'Overview',       'dashboard'),
-              ('analysis.spending',      'Spending',       'query_stats'),
-              ('analysis.budget',        'Budget',         'account_balance_wallet'),
-              ('analysis.savings',       'Savings',        'savings'),
-              ('analysis.health_score',  'Health Score',   'favorite'),
-              ('analysis.debt',          'Debt',           'credit_card'),
-              ('analysis.loan_payoff',   'Loan Payoff',    'show_chart'),
+        <div class="sub-menu {{ 'open' if in_budget else '' }}" id="budget-sub">
+          <div class="sub-menu-inner">
+            {% set budget_links = [
+              ('budget_bp.budget_monthly', 'Monthly', 'calendar_view_month'),
+              ('budget_bp.budget_yearly',  'Yearly',  'calendar_month'),
+              ('defaults_bp.default_budgets', 'Default Settings', 'tune'),
             ] %}
-            {% for endpoint, label, icon in sub_links %}
-            <a href="{{ url_for(endpoint) }}"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all
-                {{ 'text-primary bg-primary/10 font-semibold' if request.endpoint == endpoint else 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/50' }}">
-              <span class="material-symbols-outlined text-sm shrink-0">{{ icon }}</span>
-              <span>{{ label }}</span>
+            {% for ep, lbl, ic in budget_links %}
+            <a href="{{ url_for(ep) }}"
+               class="sub-nav-item {{ 'active' if request.endpoint == ep else '' }}">
+              <span class="material-symbols-outlined">{{ ic }}</span>
+              {{ lbl }}
             </a>
             {% endfor %}
           </div>
         </div>
       </div>
 
+      <a href="{{ url_for('obligations_bp.obligations') }}"
+         class="nav-item {{ 'active' if request.endpoint and request.endpoint.startswith('obligations_bp.') else '' }}">
+        <span class="material-symbols-outlined">repeat</span>
+        <span class="nav-label">Commitments</span>
+      </a>
+
+      <a href="{{ url_for('loans_bp.loans') }}"
+         class="nav-item {{ 'active' if request.endpoint and request.endpoint.startswith('loans_bp.') else '' }}">
+        <span class="material-symbols-outlined">account_balance</span>
+        <span class="nav-label">Loans & EMI</span>
+      </a>
+
+      <span class="nav-section-label">Intelligence</span>
+
+      <a href="{{ url_for('analysis.overview', tab='overview') }}"
+         class="nav-item {{ 'active' if request.endpoint == 'analysis.overview' else '' }}">
+        <span class="material-symbols-outlined">query_stats</span>
+        <span class="nav-label">Analysis</span>
+      </a>
+
+      <a href="{{ url_for('analysis.forecasting') }}"
+         class="nav-item {{ 'active' if request.endpoint == 'analysis.forecasting' else '' }}">
+        <span class="material-symbols-outlined">trending_up</span>
+        <span class="nav-label">Forecasting</span>
+      </a>
+
+      <a href="{{ url_for('analysis.simulation') }}"
+         class="nav-item {{ 'active' if request.endpoint == 'analysis.simulation' else '' }}">
+        <span class="material-symbols-outlined">science</span>
+        <span class="nav-label">Simulation</span>
+      </a>
+
+      <a href="{{ url_for('analysis.optimization') }}"
+         class="nav-item {{ 'active' if request.endpoint == 'analysis.optimization' else '' }}">
+        <span class="material-symbols-outlined">auto_fix_high</span>
+        <span class="nav-label">Optimization</span>
+      </a>
+
     </nav>
 
-    <!-- Monthly Spend Widget -->
-    <div class="sidebar-label label-transition px-4 pb-4 pt-2 shrink-0 overflow-hidden border-t border-slate-800/60">
-      <div class="p-4 bg-charcoal/40 rounded-2xl border border-border-muted/30">
-        <div class="flex justify-between items-end mb-2">
-          <div>
-            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Monthly Spend</p>
-            <p class="text-lg font-black text-expense" id="sidebar-monthly-spend">—</p>
-          </div>
-          <span class="text-[10px] font-bold text-slate-400" id="sidebar-spend-pct"></span>
+    <!-- Monthly Spend widget -->
+    <div class="spend-widget">
+      <div class="spend-inner">
+        <div class="spend-row">
+          <span class="spend-label">Monthly Spend</span>
+          <span class="spend-pct" id="sidebar-spend-pct"></span>
         </div>
-        <div class="w-full bg-charcoal h-1.5 rounded-full overflow-hidden">
-          <div class="bg-expense h-full rounded-full expense-glow transition-all duration-700" id="sidebar-spend-bar" style="width:0%"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- User chip -->
-    <div class="p-4 border-t border-border-muted/50 shrink-0">
-      <div class="flex items-center gap-3">
-        <div class="size-10 rounded-xl bg-charcoal border border-border-muted flex items-center justify-center shrink-0">
-          <span class="text-primary text-sm font-bold">{{ session.username[0].upper() }}</span>
-        </div>
-        <div class="sidebar-label label-transition overflow-hidden whitespace-nowrap">
-          <p class="text-sm font-bold text-slate-100 leading-none truncate">{{ session.username }}</p>
-          <p class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter mt-0.5">Personal Plan</p>
+        <div class="spend-amount" id="sidebar-monthly-spend">—</div>
+        <div class="spend-track" style="margin-top:8px">
+          <div class="spend-fill" id="sidebar-spend-bar"></div>
         </div>
       </div>
     </div>
 
   </aside>
 
-  <!-- ── Main ── -->
-  <div class="flex-1 flex flex-col overflow-hidden">
+  <!-- ═══════════════════════════════════════
+       MAIN CONTENT AREA
+  ═══════════════════════════════════════ -->
+  <div class="main-area">
 
     <!-- Topbar -->
-    <header class="h-16 flex items-center justify-between border-b border-border-muted px-6 bg-background-dark shrink-0 z-50">
-
-      <div class="flex items-center gap-4">
-        <button id="sidebar-toggle"
-          class="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
-          title="Toggle sidebar">
+    <header class="topbar">
+      <div class="topbar-left">
+        <!-- Sidebar collapse toggle -->
+        <button class="collapse-btn" id="sidebar-toggle" title="Toggle sidebar">
           <span class="material-symbols-outlined" id="toggle-icon">menu</span>
         </button>
-        <h2 class="text-xl font-bold text-slate-100">{% block page_title %}{% endblock %}</h2>
+        <h1 class="topbar-title">{% block page_title %}{% endblock %}</h1>
       </div>
 
-      <div class="flex items-center gap-6">
-        <!-- Notifications -->
-        <div class="relative" id="notif-wrapper">
-          <button id="notif-btn" onclick="toggleNotifPanel()"
-            class="relative p-2 text-slate-400 hover:text-primary transition-colors">
-            <span class="material-symbols-outlined text-2xl">notifications</span>
-            <span id="notif-badge" class="hidden absolute top-1.5 right-1.5 min-w-[16px] h-4 bg-rose-500 rounded-full text-[9px] font-black text-white flex items-center justify-center px-1"></span>
+      <div class="topbar-right">
+
+        <!-- Notification bell -->
+        <div class="notif-wrapper" id="notif-wrapper">
+          <button class="notif-btn" onclick="toggleNotifPanel()" title="Pending payments">
+            <span class="material-symbols-outlined">notifications</span>
+            <span id="notif-badge" style="display:none"></span>
           </button>
-          <!-- Notifications panel -->
-          <div id="notif-panel" class="hidden absolute right-0 top-full mt-2 w-80 bg-[#0d141c] border border-slate-700 rounded-2xl shadow-2xl z-[100] overflow-hidden">
-            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-              <p class="font-bold text-sm text-white">Pending Payments</p>
-              <span id="notif-count" class="text-[10px] font-bold text-slate-500"></span>
+
+          <!-- Notification panel -->
+          <div id="notif-panel" style="display:none; position:fixed; right:16px; top:60px;
+               width:340px; background:var(--bg2); border:1px solid var(--bd); border-radius:16px;
+               box-shadow:0 24px 60px rgba(0,0,0,.6); z-index:9999; overflow:hidden;">
+            <div class="notif-head">
+              <span class="notif-head-title">Pending Payments</span>
+              <span id="notif-count"></span>
             </div>
-            <div id="notif-list" class="max-h-80 overflow-y-auto custom-scrollbar py-1">
-              <p class="text-slate-500 text-xs px-4 py-6 text-center">Loading…</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="h-8 w-px bg-border-muted/50"></div>
-
-        <!-- User dropdown -->
-        <div class="group relative flex items-center gap-4 cursor-pointer">
-          <div class="text-right hidden sm:block">
-            <p class="text-sm font-bold text-slate-100 group-hover:text-primary transition-colors">{{ session.username }}</p>
-            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Personal Plan</p>
-          </div>
-          <div class="size-10 rounded-xl bg-charcoal border border-border-muted flex items-center justify-center">
-            <span class="text-primary font-bold">{{ session.username[0].upper() }}</span>
-          </div>
-
-          <!-- Dropdown -->
-          <div class="absolute right-0 top-full mt-2 w-44 bg-charcoal border border-border-muted rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-            <div class="py-1">
-              <a href="{{ url_for('auth_bp.logout') }}"
-                class="flex items-center gap-2 px-4 py-2.5 text-sm text-expense hover:bg-background-dark transition-colors rounded-xl">
-                <span class="material-symbols-outlined text-lg">logout</span>
-                Logout
-              </a>
+            <div id="notif-list" style="max-height:320px;overflow-y:auto;padding:4px 0;">
+              <p style="font-size:12px;color:var(--tx3);text-align:center;padding:24px 16px;">Loading…</p>
             </div>
           </div>
         </div>
+
+        <!-- User pill + dropdown -->
+        <div class="user-topbar" tabindex="0">
+          <div class="user-topbar-avatar">{{ session.username[0].upper() }}</div>
+          <span class="user-topbar-name">{{ session.username }}</span>
+          <span class="material-symbols-outlined" style="font-size:16px;color:var(--tx3)">expand_more</span>
+
+          <div class="user-dropdown">
+            <a href="{{ url_for('auth_bp.logout') }}" class="dropdown-item danger">
+              <span class="material-symbols-outlined">logout</span>
+              Logout
+            </a>
+          </div>
+        </div>
+
       </div>
     </header>
 
     <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <div class="px-8 pt-3 space-y-2 shrink-0">
-          {% for cat, msg in messages %}
-            <div class="flash-auto flex items-center gap-2 px-4 py-3 rounded-xl text-sm
-              {% if cat == 'error' %}bg-red-500/10 border border-red-500/30 text-red-400
-              {% elif cat == 'success' %}bg-emerald-500/10 border border-emerald-500/30 text-emerald-400
-              {% else %}bg-primary/10 border border-primary/30 text-primary{% endif %}">
-              <span class="material-symbols-outlined text-base">
-                {% if cat == 'error' %}error{% elif cat == 'success' %}check_circle{% else %}info{% endif %}
-              </span>
-              {{ msg }}
-            </div>
-          {% endfor %}
+      <div class="flash-bar">
+        {% for cat, msg in messages %}
+        <div class="flash-msg flash-{{ 'success' if cat == 'success' else ('error' if cat == 'error' else 'info') }}">
+          <span class="material-symbols-outlined">
+            {{ 'check_circle' if cat == 'success' else ('error' if cat == 'error' else 'info') }}
+          </span>
+          {{ msg }}
         </div>
+        {% endfor %}
+      </div>
       {% endif %}
     {% endwith %}
 
     <!-- Page content -->
-    <main class="flex-1 overflow-y-auto bg-background-dark p-8 custom-scrollbar">
+    <main class="page-content">
       {% block content %}{% endblock %}
     </main>
 
@@ -283,55 +584,43 @@
   {% block auth_content %}{% endblock %}
 {% endif %}
 
+<!-- ═══════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════ -->
 <script>
-  // Auto-dismiss flashes
+  // ── Auto-dismiss flash messages ──
   setTimeout(() => {
-    document.querySelectorAll('.flash-auto').forEach(f => f.style.opacity = '0');
+    document.querySelectorAll('.flash-msg').forEach(f => { f.style.opacity = '0'; });
   }, 4000);
 
-  // ── Analysis sub-menu toggle ──
-  function toggleAnalysisMenu() {
-    const menu    = document.getElementById('analysis-submenu');
-    const chevron = document.getElementById('analysis-chevron');
-    if (!menu) return;
-    const isOpen  = menu.style.maxHeight !== '0px' && menu.style.maxHeight !== '';
-    menu.style.maxHeight = isOpen ? '0' : '300px';
-    menu.style.opacity   = isOpen ? '0' : '1';
+  // ── Budget sub-menu toggle ──
+  function toggleBudget() {
+    const sub     = document.getElementById('budget-sub');
+    const chevron = document.getElementById('budget-chevron');
+    if (!sub) return;
+    const isOpen = sub.classList.contains('open');
+    sub.classList.toggle('open', !isOpen);
     if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
   }
 
   // ── Sidebar collapse ──
-  const sidebar    = document.getElementById('main-sidebar');
-  const toggleBtn  = document.getElementById('sidebar-toggle');
-  const toggleIcon = document.getElementById('toggle-icon');
-  const labels     = document.querySelectorAll('.sidebar-label');
+  const sidebar   = document.getElementById('main-sidebar');
+  const toggleBtn = document.getElementById('sidebar-toggle');
+  const toggleIco = document.getElementById('toggle-icon');
 
-  let collapsed = localStorage.getItem('sidebar-collapsed') === 'true';
-  if (collapsed) applySidebarState(true, false);
-
-  function applySidebarState(isCollapsed, animate = true) {
-    if (!animate) sidebar.classList.remove('sidebar-transition');
-    if (isCollapsed) {
-      sidebar.style.width = '64px';
-      toggleIcon.textContent = 'menu_open';
-      labels.forEach(l => { l.style.opacity = '0'; l.style.maxWidth = '0'; l.style.overflow = 'hidden'; });
-    } else {
-      sidebar.style.width = '256px';
-      toggleIcon.textContent = 'menu';
-      labels.forEach(l => { l.style.opacity = '1'; l.style.maxWidth = '200px'; l.style.overflow = ''; });
-    }
-    if (!animate) requestAnimationFrame(() => sidebar.classList.add('sidebar-transition'));
-  }
+  let collapsed = localStorage.getItem('sb-collapsed') === 'true';
+  if (collapsed && sidebar) sidebar.classList.add('collapsed');
 
   if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
       collapsed = !collapsed;
-      localStorage.setItem('sidebar-collapsed', collapsed);
-      applySidebarState(collapsed);
+      localStorage.setItem('sb-collapsed', collapsed);
+      sidebar.classList.toggle('collapsed', collapsed);
+      if (toggleIco) toggleIco.textContent = collapsed ? 'menu_open' : 'menu';
     });
   }
 
-  // ── Monthly Spend Widget (populated by dashboard data via hidden meta tags) ──
+  // ── Sidebar spend widget ──
   document.addEventListener('DOMContentLoaded', () => {
     const spendEl  = document.getElementById('sidebar-monthly-spend');
     const pctEl    = document.getElementById('sidebar-spend-pct');
@@ -342,7 +631,7 @@
     if (spendEl && metaSpend) {
       const spend = parseFloat(metaSpend.dataset.value || 0);
       const pct   = parseFloat(metaPct?.dataset.value || 0);
-      spendEl.textContent = '₹' + spend.toLocaleString('en-IN', {maximumFractionDigits:0});
+      spendEl.textContent = '₹' + Math.round(spend).toLocaleString('en-IN');
       if (pctEl) pctEl.textContent = pct + '%';
       setTimeout(() => { if (barEl) barEl.style.width = Math.min(pct, 100) + '%'; }, 300);
     }
@@ -351,13 +640,14 @@
 
 {% if session.user_id %}
 <script>
-  // ── Notification Bell ──
+  // ── Notification panel ──
   let notifLoaded = false;
+  const notifPanel = document.getElementById('notif-panel');
 
   function toggleNotifPanel() {
-    const panel = document.getElementById('notif-panel');
-    panel.classList.toggle('hidden');
-    if (!notifLoaded) { loadNotifications(); notifLoaded = true; }
+    const visible = notifPanel.style.display !== 'none';
+    notifPanel.style.display = visible ? 'none' : 'block';
+    if (!visible && !notifLoaded) { loadNotifications(); notifLoaded = true; }
   }
 
   function loadNotifications() {
@@ -368,42 +658,35 @@
         const list  = document.getElementById('notif-list');
         const count = document.getElementById('notif-count');
         const n = data.length;
-        if (n > 0) {
-          badge.textContent = n > 9 ? '9+' : n;
-          badge.classList.remove('hidden');
-          badge.classList.add('flex');
-        } else {
-          badge.classList.add('hidden');
+
+        if (badge) {
+          badge.style.display = n > 0 ? 'block' : 'none';
         }
         if (count) count.textContent = n + ' pending';
+
         if (n === 0) {
-          list.innerHTML = '<p class="text-slate-500 text-xs px-4 py-6 text-center">All caught up! No pending payments.</p>';
+          list.innerHTML = '<p style="font-size:12px;color:var(--tx3);text-align:center;padding:24px 16px;">All caught up! No pending payments.</p>';
           return;
         }
+
         list.innerHTML = data.map(item => `
-          <div class="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-800/50 transition-colors" id="pending-${item.pending_id}">
-            <div class="min-w-0">
-              <p class="text-sm font-semibold text-white truncate">${item.name}</p>
-              <p class="text-xs text-slate-500">Due ${item.due_date}</p>
+          <div class="pending-item" id="pending-${item.pending_id}">
+            <div style="min-width:0;flex:1">
+              <div class="pending-name">${item.name}</div>
+              <div class="pending-due">Due ${item.due_date}</div>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-sm font-black text-white">&#x20B9;${Number(item.amount).toLocaleString('en-IN', {maximumFractionDigits:0})}</span>
-              <button onclick="approvePending(${item.pending_id})"
-                class="text-[10px] font-bold px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-all">
-                &#10003; Approve
-              </button>
-              <button onclick="skipPending(${item.pending_id})"
-                class="text-[10px] font-bold px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-400 rounded-lg hover:bg-slate-700 transition-all">
-                Skip
-              </button>
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+              <span class="pending-amount">₹${Number(item.amount).toLocaleString('en-IN',{maximumFractionDigits:0})}</span>
+              <button class="approve-btn" onclick="approvePending(${item.pending_id})">✓ Approve</button>
+              <button class="skip-btn"   onclick="skipPending(${item.pending_id})">Skip</button>
             </div>
           </div>`).join('');
       })
-      .catch(err => console.error('Notif fetch error:', err));
+      .catch(() => {});
   }
 
   function approvePending(id) {
-    fetch('/obligations/approve/' + id, {method: 'POST'})
+    fetch('/obligations/approve/' + id, { method: 'POST' })
       .then(r => r.json())
       .then(d => {
         if (d.ok) {
@@ -412,11 +695,11 @@
           loadNotifications();
         }
       })
-      .catch(err => console.error('Approve error:', err));
+      .catch(() => {});
   }
 
   function skipPending(id) {
-    fetch('/obligations/skip/' + id, {method: 'POST'})
+    fetch('/obligations/skip/' + id, { method: 'POST' })
       .then(r => r.json())
       .then(d => {
         if (d.ok) {
@@ -425,30 +708,26 @@
           loadNotifications();
         }
       })
-      .catch(err => console.error('Skip error:', err));
+      .catch(() => {});
   }
 
-  // Auto-load badge count on every page load
+  // Auto-load badge on page load
   document.addEventListener('DOMContentLoaded', () => {
     fetch('/obligations/api/pending')
       .then(r => r.json())
       .then(data => {
-        const n = data.length;
         const badge = document.getElementById('notif-badge');
-        if (badge && n > 0) {
-          badge.textContent = n > 9 ? '9+' : n;
-          badge.classList.remove('hidden');
-          badge.classList.add('flex');
-        }
+        if (badge && data.length > 0) badge.style.display = 'block';
       })
       .catch(() => {});
   });
 
-  // Close panel on click outside
+  // Close panel on outside click
   document.addEventListener('click', e => {
     const wrapper = document.getElementById('notif-wrapper');
-    if (wrapper && !wrapper.contains(e.target))
-      document.getElementById('notif-panel')?.classList.add('hidden');
+    if (wrapper && !wrapper.contains(e.target)) {
+      notifPanel.style.display = 'none';
+    }
   });
 </script>
 {% endif %}

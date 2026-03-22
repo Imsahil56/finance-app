@@ -2,284 +2,467 @@
 {% block title %}{{ loan.loan_name }} — FinanceOS{% endblock %}
 {% block page_title %}Loan Detail{% endblock %}
 
+{% block extra_css %}
+<style>
+:root {
+  --s2:#161929; --s3:#1c1f32; --s4:#22263a;
+  --bd:rgba(255,255,255,.06); --bd2:rgba(255,255,255,.09);
+  --tx:#e8eaf6; --tx2:#a0a3bd; --tx3:#484e6e;
+  --ind:#6366f1; --ind2:#818cf8;
+  --grn:#22c55e; --grn2:#4ade80;
+  --red:#f87171; --amb:#fbbf24;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+@keyframes barIn  { from{width:0} }
+.fu  { animation:fadeUp .35s cubic-bezier(.4,0,.2,1) both; }
+.bi  { animation:barIn .8s cubic-bezier(.4,0,.2,1) both; }
+
+/* ── shared card ── */
+.ld-card {
+  background:var(--s2); border:1px solid var(--bd); border-radius:14px;
+  transition:border-color .2s ease;
+}
+
+/* ── Header ── */
+.ld-header {
+  display:flex; align-items:flex-start; justify-content:space-between;
+  gap:16px; margin-bottom:22px; flex-wrap:wrap;
+}
+.ld-icon {
+  width:46px; height:46px; border-radius:13px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.ld-name { font-size:22px; font-weight:900; color:var(--tx); letter-spacing:-.3px; }
+.ld-meta { font-size:12px; color:var(--tx3); margin-top:2px; }
+.ld-status-badge {
+  font-size:9px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+  padding:3px 10px; border-radius:99px; margin-left:10px; vertical-align:middle;
+}
+.ld-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.ld-btn {
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12px; font-weight:700; padding:9px 16px; border-radius:10px;
+  border:none; cursor:pointer; font-family:inherit; transition:all .2s ease;
+  text-decoration:none;
+}
+.ld-btn-ghost { background:var(--s3); border:1px solid var(--bd2); color:var(--tx2); }
+.ld-btn-ghost:hover { border-color:rgba(99,102,241,.4); color:var(--tx); }
+.ld-btn-extra { background:rgba(99,102,241,.12); border:1px solid rgba(99,102,241,.3); color:var(--ind2); }
+.ld-btn-extra:hover { background:rgba(99,102,241,.2); }
+.ld-btn-close { background:rgba(248,113,113,.1); border:1px solid rgba(248,113,113,.25); color:var(--red); }
+.ld-btn-close:hover { background:rgba(248,113,113,.18); }
+
+/* ── Top 3 primary metric cards ── */
+.ld-top3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:12px; }
+.ld-metric {
+  border-radius:14px; padding:18px 20px; position:relative; overflow:hidden;
+  transition:border-color .2s;
+}
+.ld-metric-primary {
+  background:linear-gradient(135deg,#1C1F3F 0%,#14182E 100%);
+  border:1px solid rgba(99,102,241,.35);
+  box-shadow:0 20px 50px rgba(99,102,241,.2);
+}
+.ld-metric-primary::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(circle at 85% 20%, rgba(99,102,241,.2), transparent 60%);
+}
+.ld-metric-secondary { background:var(--s2); border:1px solid var(--bd); }
+.ld-metric-label {
+  font-size:9px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--tx3); margin-bottom:8px;
+}
+.ld-metric-val {
+  font-size:26px; font-weight:900; letter-spacing:-.5px;
+  font-variant-numeric:tabular-nums; line-height:1;
+}
+.ld-metric-sub { font-size:11px; color:var(--tx3); margin-top:5px; }
+
+/* ── Bottom 3 secondary metrics ── */
+.ld-bottom3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
+
+/* ── Mid section: progress + timeline + cost ── */
+.ld-mid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:18px; }
+
+/* Repayment progress */
+.prog-head { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:14px; }
+.prog-amounts { display:flex; justify-content:space-between; margin-bottom:10px; }
+.prog-lbl { font-size:9px; color:var(--tx3); margin-bottom:2px; }
+.prog-val { font-size:18px; font-weight:800; color:var(--tx); font-variant-numeric:tabular-nums; }
+.prog-bar-track { height:8px; background:rgba(255,255,255,.05); border-radius:99px; overflow:hidden; margin-bottom:6px; position:relative; }
+.prog-bar-fill { height:100%; border-radius:99px; }
+.prog-hint { font-size:10px; color:var(--tx3); }
+
+/* Timeline */
+.tl-boxes { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+.tl-box { border-radius:10px; padding:10px 8px; text-align:center; background:rgba(255,255,255,.03); border:1px solid var(--bd); }
+.tl-box-lbl { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--tx3); margin-bottom:4px; }
+.tl-box-val { font-size:20px; font-weight:900; font-variant-numeric:tabular-nums; }
+.tl-box-unit { font-size:9px; color:var(--tx3); margin-top:2px; }
+.tl-bar { height:4px; background:rgba(255,255,255,.05); border-radius:99px; overflow:hidden; margin-bottom:6px; }
+.tl-dates { display:flex; justify-content:space-between; font-size:9px; color:var(--tx3); }
+.tl-dot { width:6px; height:6px; border-radius:50%; background:var(--grn); display:inline-block; margin-right:4px; }
+
+/* Cost breakdown */
+.cost-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--bd); }
+.cost-row:last-child { border-bottom:none; padding-top:10px; }
+.cost-lbl { font-size:12px; color:var(--tx2); }
+.cost-val { font-size:12px; font-weight:700; color:var(--tx); font-variant-numeric:tabular-nums; }
+.cost-total-lbl { font-size:13px; font-weight:700; color:var(--ind2); }
+.cost-total-val { font-size:16px; font-weight:900; color:var(--tx); font-variant-numeric:tabular-nums; }
+
+/* ── Extra payment banner ── */
+.extra-banner {
+  background:rgba(99,102,241,.07); border:1px solid rgba(99,102,241,.2);
+  border-radius:14px; padding:18px 22px;
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  margin-bottom:18px; flex-wrap:wrap;
+}
+.extra-banner-icon {
+  width:38px; height:38px; border-radius:10px; flex-shrink:0;
+  background:rgba(99,102,241,.15); border:1px solid rgba(99,102,241,.25);
+  display:flex; align-items:center; justify-content:center;
+}
+.extra-banner-title { font-size:14px; font-weight:700; color:var(--tx); margin-bottom:2px; }
+.extra-banner-sub   { font-size:11px; color:var(--tx3); }
+.extra-banner-insight { font-size:11px; color:var(--ind2); margin-top:4px; font-weight:600; }
+.extra-banner-btn {
+  display:flex; align-items:center; gap:7px; flex-shrink:0;
+  background:linear-gradient(135deg,#6366f1,#818cf8); color:#fff;
+  font-size:13px; font-weight:700; padding:11px 20px; border-radius:10px;
+  border:none; cursor:pointer; font-family:inherit;
+  box-shadow:0 6px 20px rgba(99,102,241,.3); transition:filter .2s, box-shadow .2s;
+}
+.extra-banner-btn:hover { filter:brightness(1.1); box-shadow:0 10px 28px rgba(99,102,241,.4); }
+
+/* ── Amortization ── */
+.amort-card { border-radius:14px; overflow:hidden; }
+.amort-toggle-btn {
+  width:100%; display:flex; align-items:center; justify-content:space-between;
+  padding:16px 20px; background:var(--s2); border:1px solid var(--bd);
+  border-radius:14px; cursor:pointer; font-family:inherit; text-align:left;
+  transition:background .15s, border-radius .3s;
+}
+.amort-toggle-btn.open { border-radius:14px 14px 0 0; }
+.amort-toggle-btn:hover { background:var(--s3); }
+.amort-title { font-size:14px; font-weight:700; color:var(--tx); }
+.amort-sub   { font-size:11px; color:var(--tx3); margin-top:2px; }
+.amort-chevron { font-size:18px; color:var(--tx3); transition:transform .3s ease; }
+.amort-chevron.open { transform:rotate(180deg); }
+.amort-body {
+  max-height:0; overflow:hidden;
+  transition:max-height .4s ease;
+  background:var(--s2); border:1px solid var(--bd); border-top:none;
+  border-radius:0 0 14px 14px;
+}
+.amort-table { width:100%; border-collapse:collapse; }
+.amort-table thead th {
+  font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em;
+  color:var(--tx3); padding:10px 16px; text-align:right; border-bottom:1px solid var(--bd);
+  background:rgba(255,255,255,.02); position:sticky; top:0; z-index:2;
+}
+.amort-table thead th:first-child { text-align:left; }
+.amort-table thead th:last-child { text-align:center; }
+.amort-table tbody tr { border-bottom:1px solid rgba(255,255,255,.03); transition:background .1s; }
+.amort-table tbody tr:hover { background:rgba(99,102,241,.04); }
+.amort-table tbody tr.paid { opacity:.45; }
+.amort-table tbody tr.current { background:rgba(99,102,241,.06); border-left:2px solid var(--ind); }
+.amort-table tbody td { padding:9px 16px; font-size:12px; text-align:right; color:var(--tx2); font-variant-numeric:tabular-nums; }
+.amort-table tbody td:first-child { text-align:left; color:var(--tx3); font-variant-numeric:tabular-nums; }
+.amort-table tbody td:last-child { text-align:center; }
+.amort-scroll { max-height:400px; overflow-y:auto; }
+.status-pill {
+  font-size:9px; font-weight:700; padding:2px 9px; border-radius:99px;
+  text-transform:uppercase; letter-spacing:.06em;
+}
+.status-paid     { background:rgba(34,197,94,.1);  color:#4ade80; }
+.status-current  { background:rgba(99,102,241,.15); color:var(--ind2); }
+.status-upcoming { background:rgba(255,255,255,.05); color:var(--tx3); }
+</style>
+{% endblock %}
+
 {% block content %}
 <span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
 <span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
 
 {% set color = loan.type_color %}
 {% set icon  = loan.type_icon %}
+{% set bar_colors = {
+  'blue':'#6366f1','amber':'#f59e0b','purple':'#a855f7',
+  'emerald':'#22c55e','rose':'#f43f5e','cyan':'#06b6d4',
+  'orange':'#f97316','slate':'#64748b',
+} %}
+{% set lclr = '#22c55e' if loan.paid_pct >= 90 else bar_colors.get(color, '#6366f1') %}
 
-<!-- Breadcrumb -->
-<div class="flex items-center gap-2 text-slate-500 text-sm mb-6">
-  <a href="{{ url_for('loans_bp.loans') }}" class="hover:text-primary transition-colors">Loans & EMI</a>
-  <span class="material-symbols-outlined text-sm">chevron_right</span>
-  <span class="text-slate-300">{{ loan.loan_name }}</span>
+{# ── Breadcrumb ── #}
+<div style="display:flex; align-items:center; gap:6px; margin-bottom:16px;">
+  <a href="{{ url_for('loans_bp.loans') }}"
+    style="font-size:12px; color:var(--tx3); text-decoration:none; transition:color .15s;"
+    onmouseover="this.style.color='var(--tx2)'" onmouseout="this.style.color='var(--tx3)'">
+    Loans & EMI
+  </a>
+  <span class="material-symbols-outlined" style="font-size:14px; color:var(--tx3);">chevron_right</span>
+  <span style="font-size:12px; color:var(--tx2); font-weight:600;">{{ loan.loan_name }}</span>
 </div>
 
-<!-- Header -->
-<div class="flex flex-wrap items-start justify-between gap-4 mb-8">
-  <div class="flex items-center gap-4">
-    <div class="size-14 rounded-2xl bg-{{ color }}-500/10 border border-{{ color }}-500/20 flex items-center justify-center">
-      <span class="material-symbols-outlined text-{{ color }}-400 text-3xl">{{ icon }}</span>
+{# ── Header ── #}
+<div class="ld-header fu">
+  <div style="display:flex; align-items:center; gap:14px;">
+    <div class="ld-icon" style="background:rgba(99,102,241,.12); border:1px solid rgba(99,102,241,.25);">
+      <span class="material-symbols-outlined" style="font-size:22px; color:var(--ind2);">{{ icon }}</span>
     </div>
     <div>
-      <div class="flex items-center gap-3 flex-wrap">
-        <h2 class="text-2xl font-bold text-white">{{ loan.loan_name }}</h2>
-        <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg
-          {{ 'bg-emerald-500/10 text-emerald-400' if loan.status == 'active' else 'bg-slate-700 text-slate-400' }}">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span class="ld-name">{{ loan.loan_name }}</span>
+        <span class="ld-status-badge"
+          style="{{ 'background:rgba(34,197,94,.12); color:#4ade80; border:1px solid rgba(34,197,94,.2);' if loan.status == 'active' else 'background:rgba(255,255,255,.06); color:var(--tx3); border:1px solid var(--bd);' }}">
           {{ loan.status }}
         </span>
         {% if loan.nearly_paid and loan.status == 'active' %}
-        <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400">
+        <span class="ld-status-badge" style="background:rgba(251,191,36,.1); color:#fbbf24; border:1px solid rgba(251,191,36,.2);">
           Nearly Paid 🎉
         </span>
         {% endif %}
       </div>
-      <p class="text-slate-500 text-sm mt-1">{{ loan.loan_type }} · Started {{ loan.start_date }}</p>
+      <p class="ld-meta">{{ loan.loan_type }} · Started {{ loan.start_date }}</p>
     </div>
   </div>
-  <div class="flex gap-2 flex-wrap">
+  <div class="ld-actions">
     {% if loan.status == 'active' %}
     <button onclick="document.getElementById('extra-payment-modal').classList.remove('hidden')"
-      class="flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-primary/20 transition-all">
-      <span class="material-symbols-outlined text-sm">add_circle</span> Extra Payment
+      class="ld-btn ld-btn-extra">
+      <span class="material-symbols-outlined" style="font-size:15px;">add_circle</span> Extra Payment
     </button>
     {% endif %}
     <button onclick="document.getElementById('edit-modal').classList.remove('hidden')"
-      class="flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
-      <span class="material-symbols-outlined text-sm">edit</span> Edit
+      class="ld-btn ld-btn-ghost">
+      <span class="material-symbols-outlined" style="font-size:15px;">edit</span> Edit
     </button>
     {% if loan.status == 'active' %}
     <button onclick="document.getElementById('close-modal').classList.remove('hidden')"
-      class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-emerald-500/20 transition-all">
-      <span class="material-symbols-outlined text-sm">check_circle</span> Close Loan
+      class="ld-btn ld-btn-close">
+      <span class="material-symbols-outlined" style="font-size:15px;">lock</span> Close Loan
     </button>
     {% endif %}
   </div>
 </div>
 
-<!-- Key Metrics Grid -->
-<div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
-    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Principal Amount</p>
-    <p class="text-2xl font-black text-white">₹{{ "{:,.0f}".format(loan.loan_amount) }}</p>
-    <p class="text-xs text-slate-600 mt-1">original loan amount</p>
+{# ── Top 3 primary metrics ── #}
+<div class="ld-top3 fu" style="animation-delay:.04s;">
+  {# PRIMARY — Principal #}
+  <div class="ld-metric ld-metric-primary">
+    <div class="ld-metric-label" style="color:rgba(165,168,248,.6);">Principal Amount</div>
+    <div class="ld-metric-val" style="color:#fff;">₹{{ "{:,.0f}".format(loan.loan_amount) }}</div>
+    <div class="ld-metric-sub" style="color:rgba(255,255,255,.35);">original loan amount</div>
   </div>
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
-    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Monthly EMI</p>
-    <p class="text-2xl font-black text-amber-400">₹{{ "{:,.0f}".format(loan.monthly_emi) }}</p>
-    <p class="text-xs text-slate-600 mt-1">per month</p>
+  {# Monthly EMI #}
+  <div class="ld-metric ld-metric-secondary">
+    <div class="ld-metric-label">Monthly EMI</div>
+    <div class="ld-metric-val" style="color:var(--amb);">₹{{ "{:,.0f}".format(loan.monthly_emi) }}</div>
+    <div class="ld-metric-sub">per month</div>
   </div>
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
-    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Remaining Balance</p>
-    <p class="text-2xl font-black text-rose-400">₹{{ "{:,.0f}".format(loan.remaining_balance) }}</p>
-    <p class="text-xs text-slate-600 mt-1">outstanding principal</p>
-  </div>
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
-    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Interest Rate</p>
-    <p class="text-2xl font-black text-{{ color }}-400">{{ loan.interest_rate }}%</p>
-    <p class="text-xs text-slate-600 mt-1">per annum</p>
-  </div>
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
-    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Total Interest</p>
-    <p class="text-2xl font-black text-rose-300">₹{{ "{:,.0f}".format(loan.total_interest) }}</p>
-    <p class="text-xs text-slate-600 mt-1">over full tenure</p>
-  </div>
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5">
-    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Loan Tenure</p>
-    <p class="text-2xl font-black text-white">{{ loan.tenure_months }}<span class="text-sm font-normal text-slate-500 ml-1">mo</span></p>
-    <p class="text-xs text-slate-600 mt-1">{{ loan.start_date }} → {{ loan.end_date_display }}</p>
+  {# Remaining Balance #}
+  <div class="ld-metric ld-metric-secondary">
+    <div class="ld-metric-label" style="color:rgba(248,113,113,.6);">Remaining Balance</div>
+    <div class="ld-metric-val" style="color:var(--red);">₹{{ "{:,.0f}".format(loan.remaining_balance) }}</div>
+    <div class="ld-metric-sub">outstanding principal</div>
   </div>
 </div>
 
-<!-- Progress + Timeline + Cost -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+{# ── Bottom 3 secondary metrics ── #}
+<div class="ld-bottom3 fu" style="animation-delay:.07s;">
+  <div class="ld-metric ld-metric-secondary">
+    <div class="ld-metric-label">Interest Rate</div>
+    <div class="ld-metric-val" style="color:var(--ind2); font-size:24px;">{{ loan.interest_rate }}%</div>
+    <div class="ld-metric-sub">per annum{% if loan.lender %} · {{ loan.lender }}{% endif %}</div>
+  </div>
+  <div class="ld-metric ld-metric-secondary">
+    <div class="ld-metric-label" style="color:rgba(248,113,113,.5);">Total Interest</div>
+    <div class="ld-metric-val" style="color:var(--red); font-size:22px;">₹{{ "{:,.0f}".format(loan.total_interest) }}</div>
+    <div class="ld-metric-sub">over full tenure</div>
+  </div>
+  <div class="ld-metric ld-metric-secondary">
+    <div class="ld-metric-label">Loan Tenure</div>
+    <div class="ld-metric-val" style="font-size:22px;">
+      {{ loan.tenure_months }}<span style="font-size:13px; color:var(--tx3); font-weight:500; margin-left:3px;">mo</span>
+    </div>
+    <div class="ld-metric-sub">{{ loan.start_date }} → {{ loan.end_date_display }}</div>
+  </div>
+</div>
 
-  <!-- Repayment Progress -->
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6">
-    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-5">Repayment Progress</h3>
-    <div class="flex justify-between items-end mb-3">
+{# ── Mid: Progress + Timeline + Cost ── #}
+<div class="ld-mid fu" style="animation-delay:.1s;">
+
+  {# Repayment Progress #}
+  <div class="ld-card" style="padding:18px 20px;">
+    <div class="prog-head">Repayment Progress</div>
+    <div class="prog-amounts">
       <div>
-        <p class="text-[10px] text-slate-500 mb-0.5">Paid</p>
-        <p class="text-2xl font-black text-white">₹{{ "{:,.0f}".format(loan.paid_amount) }}</p>
+        <div class="prog-lbl">Paid</div>
+        <div class="prog-val">₹{{ "{:,.0f}".format(loan.paid_amount) }}</div>
       </div>
-      <div class="text-right">
-        <p class="text-[10px] text-slate-500 mb-0.5">Total</p>
-        <p class="text-2xl font-black text-slate-500">₹{{ "{:,.0f}".format(loan.loan_amount) }}</p>
-      </div>
-    </div>
-    {% set bar_colors = {
-      'blue':   '#3b82f6',
-      'amber':  '#f59e0b',
-      'purple': '#a855f7',
-      'emerald':'#10b981',
-      'rose':   '#f43f5e',
-      'cyan':   '#06b6d4',
-      'orange': '#f97316',
-      'slate':  '#64748b',
-    } %}
-    {% set bar_color = '#10b981' if loan.paid_pct >= 90 else bar_colors.get(color, '#3b82f6') %}
-    <div class="relative mb-3">
-      <div class="w-full h-5 bg-slate-800 rounded-full overflow-hidden">
-        <div class="h-full rounded-full transition-all duration-1000" style="width:{{ loan.paid_pct }}%; background-color:{{ bar_color }};"></div>
-      </div>
-      <div class="absolute inset-0 flex items-center justify-center">
-        <span class="text-xs font-black text-white drop-shadow">{{ loan.paid_pct }}%</span>
+      <div style="text-align:right;">
+        <div class="prog-lbl">Total</div>
+        <div class="prog-val" style="color:var(--tx3);">₹{{ "{:,.0f}".format(loan.loan_amount) }}</div>
       </div>
     </div>
-    <p class="text-xs text-slate-500 text-center">{{ loan.paid_pct }}% repaid · ₹{{ "{:,.0f}".format(loan.remaining_balance) }} remaining</p>
+    <div class="prog-bar-track">
+      <div class="prog-bar-fill bi" style="width:{{ loan.paid_pct }}%; background:{{ lclr }};"></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; margin-top:4px;">
+      <span class="prog-hint">{{ loan.paid_pct }}% repaid</span>
+      <span class="prog-hint" style="color:var(--tx3);">₹{{ "{:,.0f}".format(loan.remaining_balance) }} remaining</span>
+    </div>
+    <div style="margin-top:12px; text-align:center;">
+      <span style="font-size:11px; color:var(--tx3);">You've paid
+        <strong style="color:var(--tx2);">{{ loan.paid_pct }}%</strong>
+        of your loan principal.</span>
+    </div>
   </div>
 
-  <!-- Repayment Timeline -->
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6">
-    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-5">Repayment Timeline</h3>
-    <div class="grid grid-cols-3 gap-3 mb-4">
-      <div class="bg-slate-800/50 rounded-xl p-3 text-center">
-        <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Total</p>
-        <p class="text-xl font-black text-white">{{ loan.tenure_months }}</p>
-        <p class="text-[10px] text-slate-600">EMIs</p>
+  {# Repayment Timeline #}
+  <div class="ld-card" style="padding:18px 20px;">
+    <div class="prog-head">Repayment Timeline</div>
+    <div class="tl-boxes">
+      <div class="tl-box">
+        <div class="tl-box-lbl">Total</div>
+        <div class="tl-box-val" style="color:var(--tx);">{{ loan.tenure_months }}</div>
+        <div class="tl-box-unit">EMIs</div>
       </div>
-      <div class="rounded-xl p-3 text-center" style="background-color:{{ bar_color }}1a;">
-        <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Paid</p>
-        <p class="text-xl font-black" style="color:{{ bar_color }};">{{ paid_count }}</p>
-        <p class="text-[10px] text-slate-600">EMIs</p>
+      <div class="tl-box" style="background:{{ lclr }}14; border-color:{{ lclr }}30;">
+        <div class="tl-box-lbl">Paid</div>
+        <div class="tl-box-val" style="color:{{ lclr }};">{{ paid_count }}</div>
+        <div class="tl-box-unit">EMIs</div>
       </div>
-      <div class="bg-slate-800/50 rounded-xl p-3 text-center">
-        <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Left</p>
-        <p class="text-xl font-black text-amber-400">{{ loan.remaining_months }}</p>
-        <p class="text-[10px] text-slate-600">months</p>
+      <div class="tl-box" style="background:rgba(251,191,36,.06); border-color:rgba(251,191,36,.2);">
+        <div class="tl-box-lbl">Left</div>
+        <div class="tl-box-val" style="color:var(--amb);">{{ loan.remaining_months }}</div>
+        <div class="tl-box-unit">months</div>
       </div>
     </div>
-    <p class="text-[10px] text-slate-500 text-center mb-2">{{ paid_count }} EMIs paid of {{ loan.tenure_months }}</p>
-    <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden mb-2">
-      <div class="h-full rounded-full" style="width:{{ loan.timeline_pct }}%; background-color:{{ bar_color }};"></div>
+    <div style="text-align:center; font-size:10px; color:var(--tx3); margin-bottom:8px;">
+      <span class="tl-dot"></span>{{ paid_count }} EMIs paid of {{ loan.tenure_months }}
     </div>
-    <div class="flex justify-between text-[10px] text-slate-600">
+    <div class="tl-bar">
+      <div class="bi" style="height:100%; border-radius:99px; width:{{ loan.timeline_pct }}%; background:{{ lclr }};"></div>
+    </div>
+    <div class="tl-dates">
       <span>{{ loan.start_date }}</span>
-      <span>{{ loan.end_date }}</span>
+      <span>{{ loan.end_date_display }}</span>
     </div>
   </div>
 
-  <!-- Cost Breakdown -->
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6">
-    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-5">Loan Cost Breakdown</h3>
-    <div class="space-y-3">
-      <div class="flex justify-between items-center">
-        <span class="text-slate-400 text-sm">Principal</span>
-        <span class="font-bold text-white">₹{{ "{:,.0f}".format(loan.loan_amount) }}</span>
-      </div>
-      <div class="flex justify-between items-center">
-        <span class="text-slate-400 text-sm">Total Interest</span>
-        <span class="font-bold text-rose-400">₹{{ "{:,.0f}".format(loan.total_interest) }}</span>
-      </div>
-      {% if loan.processing_fee %}
-      <div class="flex justify-between items-center">
-        <span class="text-slate-400 text-sm">Processing Fee</span>
-        <span class="font-bold text-slate-300">₹{{ "{:,.0f}".format(loan.processing_fee) }}</span>
-      </div>
-      {% endif %}
-      {% if loan.insurance %}
-      <div class="flex justify-between items-center">
-        <span class="text-slate-400 text-sm">Insurance</span>
-        <span class="font-bold text-slate-300">₹{{ "{:,.0f}".format(loan.insurance) }}</span>
-      </div>
-      {% endif %}
-      <div class="border-t border-slate-800 pt-3 flex justify-between items-center">
-        <span class="text-slate-300 font-semibold text-sm">Total Payment</span>
-        <span class="font-black text-white text-lg">₹{{ "{:,.0f}".format(loan.total_payment + loan.processing_fee + loan.insurance) }}</span>
-      </div>
+  {# Loan Cost Breakdown #}
+  <div class="ld-card" style="padding:18px 20px;">
+    <div class="prog-head">Loan Cost Breakdown</div>
+    <div class="cost-row">
+      <span class="cost-lbl">Principal</span>
+      <span class="cost-val">₹{{ "{:,.0f}".format(loan.loan_amount) }}</span>
+    </div>
+    <div class="cost-row">
+      <span class="cost-lbl">Total Interest</span>
+      <span class="cost-val" style="color:var(--red);">₹{{ "{:,.0f}".format(loan.total_interest) }}</span>
+    </div>
+    {% if loan.processing_fee %}
+    <div class="cost-row">
+      <span class="cost-lbl">Processing Fee</span>
+      <span class="cost-val" style="color:var(--tx2);">₹{{ "{:,.0f}".format(loan.processing_fee) }}</span>
+    </div>
+    {% endif %}
+    {% if loan.insurance %}
+    <div class="cost-row">
+      <span class="cost-lbl">Insurance</span>
+      <span class="cost-val" style="color:var(--tx2);">₹{{ "{:,.0f}".format(loan.insurance) }}</span>
+    </div>
+    {% endif %}
+    <div class="cost-row" style="border-top:1px solid var(--bd); padding-top:10px;">
+      <span class="cost-total-lbl">Total Payment</span>
+      <span class="cost-total-val">₹{{ "{:,.0f}".format(loan.total_payment + loan.processing_fee + loan.insurance) }}</span>
     </div>
   </div>
+
 </div>
 
-<!-- Extra Payment Section (anchor target) -->
+{# ── Extra Payment Banner ── #}
 {% if loan.status == 'active' %}
-<div id="extra-payment" class="bg-primary/5 border border-primary/20 rounded-2xl p-6 mb-6">
-  <div class="flex items-start justify-between gap-4 flex-wrap">
-    <div>
-      <h3 class="text-sm font-bold text-white mb-1 flex items-center gap-2">
-        <span class="material-symbols-outlined text-primary text-[18px]">add_circle</span>
-        Make an Extra Payment
-      </h3>
-      <p class="text-xs text-slate-500">Pay extra toward principal to reduce interest and close the loan faster.</p>
+<div class="extra-banner fu" style="animation-delay:.13s;" id="extra-payment">
+  <div style="display:flex; align-items:flex-start; gap:14px;">
+    <div class="extra-banner-icon">
+      <span class="material-symbols-outlined" style="font-size:18px; color:var(--ind2);">bolt</span>
     </div>
-    <button onclick="document.getElementById('extra-payment-modal').classList.remove('hidden')"
-      class="flex items-center gap-2 bg-primary text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:brightness-110 primary-glow transition-all shrink-0">
-      <span class="material-symbols-outlined text-sm">payments</span> Add Extra Payment
-    </button>
+    <div>
+      <div class="extra-banner-title">Make an Extra Payment</div>
+      <div class="extra-banner-sub">Pay extra toward principal to reduce interest and close the loan faster.</div>
+      <div class="extra-banner-insight">⚡ Insight: Pay ₹{{ "{:,.0f}".format(loan.monthly_emi * 0.5 | round) }} extra now to potentially save in future interest.</div>
+    </div>
   </div>
+  <button onclick="document.getElementById('extra-payment-modal').classList.remove('hidden')"
+    class="extra-banner-btn">
+    <span class="material-symbols-outlined" style="font-size:16px;">payments</span>
+    Add Extra Payment
+  </button>
 </div>
 {% endif %}
 
-<!-- Amortization Schedule (collapsible) -->
+{# ── Amortization Schedule ── #}
 {% if schedule %}
-<div class="bg-[#0f172a] border border-slate-800 rounded-2xl overflow-hidden">
-
-  <!-- Header — always visible, click to expand -->
-  <button id="amort-toggle"
-    onclick="toggleAmortization()"
-    class="w-full flex items-center justify-between p-5 hover:bg-slate-800/30 transition-colors text-left group">
+<div class="fu" style="animation-delay:.15s;">
+  <button id="amort-toggle" class="amort-toggle-btn" onclick="toggleAmort()">
     <div>
-      <h3 class="text-sm font-bold text-white">Amortization Schedule</h3>
-      <p class="text-xs text-slate-500 mt-0.5">
-        Full repayment breakdown — {{ schedule|length }} payments ·
-        <span id="amort-toggle-hint" class="text-primary">click to expand</span>
-      </p>
+      <div class="amort-title">Amortization Schedule</div>
+      <div class="amort-sub">
+        Full repayment breakdown — {{ schedule|length }} payments remaining
+      </div>
     </div>
-    <div class="flex items-center gap-4">
-      <!-- Legend (hidden when collapsed) -->
-      <div id="amort-legend" class="hidden items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-        <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-emerald-500 inline-block"></span> Paid</span>
-        <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-primary inline-block"></span> Due Now</span>
-        <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-slate-600 inline-block"></span> Upcoming</span>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div id="amort-legend" style="display:none; gap:12px;">
+        {% for lbl, cls in [('Paid','status-paid'),('Due','status-current'),('Upcoming','status-upcoming')] %}
+        <span class="status-pill {{ cls }}">{{ lbl }}</span>
+        {% endfor %}
       </div>
-      <!-- Chevron -->
-      <div class="size-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center group-hover:bg-slate-700 transition-colors">
-        <span id="amort-chevron" class="material-symbols-outlined text-slate-400 text-lg transition-transform duration-300">expand_more</span>
-      </div>
+      <span class="material-symbols-outlined amort-chevron" id="amort-chevron">expand_more</span>
     </div>
   </button>
-
-  <!-- Collapsible body -->
-  <div id="amort-body"
-    style="max-height:0; overflow:hidden; transition: max-height 0.4s ease;">
-    <div class="border-t border-slate-800 overflow-x-auto custom-scrollbar" style="max-height:480px; overflow-y:auto;">
-      <table class="w-full text-sm">
-        <thead class="sticky top-0 bg-[#0f172a] z-10">
-          <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800">
-            <th class="px-5 py-3 text-left">Month</th>
-            <th class="px-5 py-3 text-left">Payment Date</th>
-            <th class="px-5 py-3 text-right">EMI</th>
-            <th class="px-5 py-3 text-right">Principal</th>
-            <th class="px-5 py-3 text-right">Interest</th>
-            <th class="px-5 py-3 text-right">Balance</th>
-            <th class="px-5 py-3 text-center">Status</th>
+  <div class="amort-body" id="amort-body">
+    <div class="amort-scroll">
+      <table class="amort-table">
+        <thead>
+          <tr>
+            <th>Installment</th>
+            <th>Date</th>
+            <th>EMI Amount</th>
+            <th>Principal</th>
+            <th>Interest</th>
+            <th>Balance</th>
+            <th>Status</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-800/50">
+        <tbody>
           {% for row in schedule %}
-          <tr class="hover:bg-slate-800/30 transition-colors
-            {% if row.state == 'paid' %}opacity-50
-            {% elif row.state == 'current' %}bg-primary/5 border-l-2 border-l-primary{% endif %}">
-            <td class="px-5 py-3 text-slate-500 font-mono text-xs">{{ row.month_number }}</td>
-            <td class="px-5 py-3 text-slate-300 text-xs">
+          <tr class="{{ row.state }}">
+            <td style="{{ 'color:var(--ind2); font-weight:700;' if row.state == 'current' else '' }}">
+              {{ row.month_number }}
+            </td>
+            <td style="text-align:left; {{ 'color:var(--ind2);' if row.state == 'current' else '' }}">
               {{ row.payment_date }}
               {% if row.state == 'current' %}
-              <span class="ml-1 text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">THIS MONTH</span>
+              <span style="font-size:9px; background:rgba(99,102,241,.15); color:var(--ind2);
+                    padding:1px 6px; border-radius:4px; margin-left:5px; font-weight:700;">TODAY</span>
               {% endif %}
             </td>
-            <td class="px-5 py-3 text-right font-semibold text-white">₹{{ "{:,.0f}".format(row.emi) }}</td>
-            <td class="px-5 py-3 text-right text-emerald-400 font-medium">₹{{ "{:,.0f}".format(row.principal_component) }}</td>
-            <td class="px-5 py-3 text-right text-rose-400 font-medium">₹{{ "{:,.0f}".format(row.interest_component) }}</td>
-            <td class="px-5 py-3 text-right text-slate-400">₹{{ "{:,.0f}".format(row.remaining_balance) }}</td>
-            <td class="px-5 py-3 text-center">
-              {% if row.state == 'paid' %}
-              <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2.5 py-0.5 rounded-full font-bold">Paid</span>
-              {% elif row.state == 'current' %}
-              <span class="text-[10px] bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-bold">Due</span>
-              {% else %}
-              <span class="text-[10px] bg-slate-800 text-slate-500 px-2.5 py-0.5 rounded-full font-bold">Upcoming</span>
-              {% endif %}
+            <td style="color:var(--tx); font-weight:600;">₹{{ "{:,.0f}".format(row.emi) }}</td>
+            <td style="color:var(--grn2);">₹{{ "{:,.0f}".format(row.principal_component) }}</td>
+            <td style="color:var(--red);">₹{{ "{:,.0f}".format(row.interest_component) }}</td>
+            <td>₹{{ "{:,.0f}".format(row.remaining_balance) }}</td>
+            <td>
+              <span class="status-pill
+                {% if row.state == 'paid' %}status-paid
+                {% elif row.state == 'current' %}status-current
+                {% else %}status-upcoming{% endif %}">
+                {% if row.state == 'paid' %}Paid
+                {% elif row.state == 'current' %}Due
+                {% else %}Upcoming{% endif %}
+              </span>
             </td>
           </tr>
           {% endfor %}
@@ -287,55 +470,62 @@
       </table>
     </div>
   </div>
-
 </div>
 {% endif %}
 
 
-<!-- ── MODAL: Extra Payment ── -->
-<div id="extra-payment-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-  <div class="bg-[#0d141c] border border-primary/20 rounded-2xl w-full max-w-md shadow-2xl p-6">
-    <div class="flex items-center gap-3 mb-2">
-      <div class="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
-        <span class="material-symbols-outlined text-primary text-xl">payments</span>
-      </div>
-      <div>
-        <p class="font-bold text-white">Extra Principal Payment</p>
-        <p class="text-xs text-slate-500">Reduces balance and recalculates schedule</p>
-      </div>
-    </div>
-
-    <div class="bg-slate-800/40 rounded-xl p-4 my-4 grid grid-cols-2 gap-3">
-      <div>
-        <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Current Balance</p>
-        <p class="font-bold text-white">₹{{ "{:,.0f}".format(loan.remaining_balance) }}</p>
-      </div>
-      <div>
-        <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Monthly EMI</p>
-        <p class="font-bold text-amber-400">₹{{ "{:,.0f}".format(loan.monthly_emi) }}</p>
-      </div>
-    </div>
-
-    <form method="POST" action="{{ url_for('loans_bp.extra_payment', loan_id=loan.id) }}" class="space-y-4">
-      <div>
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Extra Payment Amount (₹) *</label>
-        <div class="relative">
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-          <input type="number" name="extra_amount" required min="1" step="1"
-            placeholder="e.g. 50000"
-            class="w-full bg-slate-900/60 border border-slate-700 rounded-xl pl-8 pr-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary text-sm font-bold"/>
+{# ── MODAL: Extra Payment ── #}
+<div id="extra-payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+  style="background:rgba(0,0,0,.7); backdrop-filter:blur(6px);">
+  <div style="background:var(--s2); border:1px solid rgba(99,102,241,.25); border-radius:18px;
+       width:100%; max-width:420px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.5);">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--bd);">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:36px; height:36px; border-radius:9px; background:rgba(99,102,241,.15); display:flex; align-items:center; justify-content:center;">
+          <span class="material-symbols-outlined" style="font-size:18px; color:var(--ind2);">payments</span>
+        </div>
+        <div>
+          <p style="font-size:14px; font-weight:700; color:var(--tx);">Extra Principal Payment</p>
+          <p style="font-size:11px; color:var(--tx3);">Reduces balance and recalculates schedule</p>
         </div>
       </div>
-      <p class="text-xs text-slate-600 bg-slate-800/50 rounded-xl p-3">
-        <span class="material-symbols-outlined text-xs align-middle">info</span>
-        This amount goes directly toward reducing your principal balance. The remaining amortization schedule will be recalculated automatically.
+      <button onclick="document.getElementById('extra-payment-modal').classList.add('hidden')"
+        style="background:none; border:none; cursor:pointer; color:var(--tx3); padding:4px;"
+        onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--tx3)'">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div style="margin:16px 22px; display:grid; grid-template-columns:1fr 1fr; gap:10px; background:rgba(255,255,255,.03); border-radius:10px; padding:14px;">
+      <div>
+        <p style="font-size:9px; color:var(--tx3); text-transform:uppercase; letter-spacing:.1em; margin-bottom:3px;">Current Balance</p>
+        <p style="font-size:15px; font-weight:800; color:var(--tx);">₹{{ "{:,.0f}".format(loan.remaining_balance) }}</p>
+      </div>
+      <div>
+        <p style="font-size:9px; color:var(--tx3); text-transform:uppercase; letter-spacing:.1em; margin-bottom:3px;">Monthly EMI</p>
+        <p style="font-size:15px; font-weight:800; color:var(--amb);">₹{{ "{:,.0f}".format(loan.monthly_emi) }}</p>
+      </div>
+    </div>
+    <form method="POST" action="{{ url_for('loans_bp.extra_payment', loan_id=loan.id) }}" style="padding:0 22px 22px;">
+      <label style="display:block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:6px;">Extra Payment Amount *</label>
+      <div style="position:relative; margin-bottom:12px;">
+        <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:15px; font-weight:700; color:var(--tx2);">₹</span>
+        <input type="number" name="extra_amount" required min="1" step="1" placeholder="e.g. 50,000"
+          class="modal-input"
+          style="width:100%; background:rgba(255,255,255,.04); border:1px solid var(--bd2); border-radius:10px;
+                 padding:11px 12px 11px 32px; color:var(--tx); font-size:15px; font-weight:700;
+                 outline:none; font-family:inherit;"
+          onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
+      </div>
+      <p style="font-size:11px; color:var(--tx3); background:rgba(255,255,255,.03); border-radius:8px; padding:10px 12px; margin-bottom:14px; line-height:1.5;">
+        This amount goes directly toward your principal balance. Schedule recalculates automatically.
       </p>
-      <div class="flex gap-3">
-        <button type="submit" class="flex-1 h-11 bg-primary text-white font-bold rounded-xl hover:brightness-110 primary-glow transition-all">
+      <div style="display:flex; gap:10px;">
+        <button type="submit"
+          style="flex:1; padding:11px; border-radius:10px; background:var(--ind); color:#fff; font-size:13px; font-weight:700; border:none; cursor:pointer; font-family:inherit;">
           Apply Payment
         </button>
         <button type="button" onclick="document.getElementById('extra-payment-modal').classList.add('hidden')"
-          class="flex-1 h-11 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all">
+          style="padding:11px 18px; border-radius:10px; background:var(--s4); border:1px solid var(--bd2); color:var(--tx2); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">
           Cancel
         </button>
       </div>
@@ -343,63 +533,84 @@
   </div>
 </div>
 
-
-<!-- ── MODAL: Edit Loan ── -->
-<div id="edit-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-  <div class="bg-[#0d141c] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
-    <div class="flex items-center justify-between p-6 border-b border-slate-800">
-      <p class="font-bold text-white">Edit — {{ loan.loan_name }}</p>
+{# ── MODAL: Edit ── #}
+<div id="edit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+  style="background:rgba(0,0,0,.7); backdrop-filter:blur(6px);">
+  <div style="background:var(--s2); border:1px solid var(--bd2); border-radius:18px;
+       width:100%; max-width:420px; overflow:hidden;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--bd);">
+      <p style="font-size:14px; font-weight:700; color:var(--tx);">Edit — {{ loan.loan_name }}</p>
       <button onclick="document.getElementById('edit-modal').classList.add('hidden')"
-        class="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
+        style="background:none; border:none; cursor:pointer; color:var(--tx3);"
+        onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--tx3)'">
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
-    <form method="POST" action="{{ url_for('loans_bp.edit_loan', loan_id=loan.id) }}" class="p-6 space-y-4">
+    <form method="POST" action="{{ url_for('loans_bp.edit_loan', loan_id=loan.id) }}" style="padding:20px 22px; display:flex; flex-direction:column; gap:14px;">
       <div>
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Loan Name *</label>
+        <label style="display:block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:6px;">Loan Name *</label>
         <input type="text" name="loan_name" required value="{{ loan.loan_name }}"
-          class="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary text-sm"/>
+          class="modal-input"
+          style="width:100%; background:rgba(255,255,255,.04); border:1px solid var(--bd2); border-radius:10px; padding:11px 13px; color:var(--tx); font-size:13px; outline:none; font-family:inherit;"
+          onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Processing Fee (₹)</label>
-          <input type="number" name="processing_fee" min="0" step="1" value="{{ loan.processing_fee | int }}"
-            class="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary text-sm"/>
+          <label style="display:block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:6px;">Processing Fee (₹)</label>
+          <input type="number" name="processing_fee" min="0" value="{{ loan.processing_fee | int }}"
+            class="modal-input"
+            style="width:100%; background:rgba(255,255,255,.04); border:1px solid var(--bd2); border-radius:10px; padding:11px 13px; color:var(--tx); font-size:13px; outline:none; font-family:inherit;"
+            onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Insurance (₹)</label>
-          <input type="number" name="insurance" min="0" step="1" value="{{ loan.insurance | int }}"
-            class="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary text-sm"/>
+          <label style="display:block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:6px;">Insurance (₹)</label>
+          <input type="number" name="insurance" min="0" value="{{ loan.insurance | int }}"
+            class="modal-input"
+            style="width:100%; background:rgba(255,255,255,.04); border:1px solid var(--bd2); border-radius:10px; padding:11px 13px; color:var(--tx); font-size:13px; outline:none; font-family:inherit;"
+            onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
         </div>
       </div>
-      <p class="text-xs text-slate-600 bg-slate-800/50 rounded-xl p-3">
-        <span class="material-symbols-outlined text-xs align-middle">info</span>
+      <p style="font-size:11px; color:var(--tx3); background:rgba(255,255,255,.03); border-radius:8px; padding:10px 12px; line-height:1.5;">
         EMI, rate, and tenure are fixed after loan creation per financial rules.
       </p>
-      <div class="flex gap-3 pt-1">
-        <button type="submit" class="flex-1 h-11 bg-amber-500 text-white font-bold rounded-xl hover:brightness-110 transition-all">Save Changes</button>
+      <div style="display:flex; gap:10px;">
+        <button type="submit"
+          style="flex:1; padding:11px; border-radius:10px; background:var(--amb); color:#0b0e17; font-size:13px; font-weight:800; border:none; cursor:pointer; font-family:inherit;">
+          Save Changes
+        </button>
         <button type="button" onclick="document.getElementById('edit-modal').classList.add('hidden')"
-          class="flex-1 h-11 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all">Cancel</button>
+          style="padding:11px 18px; border-radius:10px; background:var(--s4); border:1px solid var(--bd2); color:var(--tx2); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">
+          Cancel
+        </button>
       </div>
     </form>
   </div>
 </div>
 
-
-<!-- ── MODAL: Close Loan ── -->
-<div id="close-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-  <div class="bg-[#0d141c] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl p-6">
-    <div class="flex items-center gap-3 mb-4">
-      <div class="size-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-        <span class="material-symbols-outlined text-emerald-400 text-xl">check_circle</span>
+{# ── MODAL: Close Loan ── #}
+<div id="close-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+  style="background:rgba(0,0,0,.7); backdrop-filter:blur(6px);">
+  <div style="background:var(--s2); border:1px solid var(--bd2); border-radius:18px;
+       width:100%; max-width:400px; overflow:hidden; padding:24px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+      <div style="width:40px; height:40px; border-radius:11px; background:rgba(248,113,113,.1); border:1px solid rgba(248,113,113,.2); display:flex; align-items:center; justify-content:center;">
+        <span class="material-symbols-outlined" style="font-size:20px; color:var(--red);">lock</span>
       </div>
-      <p class="font-bold text-white">Mark as Closed?</p>
+      <p style="font-size:15px; font-weight:700; color:var(--tx);">Close Loan?</p>
     </div>
-    <p class="text-slate-400 text-sm mb-6">This will close <strong class="text-white">{{ loan.loan_name }}</strong> and stop future EMI obligations. The loan and schedule remain in history.</p>
-    <form method="POST" action="{{ url_for('loans_bp.close_loan', loan_id=loan.id) }}" class="flex gap-3">
-      <button type="submit" class="flex-1 h-11 bg-emerald-500 text-white font-bold rounded-xl hover:brightness-110 transition-all">Confirm Close</button>
+    <p style="font-size:13px; color:var(--tx2); line-height:1.6; margin-bottom:20px;">
+      This will close <strong style="color:var(--tx);">{{ loan.loan_name }}</strong> and stop future EMI obligations.
+      The loan and schedule remain in history.
+    </p>
+    <form method="POST" action="{{ url_for('loans_bp.close_loan', loan_id=loan.id) }}" style="display:flex; gap:10px;">
+      <button type="submit"
+        style="flex:1; padding:11px; border-radius:10px; background:var(--grn); color:#0b0e17; font-size:13px; font-weight:800; border:none; cursor:pointer; font-family:inherit;">
+        Confirm Close
+      </button>
       <button type="button" onclick="document.getElementById('close-modal').classList.add('hidden')"
-        class="flex-1 h-11 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all">Cancel</button>
+        style="padding:11px 18px; border-radius:10px; background:var(--s4); border:1px solid var(--bd2); color:var(--tx2); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">
+        Cancel
+      </button>
     </form>
   </div>
 </div>
@@ -408,53 +619,37 @@
 
 {% block extra_js %}
 <script>
-  const modals = ['edit-modal', 'close-modal', 'extra-payment-modal'];
-
-  modals.forEach(function(id) {
+  // ── Modal backdrop / Escape ──
+  ['extra-payment-modal','edit-modal','close-modal'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('click', function(e) {
-        if (e.target === this) this.classList.add('hidden');
-      });
-    }
+    if (!el) return;
+    el.addEventListener('click', e => { if (e.target === el) el.classList.add('hidden'); });
   });
-
-  document.addEventListener('keydown', function(e) {
+  document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      modals.forEach(function(id) {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
+      ['extra-payment-modal','edit-modal','close-modal'].forEach(id => {
+        document.getElementById(id)?.classList.add('hidden');
       });
     }
   });
 
-  // Auto-open extra payment modal if URL has #extra-payment
+  // Auto-open extra payment if hash
   if (window.location.hash === '#extra-payment') {
-    const modal = document.getElementById('extra-payment-modal');
-    if (modal) modal.classList.remove('hidden');
+    document.getElementById('extra-payment-modal')?.classList.remove('hidden');
   }
 
-  /* ── Amortization collapse ── */
-  var amortOpen = false;
-  function toggleAmortization() {
+  // ── Amortization toggle ──
+  let amortOpen = false;
+  function toggleAmort() {
     const body    = document.getElementById('amort-body');
     const chevron = document.getElementById('amort-chevron');
-    const hint    = document.getElementById('amort-toggle-hint');
+    const btn     = document.getElementById('amort-toggle');
     const legend  = document.getElementById('amort-legend');
     amortOpen = !amortOpen;
-    if (amortOpen) {
-      body.style.maxHeight = '560px';
-      chevron.style.transform = 'rotate(180deg)';
-      hint.textContent = 'click to collapse';
-      legend.classList.remove('hidden');
-      legend.classList.add('flex');
-    } else {
-      body.style.maxHeight = '0';
-      chevron.style.transform = 'rotate(0deg)';
-      hint.textContent = 'click to expand';
-      legend.classList.remove('flex');
-      legend.classList.add('hidden');
-    }
+    body.style.maxHeight    = amortOpen ? '420px' : '0';
+    chevron.classList.toggle('open', amortOpen);
+    btn.classList.toggle('open', amortOpen);
+    legend.style.display = amortOpen ? 'flex' : 'none';
   }
 </script>
 {% endblock %}

@@ -94,11 +94,30 @@ def loan_detail(loan_id):
     )
 
 
-@loans_bp.route('/loans/add', methods=['POST'])
+@loans_bp.route('/loans/add', methods=['GET', 'POST'])
 @login_required
 def add_loan():
     db  = get_db()
     uid = session['user_id']
+
+    # ── GET — show the add loan form page ──────────────────────────────────────
+    if request.method == 'GET':
+        # Fetch monthly income for budget impact calc
+        from datetime import date as date_cls2
+        today2 = date_cls2.today()
+        inc = db.execute(
+            "SELECT COALESCE(SUM(amount),0) as s FROM txn "
+            "WHERE user_id=? AND type='income' "
+            "AND strftime('%m',date)=? AND strftime('%Y',date)=?",
+            (uid, f'{today2.month:02d}', str(today2.year))
+        ).fetchone()['s']
+        m_exp, m_pct = get_monthly_spend()
+        return render_template('loans/add_loan.html',
+            loan_types=LOAN_TYPES,
+            loan_type_meta=LOAN_TYPE_META,
+            monthly_income=round(inc),
+            sidebar_expense=m_exp, sidebar_pct=m_pct,
+        )
 
     name       = request.form.get('loan_name', '').strip()
     ltype      = request.form.get('loan_type', '').strip()

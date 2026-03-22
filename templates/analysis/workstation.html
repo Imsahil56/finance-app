@@ -1,0 +1,595 @@
+{% extends "base.html" %}
+{% block title %}Analysis Workstation — FinanceOS{% endblock %}
+{% block page_title %}Analysis{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --s2:#161929; --s3:#1c1f32; --s4:#13162a;
+  --bd:rgba(255,255,255,.06); --bd2:rgba(255,255,255,.09);
+  --tx:#e8eaf6; --tx2:#a0a3bd; --tx3:#484e6e;
+  --ind:#6366f1; --ind2:#818cf8;
+  --grn:#22c55e; --grn2:#4ade80; --red:#f87171; --amb:#fbbf24;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+@keyframes barIn  { from{width:0} }
+.fu { animation:fadeUp .3s cubic-bezier(.4,0,.2,1) both; }
+.bi { animation:barIn .7s ease both; }
+
+/* ── Tab bar ── */
+.ws-tabs {
+  display:flex; gap:4px; margin-bottom:22px;
+  background:rgba(255,255,255,.03); border:1px solid var(--bd);
+  border-radius:12px; padding:4px;
+}
+.ws-tab {
+  display:flex; align-items:center; gap:6px; flex:1;
+  padding:8px 12px; border-radius:9px; border:none; cursor:pointer;
+  font-size:12px; font-weight:600; font-family:inherit; color:var(--tx3);
+  background:transparent; transition:all .2s ease; justify-content:center;
+  text-decoration:none;
+}
+.ws-tab:hover { color:var(--tx2); background:rgba(255,255,255,.04); }
+.ws-tab.active {
+  background:var(--s2); border:1px solid var(--bd2);
+  color:var(--tx); box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+.ws-tab.active .ws-tab-icon { color:var(--ind2); }
+.ws-tab-icon { font-size:15px; }
+
+/* ── Shared card ── */
+.ws-card {
+  background:var(--s2); border:1px solid var(--bd); border-radius:14px;
+  transition:border-color .2s;
+}
+.ws-card:hover { border-color:rgba(99,102,241,.15); }
+.ws-card.primary {
+  background:linear-gradient(135deg,#1C1F3F,#14182E);
+  border:1px solid rgba(99,102,241,.35);
+  box-shadow:0 20px 50px rgba(99,102,241,.2);
+  position:relative; overflow:hidden;
+}
+.ws-card.primary::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(circle at 80% 25%,rgba(99,102,241,.2),transparent 60%);
+}
+.ws-card-lbl { font-size:9px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--tx3); margin-bottom:4px; }
+.ws-card-val { font-size:24px; font-weight:900; color:var(--tx); letter-spacing:-.3px; }
+.ws-card-sub { font-size:11px; color:var(--tx3); margin-top:4px; }
+
+/* ── Key Changes strip ── */
+.kc-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:22px; }
+.kc-card { background:var(--s2); border:1px solid var(--bd); border-radius:12px; padding:14px 16px; }
+.kc-eyebrow { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:6px; }
+.kc-val { font-size:17px; font-weight:800; color:var(--tx); letter-spacing:-.2px; }
+.kc-sub { font-size:11px; color:var(--tx3); margin-top:2px; }
+
+/* ── Insights strip ── */
+.ins-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:22px; }
+.ins-card { background:var(--s2); border-radius:12px; padding:16px; border:1px solid var(--bd); }
+.ins-eyebrow { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px; }
+.ins-title { font-size:13px; font-weight:800; color:var(--tx); margin-bottom:4px; }
+.ins-body  { font-size:11px; color:var(--tx2); line-height:1.5; }
+.ins-action { font-size:10px; font-weight:700; margin-top:10px; padding:5px 12px; border-radius:6px; border:none; cursor:pointer; font-family:inherit; }
+
+/* ── Bar/Progress shared ── */
+.bar-track { background:rgba(255,255,255,.05); border-radius:99px; overflow:hidden; }
+.bar-fill  { height:100%; border-radius:99px; }
+
+/* ── Category row ── */
+.cat-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.cat-name { font-size:12px; font-weight:600; color:var(--tx); width:110px; flex-shrink:0; }
+.cat-bar-wrap { flex:1; }
+.cat-pct  { font-size:11px; font-weight:800; width:40px; text-align:right; flex-shrink:0; }
+
+/* ── Health score ── */
+.hs-ring-wrap { position:relative; width:120px; height:120px; margin:0 auto 16px; }
+.hs-ring-wrap svg { transform:rotate(-90deg); }
+.hs-ring-inner { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.hs-score { font-size:32px; font-weight:900; color:#fff; line-height:1; }
+.hs-lbl   { font-size:10px; color:rgba(255,255,255,.4); margin-top:2px; }
+
+/* ── Debt ── */
+.debt-dti-bar { height:8px; border-radius:99px; overflow:hidden; display:flex; margin-bottom:6px; }
+
+/* ── Forecast CTA ── */
+.forecast-cta {
+  display:flex; align-items:center; justify-content:space-between;
+  background:rgba(99,102,241,.07); border:1px solid rgba(99,102,241,.2);
+  border-radius:12px; padding:14px 20px; margin-top:20px; flex-wrap:wrap; gap:12px;
+}
+.forecast-cta-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:3px; }
+.forecast-cta-text  { font-size:13px; font-weight:700; color:var(--tx); }
+.forecast-cta-btn   { display:flex; align-items:center; gap:6px; background:linear-gradient(135deg,#6366f1,#818cf8); color:#fff; font-size:12px; font-weight:700; padding:9px 18px; border-radius:9px; text-decoration:none; transition:filter .2s; }
+.forecast-cta-btn:hover { filter:brightness(1.1); }
+
+/* ── Table ── */
+.ws-table { width:100%; border-collapse:collapse; }
+.ws-table th { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); padding:10px 14px; text-align:left; border-bottom:1px solid var(--bd); }
+.ws-table td { font-size:12px; color:var(--tx2); padding:10px 14px; border-bottom:1px solid rgba(255,255,255,.03); font-variant-numeric:tabular-nums; }
+.ws-table tr:hover td { background:rgba(99,102,241,.03); }
+.ws-table tr:last-child td { border-bottom:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
+
+{# ── Page Header ── #}
+<div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;" class="fu">
+  <div>
+    <p style="font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--tx3); margin-bottom:4px;">Analysis Workstation</p>
+    <h2 style="font-size:24px; font-weight:900; color:var(--tx); letter-spacing:-.3px;">
+      {% if active_tab == 'overview' %}Financial Overview
+      {% elif active_tab == 'spending' %}Spending Analysis
+      {% elif active_tab == 'savings' %}Savings & Wealth
+      {% elif active_tab == 'debt' %}Debt Analysis
+      {% elif active_tab == 'loan_payoff' %}Loan Payoff
+      {% elif active_tab == 'health' %}Health Score
+      {% endif %}
+    </h2>
+    {% if fin_status %}
+    <div style="display:flex; align-items:center; gap:12px; margin-top:6px; flex-wrap:wrap;">
+      {% if fin_status.actual_over %}
+      <span style="font-size:10px; color:var(--red);">● Budget Exceeded</span>
+      {% elif fin_status.at_risk %}
+      <span style="font-size:10px; color:var(--amb);">● Budget At Risk</span>
+      {% else %}
+      <span style="font-size:10px; color:var(--grn);">● On Track</span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Tab bar ── #}
+<div class="ws-tabs fu" style="animation-delay:.04s;">
+  {% set tabs = [
+    ('overview',    'Overview',    'dashboard'),
+    ('spending',    'Spending',    'query_stats'),
+    ('savings',     'Savings',     'savings'),
+    ('debt',        'Debt',        'credit_card'),
+    ('loan_payoff', 'Loan Payoff', 'show_chart'),
+    ('health',      'Health Score','favorite'),
+  ] %}
+  {% for tab_id, tab_lbl, tab_ic in tabs %}
+  <a href="{{ url_for('analysis.overview', tab=tab_id) }}"
+     class="ws-tab {{ 'active' if active_tab == tab_id else '' }}">
+    <span class="material-symbols-outlined ws-tab-icon">{{ tab_ic }}</span>
+    <span>{{ tab_lbl }}</span>
+  </a>
+  {% endfor %}
+</div>
+
+
+{# ═══════════════════════════════════════════
+   TAB: OVERVIEW
+═══════════════════════════════════════════ #}
+{% if active_tab == 'overview' %}
+<div class="fu" style="animation-delay:.07s;">
+
+  {# Top metric cards #}
+  {% if overview %}
+  {% set spend_data = overview.spending %}
+  {% set budget_data = overview.budget %}
+  <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
+    <div class="ws-card primary" style="padding:18px;">
+      <div class="ws-card-lbl" style="color:rgba(165,168,248,.6);">Total Spend</div>
+      <div class="ws-card-val" style="color:#fff;">₹{{ "{:,.0f}".format(spend_data.total_expense if spend_data else 0) }}</div>
+      <div class="ws-card-sub" style="color:rgba(255,255,255,.35);">last 30 days</div>
+    </div>
+    <div class="ws-card" style="padding:18px;">
+      <div class="ws-card-lbl">Total Income</div>
+      <div class="ws-card-val" style="color:var(--grn2);">₹{{ "{:,.0f}".format(spend_data.total_income if spend_data else 0) }}</div>
+      <div class="ws-card-sub">last 30 days</div>
+    </div>
+    <div class="ws-card" style="padding:18px;">
+      <div class="ws-card-lbl">Net Savings</div>
+      {% set net = spend_data.net if spend_data else 0 %}
+      <div class="ws-card-val" style="color:{{ 'var(--grn2)' if net >= 0 else 'var(--red)' }};">
+        {{ '-' if net < 0 else '' }}₹{{ "{:,.0f}".format(net|abs) }}
+      </div>
+      <div class="ws-card-sub">last 30 days</div>
+    </div>
+    <div class="ws-card" style="padding:18px;">
+      <div class="ws-card-lbl">Health Score</div>
+      <div class="ws-card-val" style="color:{{ 'var(--grn2)' if health.score >= 70 else ('var(--amb)' if health.score >= 50 else 'var(--red)') }};">
+        {{ health.score }}
+      </div>
+      <div class="ws-card-sub">{{ health.label }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Key Changes strip #}
+  {% if insights %}
+  <p style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:10px;">Key Insights This Period</p>
+  <div class="ins-grid" style="margin-bottom:20px;">
+    {% for ins in insights[:3] %}
+    <div class="ins-card" style="border-color:{{ 'rgba(248,113,113,.2)' if ins.type == 'danger' else ('rgba(251,191,36,.2)' if ins.type == 'warn' else 'rgba(99,102,241,.2)') }};">
+      <div class="ins-eyebrow" style="color:{{ '#f87171' if ins.type == 'danger' else ('#fbbf24' if ins.type == 'warn' else 'var(--ind2)') }};">
+        {{ ins.title }}
+      </div>
+      <div class="ins-body">{{ ins.body }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# Budget performance summary #}
+  {% if budget_perf %}
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px;">
+    <div class="ws-card" style="padding:18px;">
+      <p style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:14px;">Budget Utilization</p>
+      {% for cat in budget_perf.category_breakdown[:5] %}
+      {% set bc = '#f87171' if cat.utilization >= 100 else ('#fbbf24' if cat.utilization >= 80 else 'var(--ind2)') %}
+      <div class="cat-row">
+        <span class="cat-name">{{ cat.category | truncate(14,True,'') }}</span>
+        <div class="cat-bar-wrap">
+          <div class="bar-track" style="height:5px;">
+            <div class="bar-fill bi" style="width:{{ [cat.utilization,100]|min }}%; background:{{ bc }};"></div>
+          </div>
+        </div>
+        <span class="cat-pct" style="color:{{ bc }};">{{ cat.pct }}%</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="ws-card" style="padding:18px;">
+      <p style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:14px;">Top Spending Categories</p>
+      {% if overview and overview.spending and overview.spending.category_data %}
+      {% set palette = ['#6366f1','#22c55e','#f97316','#f43f5e','#06b6d4'] %}
+      {% set max_cat_amt = overview.spending.category_data | map(attribute='amount') | max %}
+      {% for cat in overview.spending.category_data[:5] %}
+      {% set bc = palette[loop.index0 % palette|length] %}
+      <div class="cat-row">
+        <span class="cat-name">{{ cat.category | truncate(14,True,'') }}</span>
+        <div class="cat-bar-wrap">
+          <div class="bar-track" style="height:5px;">
+            <div class="bar-fill bi" style="width:{{ (cat.amount / max_cat_amt * 100)|round|int }}%; background:{{ bc }};"></div>
+          </div>
+        </div>
+        <span style="font-size:11px; font-weight:700; width:60px; text-align:right; color:{{ bc }}; flex-shrink:0;">₹{{ "{:,.0f}".format(cat.amount) }}</span>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# Forecast CTA #}
+  <div class="forecast-cta">
+    <div>
+      <div class="forecast-cta-title">Advanced Projections</div>
+      <div class="forecast-cta-text">View Forecast Based on Current Trends →</div>
+    </div>
+    <a href="{{ url_for('analysis.forecasting') }}" class="forecast-cta-btn">
+      <span class="material-symbols-outlined" style="font-size:15px;">trending_up</span>
+      View Forecasting
+    </a>
+  </div>
+</div>
+
+
+{# ═══════════════════════════════════════════
+   TAB: SPENDING
+═══════════════════════════════════════════ #}
+{% elif active_tab == 'spending' %}
+<div class="fu" style="animation-delay:.07s;">
+  {% if spending %}
+  <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px;">
+    <div class="ws-card primary" style="padding:18px;">
+      <div class="ws-card-lbl" style="color:rgba(165,168,248,.6);">Total Spent</div>
+      <div class="ws-card-val" style="color:#fff;">₹{{ "{:,.0f}".format(spending.total_expense) }}</div>
+      <div class="ws-card-sub" style="color:rgba(255,255,255,.35);">{{ sel_month_name }}</div>
+    </div>
+    <div class="ws-card" style="padding:18px;">
+      <div class="ws-card-lbl">Income</div>
+      <div class="ws-card-val" style="color:var(--grn2);">₹{{ "{:,.0f}".format(spending.total_income) }}</div>
+      <div class="ws-card-sub">{{ sel_month_name }}</div>
+    </div>
+    <div class="ws-card" style="padding:18px;">
+      <div class="ws-card-lbl">Net</div>
+      {% set net = spending.total_income - spending.total_expense %}
+      <div class="ws-card-val" style="color:{{ 'var(--grn2)' if net >= 0 else 'var(--red)' }};">
+        {{ '-' if net < 0 else '+' }}₹{{ "{:,.0f}".format(net|abs) }}
+      </div>
+      <div class="ws-card-sub">{{ sel_month_name }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if categories %}
+  <div class="ws-card" style="padding:20px; margin-bottom:14px;">
+    <p style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:14px;">Category Breakdown</p>
+    {% set palette = ['#6366f1','#22c55e','#f97316','#f43f5e','#06b6d4','#fbbf24','#a855f7','#2094f3'] %}
+    {% set max_cat = categories | map(attribute='amount') | max if categories else 1 %}
+    {% for cat in categories %}
+    {% set bc = '#f87171' if cat.status == 'over' else ('#fbbf24' if cat.status == 'warn' else palette[loop.index0 % palette|length]) %}
+    <div class="cat-row" style="margin-bottom:12px;">
+      <span class="cat-name">{{ cat.category | truncate(15,True,'') }}</span>
+      <div class="cat-bar-wrap">
+        <div class="bar-track" style="height:6px;">
+          <div class="bar-fill bi" style="width:{{ (cat.amount / max_cat * 100)|round|int }}%; background:linear-gradient(90deg,{{ bc }}aa,{{ bc }});"></div>
+        </div>
+      </div>
+      <span style="font-size:11px; font-weight:800; width:70px; text-align:right; color:{{ bc }}; flex-shrink:0; font-variant-numeric:tabular-nums;">₹{{ "{:,.0f}".format(cat.amount) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if trends %}
+  <div class="ws-card" style="padding:20px;">
+    <p style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:14px;">6-Month Trend</p>
+    {% if trends and trends is iterable and trends | length > 0 %}
+    {% set max_t = trends | map(attribute='total') | max if trends else 1 %}
+    {% set min_t = trends | map(attribute='total') | min if trends else 0 %}
+    {% set range_t = (max_t - min_t) if max_t > min_t else max_t %}
+    {% set range_t = range_t if range_t > 0 else 1 %}
+    <div style="display:flex; align-items:flex-end; gap:8px; height:80px;">
+      {% for mo in trends[-6:] %}
+      {% set bh = (((mo.total - min_t) / range_t * 80)|round|int) %}
+      {% set bh = [bh, 4] | max %}
+      {% set is_last = loop.last %}
+      <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%;">
+        <div style="width:100%; flex:1; display:flex; flex-direction:column; justify-content:flex-end;">
+          <div class="bi" style="height:{{ bh }}px; border-radius:4px 4px 0 0;
+            background:{{ 'linear-gradient(180deg,rgba(129,140,248,.9),rgba(99,102,241,.5))' if is_last else 'rgba(99,102,241,.3)' }};
+            box-shadow:{{ '0 0 12px rgba(99,102,241,.4)' if is_last else 'none' }};"></div>
+        </div>
+        <span style="font-size:8px; color:{{ 'var(--ind2)' if is_last else 'var(--tx3)' }}; text-transform:uppercase; font-weight:{{ '700' if is_last else '400' }};">
+          {{ mo.label[:3] if mo.label else '' }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+
+{# ═══════════════════════════════════════════
+   TAB: SAVINGS
+═══════════════════════════════════════════ #}
+{% elif active_tab == 'savings' %}
+<div class="fu" style="animation-delay:.07s;">
+  {% if savings %}
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:18px;">
+    <div class="ws-card primary" style="padding:18px;">
+      <div class="ws-card-lbl" style="color:rgba(165,168,248,.6);">Monthly Savings</div>
+      <div class="ws-card-val" style="color:{{ '#fff' if savings.current_savings >= 0 else 'var(--red)' }};">
+        {{ '-' if savings.current_savings < 0 else '' }}₹{{ "{:,.0f}".format(savings.current_savings|abs) }}
+      </div>
+      <div class="ws-card-sub" style="color:rgba(255,255,255,.35);">{{ (savings.current_savings / savings.current_income * 100)|round|int if savings.current_income else 0 }}% savings rate</div>
+    </div>
+    <div class="ws-card" style="padding:18px;">
+      <div class="ws-card-lbl">Monthly Income</div>
+      <div class="ws-card-val" style="color:var(--grn2);">₹{{ "{:,.0f}".format(savings.current_income) }}</div>
+    </div>
+    <div class="ws-card" style="padding:18px;">
+      <div class="ws-card-lbl">Monthly Expenses</div>
+      <div class="ws-card-val" style="color:var(--red);">₹{{ "{:,.0f}".format(savings.current_expense) }}</div>
+    </div>
+  </div>
+
+  {% if wealth %}
+  <div class="ws-card" style="padding:20px; margin-bottom:14px;">
+    <p style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:14px;">Wealth Projection to 2030</p>
+    <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:8px;">
+      <div style="font-size:26px; font-weight:900; color:{{ 'var(--grn2)' if wealth.projected_2030 >= 0 else 'var(--red)' }};">
+        {{ wealth.projected_label }}
+      </div>
+      <div style="font-size:11px; color:var(--tx3);">projected by 2030</div>
+    </div>
+    <div style="font-size:11px; color:var(--tx3);">
+      At ₹{{ "{:,.0f}".format(wealth.avg_monthly_savings|abs) }}/mo avg savings ·
+      {{ wealth.months_to_2030 }} months remaining
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+
+
+{# ═══════════════════════════════════════════
+   TAB: DEBT
+═══════════════════════════════════════════ #}
+{% elif active_tab == 'debt' %}
+<div class="fu" style="animation-delay:.07s;">
+  {% if debt %}
+  <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px;">
+    <div class="ws-card primary" style="padding:18px;">
+      <div class="ws-card-lbl" style="color:rgba(165,168,248,.6);">Total Debt</div>
+      <div class="ws-card-val" style="color:#fff;">₹{{ "{:,.0f}".format(debt.total_outstanding) }}</div>
+      <div class="ws-card-sub" style="color:rgba(255,255,255,.35);">outstanding principal</div>
+    </div>
+    <div class="ws-card" style="padding:18px;">
+      <div class="ws-card-lbl">Monthly EMI</div>
+      <div class="ws-card-val" style="color:var(--amb);">₹{{ "{:,.0f}".format(debt.total_emi) }}</div>
+    </div>
+    <div class="ws-card" style="padding:18px;">
+      <div class="ws-card-lbl">Debt-to-Income</div>
+      {% set dti = debt.dti or 0 %}
+      <div class="ws-card-val" style="color:{{ 'var(--grn2)' if (debt.dti or 0) < 30 else ('var(--amb)' if (debt.dti or 0) < 50 else 'var(--red)') }};">
+        {{ dti }}%
+      </div>
+      <div class="ws-card-sub">{{ debt.dti_label }}</div>
+    </div>
+  </div>
+
+  {# DTI bar #}
+  <div class="ws-card" style="padding:20px; margin-bottom:14px;">
+    <p style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--tx3); margin-bottom:10px;">DTI Breakdown</p>
+    <div class="debt-dti-bar bar-track">
+      <div style="width:{{ [debt.dti,100]|min }}%; height:100%;
+        background:{{ 'var(--grn)' if debt.dti < 30 else ('var(--amb)' if debt.dti < 50 else 'var(--red)') }};
+        border-radius:99px;" class="bi"></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--tx3); margin-top:4px;">
+      <span>0%</span><span style="color:var(--grn2);">30% safe</span><span style="color:var(--amb);">50% moderate</span><span>100%</span>
+    </div>
+  </div>
+
+  {# Per-loan breakdown #}
+  {% if loans %}
+  <div class="ws-card" style="overflow:hidden;">
+    <table class="ws-table">
+      <thead><tr>
+        <th>Loan</th><th>Type</th><th>Balance</th><th>Monthly EMI</th><th>Paid %</th>
+      </tr></thead>
+      <tbody>
+        {% for loan in loans %}
+        <tr>
+          <td style="color:var(--tx); font-weight:600;">{{ loan.loan_name }}</td>
+          <td>{{ loan.loan_type }}</td>
+          <td style="color:var(--red);">₹{{ "{:,.0f}".format(loan.remaining_balance if loan.remaining_balance is defined else loan.loan_amount) }}</td>
+          <td style="color:var(--amb);">₹{{ "{:,.0f}".format(loan.monthly_emi) }}</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <div class="bar-track" style="height:4px; flex:1;">
+                <div class="bar-fill bi" style="width:{{ ((loan.loan_amount - loan.remaining_balance) / loan.loan_amount * 100)|round|int if loan.remaining_balance is defined else 0 }}%; background:var(--ind2);"></div>
+              </div>
+              <span style="font-size:10px; color:var(--ind2);">{{ ((loan.loan_amount - loan.remaining_balance) / loan.loan_amount * 100)|round|int if loan.remaining_balance is defined else 0 }}%</span>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+
+
+{# ═══════════════════════════════════════════
+   TAB: LOAN PAYOFF
+═══════════════════════════════════════════ #}
+{% elif active_tab == 'loan_payoff' %}
+<div class="fu" style="animation-delay:.07s;">
+  {% if debt and loans %}
+  <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px;">
+    <div class="ws-card primary" style="padding:18px;">
+      <div class="ws-card-lbl" style="color:rgba(165,168,248,.6);">Total Remaining</div>
+      <div class="ws-card-val" style="color:#fff;">₹{{ "{:,.0f}".format(debt.total_outstanding) }}</div>
+    </div>
+    <div class="ws-card" style="padding:18px;">
+      <div class="ws-card-lbl">Interest Saved</div>
+      <div class="ws-card-val" style="color:var(--grn2);">₹0</div>
+      <div class="ws-card-sub">via extra payments</div>
+    </div>
+    <div class="ws-card" style="padding:18px;">
+      <div class="ws-card-lbl">Months Early</div>
+      <div class="ws-card-val" style="color:var(--ind2);">0</div>
+    </div>
+  </div>
+
+  {% for loan in loans %}
+  {% set lclr = ['#6366f1','#22c55e','#f97316','#f43f5e'][loop.index0 % 4] %}
+  <div class="ws-card" style="padding:18px; margin-bottom:12px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+      <div>
+        <span style="font-size:14px; font-weight:700; color:var(--tx);">{{ loan.loan_name }}</span>
+        <span style="font-size:11px; color:var(--tx3); margin-left:8px;">{{ loan.loan_type }} · {{ loan.interest_rate }}%</span>
+      </div>
+      <span style="font-size:13px; font-weight:800; color:{{ lclr }};">
+        ₹{{ "{:,.0f}".format(loan.monthly_emi) }}/mo
+      </span>
+    </div>
+    <div class="bar-track" style="height:6px; margin-bottom:5px;">
+      <div class="bar-fill bi" style="width:{{ 0 }}%; background:{{ lclr }};"></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--tx3);">
+      <span>—% paid</span>
+      <span>Ends {{ loan.end_date if loan.end_date is defined else '—' }}</span>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="ws-card" style="padding:40px; text-align:center;">
+    <span class="material-symbols-outlined" style="font-size:36px; color:var(--tx3); display:block; margin-bottom:10px;">account_balance</span>
+    <p style="color:var(--tx3); font-size:13px;">No active loans to display.</p>
+  </div>
+  {% endif %}
+</div>
+
+
+{# ═══════════════════════════════════════════
+   TAB: HEALTH SCORE
+═══════════════════════════════════════════ #}
+{% elif active_tab == 'health' %}
+<div class="fu" style="animation-delay:.07s;">
+  {% if health %}
+  {% set hclr = '#22c55e' if health.score >= 75 else ('#fbbf24' if health.score >= 50 else '#f87171') %}
+  {% set arc_pct = health.score %}
+  {% set arc_dash = (arc_pct / 100 * 213.63)|round(2) %}
+
+  <div style="display:grid; grid-template-columns:280px 1fr; gap:18px; align-items:start;">
+    {# Score ring card — primary #}
+    <div class="ws-card primary" style="padding:24px; text-align:center;">
+      <p style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:rgba(165,168,248,.6); margin-bottom:14px;">Overall Score</p>
+      <div class="hs-ring-wrap">
+        <svg viewBox="0 0 36 36" width="120" height="120">
+          <defs>
+            <linearGradient id="hs-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="{{ hclr }}"/>
+              <stop offset="100%" stop-color="{{ hclr }}cc"/>
+            </linearGradient>
+          </defs>
+          <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="3.5"/>
+          <circle cx="18" cy="18" r="14" fill="none" stroke="url(#hs-grad)" stroke-width="3.5"
+            stroke-dasharray="{{ arc_pct }} {{ 100 - arc_pct }}" stroke-linecap="round"
+            style="transition:stroke-dasharray .8s ease; filter:drop-shadow(0 0 4px {{ hclr }}80);"/>
+        </svg>
+        <div class="hs-ring-inner">
+          <div class="hs-score" style="color:{{ hclr }};">{{ health.score }}</div>
+          <div class="hs-lbl">{{ health.label }}</div>
+        </div>
+      </div>
+      <div style="font-size:11px; color:rgba(255,255,255,.35); margin-top:8px;">Financial Health Index</div>
+    </div>
+
+    {# Component bars #}
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      {% if health.components %}
+      {% for key, comp in health.components.items() %}
+      {% set cc = '#22c55e' if comp.score >= 75 else ('#fbbf24' if comp.score >= 50 else '#f87171') %}
+      <div class="ws-card" style="padding:14px 18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:12px; font-weight:600; color:var(--tx);">{{ comp.label }}</span>
+          <span style="font-size:13px; font-weight:800; color:{{ cc }};">{{ comp.score }}</span>
+        </div>
+        <div class="bar-track" style="height:5px;">
+          <div class="bar-fill bi" style="width:{{ comp.score }}%; background:{{ cc }};"></div>
+        </div>
+        {% if comp.note %}
+        <p style="font-size:10px; color:var(--tx3); margin-top:5px;">{{ comp.note }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ── Forecast CTA (shown on all non-overview tabs too) ── #}
+{% if active_tab != 'overview' %}
+<div class="forecast-cta" style="margin-top:20px;">
+  <div>
+    <div class="forecast-cta-title">Advanced Projections</div>
+    <div class="forecast-cta-text">View Forecast Based on Current Trends →</div>
+  </div>
+  <a href="{{ url_for('analysis.forecasting') }}"
+    style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:9px 18px;border-radius:9px;background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;text-decoration:none;box-shadow:0 6px 18px rgba(99,102,241,.3);transition:filter .2s;"
+    onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter=''">
+    View Forecasting →
+  </a>
+</div>
+{% endif %}
+
+{% endblock %}

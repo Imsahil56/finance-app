@@ -118,16 +118,64 @@ def obligations():
         d['color'] = meta[1]
         enriched.append(d)
 
+    # ── Subscription burn rate (last 6 months) ───────────────────────────────
+    from dateutil.relativedelta import relativedelta
+    burn_rate = []
+    for i in range(5, -1, -1):
+        d = today + relativedelta(months=-i)
+        s = db.execute(
+            "SELECT COALESCE(SUM(amount),0) as s FROM txn "
+            "WHERE user_id=? AND type='expense' AND category='Subscriptions' "
+            "AND strftime('%m',date)=? AND strftime('%Y',date)=?",
+            (uid, f'{d.month:02d}', str(d.year))
+        ).fetchone()['s']
+        burn_rate.append({'label': d.strftime('%b'), 'amount': round(s)})
+
+    # ── Fixed costs vs subscriptions breakdown ────────────────────────────────
+    sub_categories = {'Subscriptions'}
+    fixed_costs_total = sum(o['amount'] for o in active_obs
+                            if o['frequency'] == 'monthly'
+                            and (o['category'] or 'Other') not in sub_categories)
+    subs_total = sum(o['amount'] for o in active_obs
+                     if o['frequency'] == 'monthly'
+                     and (o['category'] or 'Other') in sub_categories)
+
+    # ── Upcoming due soon (next 14 days) ─────────────────────────────────────
+    in_14 = today + timedelta(days=14)
+    due_soon = db.execute(
+        '''SELECT po.id as pending_id, po.due_date, ob.name, ob.amount,
+                  ob.category, ob.source_type
+           FROM pending_obligations po
+           JOIN obligations ob ON ob.id = po.obligation_id
+           WHERE ob.user_id=? AND po.status='pending'
+             AND po.due_date >= ? AND po.due_date <= ?
+           ORDER BY po.due_date ASC LIMIT 4''',
+        (uid, today.isoformat(), in_14.isoformat())
+    ).fetchall()
+
+    # Days away labels
+    due_soon_enriched = []
+    for r in due_soon:
+        dr = dict(r)
+        diff = (date_cls.fromisoformat(r['due_date']) - today).days
+        dr['days_label'] = 'Today' if diff == 0 else ('Tomorrow' if diff == 1 else f'Due in {diff} days')
+        dr['urgent'] = diff <= 2
+        due_soon_enriched.append(dr)
+
     m_exp, m_pct = get_monthly_spend()
     return render_template('obligations/obligations.html',
         obligations=enriched,
         total_monthly=total_monthly,
+        fixed_costs_total=fixed_costs_total,
+        subs_total=subs_total,
         upcoming_total=upcoming_total,
         upcoming_names=upcoming_names,
         upcoming_count=len(upcoming),
         loan_emi_total=loan_emi_total,
         loan_count=len(loan_obs),
         active_count=len(active_obs),
+        due_soon=due_soon_enriched,
+        burn_rate=burn_rate,
         sidebar_expense=m_exp, sidebar_pct=m_pct,
     )
 
@@ -272,3 +320,31 @@ def skip_pending(pending_id):
     db.execute("UPDATE pending_obligations SET status='skipped' WHERE id=?", (pending_id,))
     db.commit()
     return jsonify({'ok': True})
+
+
+@obligations_bp.route('/obligations/export-csv')
+@login_required
+def export_csv():
+    """Export active obligations as CSV."""
+    import csv, io
+    db  = get_db()
+    uid = session['user_id']
+    obs = db.execute(
+        "SELECT name, amount, frequency, due_day, category, status, start_date "
+        "FROM obligations WHERE user_id=? ORDER BY status, amount DESC",
+        (uid,)
+    ).fetchall()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Name', 'Amount', 'Frequency', 'Due Day', 'Category', 'Status', 'Start Date'])
+    for o in obs:
+        writer.writerow([o['name'], o['amount'], o['frequency'], o['due_day'],
+                         o['category'], o['status'], o['start_date']])
+
+    from flask import Response
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=commitments.csv'}
+    )

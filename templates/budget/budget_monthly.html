@@ -1,239 +1,626 @@
 {% extends "base.html" %}
-{% block title %}Monthly Budget — FinanceOS{% endblock %}
-{% block page_title %}Monthly Budget{% endblock %}
+{% block title %}Budgets — FinanceOS{% endblock %}
+{% block page_title %}Budgets{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --s2:#161929; --s3:#1c1f32; --s4:#22263a;
+  --bd:#252a40; --bd2:#2e3450;
+  --tx:#e2e4f0; --tx2:#8085a8; --tx3:#484e6e;
+  --ind:#6366f1; --ind2:#818cf8; --ind3:#a5a8f8;
+  --grn:#22c55e; --red:#f87171; --amb:#fbbf24;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+@keyframes barIn  { from{width:0} }
+.fu { animation:fadeUp .38s cubic-bezier(.4,0,.2,1) both; }
+
+/* ── Layout shell ── */
+.bgt-shell { display:grid; grid-template-columns:1fr 300px; gap:22px; align-items:start; }
+.bgt-main  { display:flex; flex-direction:column; gap:20px; padding-bottom:28px; }
+.bgt-side  { display:flex; flex-direction:column; gap:16px; position:sticky; top:16px; }
+
+/* ── Monthly Overview hero card ── */
+.mo-hero {
+  background: linear-gradient(135deg,#12153d 0%,#1a1040 60%,#1a1236 100%);
+  border:1px solid rgba(99,102,241,.25); border-radius:18px; padding:26px;
+  position:relative; overflow:hidden;
+}
+.mo-hero::before {
+  content:''; position:absolute; top:-60px; right:-60px;
+  width:200px; height:200px; border-radius:50%;
+  background:rgba(99,102,241,.08); pointer-events:none;
+}
+.mo-label { font-size:10px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ind3); margin-bottom:10px; }
+.mo-amount { font-size:34px; font-weight:900; color:#fff; letter-spacing:-.5px; margin-bottom:2px; }
+.mo-sub    { font-size:13px; color:rgba(255,255,255,.45); margin-bottom:20px; }
+.mo-stats  { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+.mo-stat-label { font-size:9px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.1em; color:rgba(255,255,255,.4); margin-bottom:4px; }
+.mo-stat-val   { font-size:16px; font-weight:800; color:#fff; }
+.mo-stat-val.green { color:var(--grn); }
+.mo-util-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.mo-util-label { font-size:12px; color:rgba(255,255,255,.5); }
+.mo-util-pct   { font-size:12px; font-weight:700; color:rgba(255,255,255,.8); }
+.mo-days-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:10px; font-weight:700; padding:3px 10px; border-radius:99px;
+  background:rgba(99,102,241,.2); color:var(--ind3); border:1px solid rgba(99,102,241,.25);
+}
+.mo-track { width:100%; height:6px; background:rgba(255,255,255,.08); border-radius:99px; overflow:hidden; }
+.mo-fill  { height:100%; border-radius:99px; animation:barIn .8s ease both; }
+
+/* ── Section header ── */
+.section-head {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:16px; flex-wrap:wrap; gap:10px;
+}
+.section-title { font-size:17px; font-weight:800; color:var(--tx); }
+.sort-btn {
+  display:flex; align-items:center; gap:6px; padding:7px 14px;
+  background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+  font-size:12px; font-weight:600; color:var(--tx2); cursor:pointer;
+  transition:all .15s; font-family:inherit;
+}
+.sort-btn:hover { background:var(--s4); color:var(--tx); }
+
+/* ── Category budget cards ── */
+.cat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.cat-card {
+  background:var(--s2); border:1px solid var(--bd); border-radius:16px;
+  padding:20px; display:flex; flex-direction:column; gap:14px;
+  transition:border-color .2s,box-shadow .2s; text-decoration:none; cursor:pointer;
+}
+.cat-card:hover { border-color:var(--bd2); box-shadow:0 4px 24px rgba(0,0,0,.3); }
+.cat-card.over  { border-color:rgba(239,68,68,.25); background:rgba(239,68,68,.04); }
+.cat-card.over:hover { border-color:rgba(239,68,68,.4); }
+.cat-card-head  { display:flex; align-items:center; justify-content:space-between; }
+.cat-icon { width:38px; height:38px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center; }
+.cat-icon .material-symbols-outlined { font-size:18px; }
+.cat-name { font-size:14px; font-weight:800; color:var(--tx); }
+.cat-pct-badge {
+  font-size:10px; font-weight:700; padding:2px 8px; border-radius:6px; white-space:nowrap;
+}
+.cat-spent { font-size:22px; font-weight:900; color:var(--tx); letter-spacing:-.3px; }
+.cat-limit { font-size:11px; color:var(--tx3); margin-top:1px; text-transform:uppercase; letter-spacing:.05em; }
+.cat-bar-track { width:100%; height:5px; background:var(--bd); border-radius:99px; overflow:hidden; }
+.cat-bar-fill  { height:100%; border-radius:99px; animation:barIn .7s ease both; }
+.cat-footer { display:flex; justify-content:space-between; align-items:center; }
+.cat-remaining-label { font-size:10px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.08em; color:var(--tx3); }
+.cat-remaining-val { font-size:13px; font-weight:800; }
+
+/* Create new card */
+.cat-card-new {
+  background:transparent; border:1px dashed var(--bd); border-radius:16px;
+  padding:20px; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:10px; cursor:pointer; min-height:160px;
+  transition:border-color .15s,background .15s; text-decoration:none;
+}
+.cat-card-new:hover { border-color:var(--ind); background:rgba(99,102,241,.04); }
+.cat-card-new-icon {
+  width:42px; height:42px; border-radius:10px; background:var(--s3);
+  border:1px solid var(--bd2); display:flex; align-items:center; justify-content:center;
+}
+.cat-card-new-label { font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.1em; color:var(--tx3); }
+
+/* ── Stability + Adjustments bottom row ── */
+.bgt-bottom { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+
+/* Stability card */
+.stability-card {
+  background:var(--s2); border:1px solid var(--bd); border-radius:16px; padding:22px;
+}
+.stability-score-wrap { display:flex; align-items:center; gap:24px; margin:16px 0; }
+.stability-ring { position:relative; width:110px; height:110px; flex-shrink:0; }
+.stability-ring svg { transform:rotate(-90deg); }
+.stability-ring-inner { position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; }
+.stability-score-val { font-size:26px; font-weight:900; color:var(--ind2); line-height:1; }
+.stability-score-lbl { font-size:9px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.08em; color:var(--tx3); margin-top:2px; }
+.stability-meta { display:flex; flex-direction:column; gap:8px; }
+.stability-meta-row { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; }
+.dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+/* Adjustments card */
+.adj-card {
+  background:var(--s2); border:1px solid var(--bd); border-radius:16px; padding:22px;
+}
+.adj-item {
+  display:flex; align-items:center; gap:12px;
+  padding:12px 0; border-bottom:1px solid var(--bd);
+}
+.adj-item:last-child { border-bottom:none; padding-bottom:0; }
+.adj-icon {
+  width:36px; height:36px; border-radius:9px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.adj-name { font-size:13px; font-weight:700; color:var(--tx); }
+.adj-detail { font-size:11px; color:var(--tx3); margin-top:1px; }
+.adj-date { font-size:10px; color:var(--tx3); white-space:nowrap; margin-left:auto; }
+
+/* ── Sidebar cards ── */
+.side-card { background:var(--s2); border:1px solid var(--bd); border-radius:16px; }
+.side-card-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px; border-bottom:1px solid var(--bd);
+}
+.side-card-title { font-size:13px; font-weight:800; color:var(--tx); }
+.live-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px;
+  background:rgba(34,197,94,.12); color:var(--grn); letter-spacing:.04em; }
+
+.insight-item { padding:12px 18px; border-bottom:1px solid rgba(37,42,64,.5); }
+.insight-item:last-child { border-bottom:none; }
+.insight-row { display:flex; gap:10px; align-items:flex-start; }
+.insight-icon { width:28px; height:28px; border-radius:7px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; margin-top:1px; }
+.insight-icon .material-symbols-outlined { font-size:14px; }
+.insight-title { font-size:12px; font-weight:700; color:var(--tx); line-height:1.3; }
+.insight-body  { font-size:11px; color:var(--tx2); margin-top:2px; line-height:1.4; }
+
+</style>
+{% endblock %}
 
 {% block content %}
 <span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
 <span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
 
-<!-- Header row -->
-<div class="flex flex-wrap items-start justify-between mb-8 gap-4">
+{# ── Page header ── #}
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
   <div>
-    <div class="flex items-center gap-2 text-slate-500 text-sm mb-1">
-      <a href="{{ url_for('budget_bp.budget') }}" class="hover:text-primary transition-colors">Budget</a>
-      <span class="material-symbols-outlined text-sm">chevron_right</span>
-      <span class="text-slate-300">Monthly</span>
-    </div>
-    <h2 class="text-2xl font-bold text-white">Monthly Budget</h2>
-    <p class="text-slate-500 text-sm mt-1">Overview for {{ sel_month_name }}</p>
+    <h2 style="font-size:24px; font-weight:900; color:var(--tx); letter-spacing:-.3px;">Budgets</h2>
+    <p style="font-size:12px; color:var(--tx2); margin-top:2px;">{{ sel_month_name }} · Manage your spending limits</p>
   </div>
-
-  <!-- Month filter -->
-  <form method="GET" class="flex items-center gap-2 shrink-0">
-    <!-- Select has no name — hidden fields carry the actual values -->
-    <select id="month-sel"
-      class="bg-[#0f172a] border border-slate-800 text-slate-200 text-sm rounded-xl px-4 py-2.5 focus:ring-primary focus:border-primary appearance-none pr-8 cursor-pointer"
-      style="background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 viewBox=%220 0 20 20%22><path stroke=%22%2364748b%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%221.5%22 d=%22M6 8l4 4 4-4%22/></svg>');background-position:right .5rem center;background-repeat:no-repeat;background-size:1.5em">
-      {% for opt in month_options %}
+  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+    {# Month selector #}
+    <form method="GET" style="display:flex; align-items:center;">
+      <select id="month-sel"
+        style="background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+               padding:8px 14px; font-size:13px; color:var(--tx); font-family:inherit;
+               outline:none; cursor:pointer; appearance:none; min-width:140px;">
+        {% for opt in month_options %}
         <option value="{{ opt.month }}_{{ opt.year }}"
           {{ 'selected' if opt.month==sel_month and opt.year==sel_year else '' }}>
           {{ opt.label }}
         </option>
-      {% endfor %}
-    </select>
-    <input type="hidden" name="month" id="month-hidden" value="{{ sel_month }}">
-    <input type="hidden" name="year"  id="year-hidden"  value="{{ sel_year }}">
-  </form>
-</div>
-
-<!-- Budget Summary Card -->
-{% if monthly_budget %}
-<div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-8 mb-8">
-  <div class="flex flex-col md:flex-row md:items-start justify-between gap-8 mb-8">
-    <div>
-      <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Total Monthly Budget</p>
-      <p class="text-5xl font-black text-white tracking-tighter">₹{{ "{:,.0f}".format(monthly_budget['budget_amount']) }}</p>
-    </div>
-    <div class="flex gap-10">
-      <div>
-        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Allocated</p>
-        <p class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(monthly_expense) }}</p>
-      </div>
-      <div>
-        <p class="text-[10px] font-bold uppercase tracking-widest mb-2
-          {{ 'text-expense' if monthly_expense > monthly_budget['budget_amount'] else 'text-primary' }}">Remaining</p>
-        {% set rem = monthly_budget['budget_amount'] - monthly_expense %}
-        <p class="text-2xl font-bold {{ 'text-expense' if rem < 0 else 'text-primary' }}">
-          ₹{{ "{:,.0f}".format(rem|abs) }}
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <div>
-    <div class="flex justify-between items-center mb-2">
-      <span class="text-slate-300 text-sm">Budget Utilization</span>
-      <span class="text-sm font-bold {{ 'text-expense' if monthly_budget_pct>=100 else ('text-amber-400' if monthly_budget_pct>=80 else 'text-primary') }}">
-        {{ monthly_budget_pct }}% Used
-      </span>
-    </div>
-    <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-      <div class="h-full rounded-full transition-all duration-700"
-           style="width:{{ monthly_budget_pct }}%;background:{{ '#ef4444' if monthly_budget_pct>=100 else ('#f59e0b' if monthly_budget_pct>=80 else '#2094f3') }};box-shadow:0 0 10px {{ 'rgba(239,68,68,0.3)' if monthly_budget_pct>=100 else ('rgba(245,158,11,0.25)' if monthly_budget_pct>=80 else 'rgba(32,148,243,0.25)') }}"></div>
-    </div>
-    {% if monthly_budget_pct >= 80 %}
-    <p class="text-slate-500 text-xs mt-3 flex items-center gap-1.5">
-      <span class="material-symbols-outlined text-sm">info</span>
-      {% if monthly_budget_pct >= 100 %}Budget exceeded by ₹{{ "{:,.0f}".format(monthly_expense - monthly_budget['budget_amount']) }}.
-      {% else %}Approaching limit — ₹{{ "{:,.0f}".format(monthly_budget['budget_amount'] - monthly_expense) }} left.{% endif %}
-    </p>
-    {% endif %}
-  </div>
-</div>
-
-{% else %}
-<!-- No budget set -->
-<div class="bg-[#0f172a] rounded-2xl border border-dashed border-slate-700 p-10 mb-8 flex flex-col items-center text-center">
-  <span class="material-symbols-outlined text-4xl text-slate-700 mb-3">calendar_month</span>
-  <p class="font-semibold text-slate-400 mb-1">No budget set for {{ sel_month_name }}</p>
-  <p class="text-slate-600 text-sm mb-5">Define your monthly spending limit to track utilization.</p>
-  <button onclick="document.getElementById('set-monthly-modal').classList.remove('hidden')"
-    class="inline-flex items-center gap-2 bg-primary text-white text-sm font-bold px-6 py-2.5 rounded-xl hover:brightness-110 transition-all primary-glow">
-    <span class="material-symbols-outlined text-sm">add</span> Set Monthly Budget
-  </button>
-</div>
-{% endif %}
-
-<!-- Action row -->
-<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
-  <div class="flex gap-3 flex-wrap">
-    <a href="{{ url_for('defaults_bp.default_budgets') }}"
-       class="flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
-      <span class="material-symbols-outlined text-sm">settings</span> Default Settings
-    </a>
-    {% if has_defaults %}
-    <button type="button" onclick="document.getElementById('apply-defaults-modal').classList.remove('hidden')"
-      class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-500/20 transition-all">
-      <span class="material-symbols-outlined text-sm">auto_fix_high</span> Add Default
-    </button>
-    {% endif %}
-    {% if monthly_budget %}
-    <button onclick="document.getElementById('set-monthly-modal').classList.remove('hidden')"
-      class="flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-200 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
-      <span class="material-symbols-outlined text-sm">edit</span> Edit Budget
-    </button>
-    {% endif %}
+        {% endfor %}
+      </select>
+      <input type="hidden" name="month" id="month-hidden" value="{{ sel_month }}">
+      <input type="hidden" name="year"  id="year-hidden"  value="{{ sel_year }}">
+    </form>
     <a href="{{ url_for('transactions_bp.add_transaction') }}"
-       class="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:brightness-110 primary-glow transition-all">
-      <span class="material-symbols-outlined text-sm">add</span> Add Expense
+      style="display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:10px;
+             background:var(--ind); color:#fff; font-size:13px; font-weight:700;
+             text-decoration:none; transition:filter .15s;"
+      onmouseover="this.style.filter='brightness(1.12)'" onmouseout="this.style.filter=''">
+      <span class="material-symbols-outlined" style="font-size:16px;">add</span> Add Transaction
     </a>
   </div>
-  <button onclick="document.getElementById('add-cat-modal').classList.remove('hidden')"
-    class="flex items-center gap-2 text-primary text-sm font-semibold hover:underline transition-colors">
-    <span class="material-symbols-outlined text-sm">add</span> Add Category Budget
-  </button>
 </div>
 
-<!-- Category Cards -->
-{% if cat_budget_data %}
-{% set cat_icons = {'Food & Dining':'restaurant','Transport':'directions_car','Shopping':'shopping_bag','Entertainment':'theater_comedy','Health & Medical':'medical_services','Utilities':'bolt','Rent & Housing':'home','Education':'school','Travel':'flight','Personal Care':'spa','Insurance':'shield','Subscriptions':'subscriptions','Other':'category'} %}
-{% set palette = [
-  ('#3b82f6','rgba(59,130,246,0.12)','rgba(59,130,246,0.15)'),
-  ('#10b981','rgba(16,185,129,0.12)','rgba(16,185,129,0.15)'),
-  ('#f97316','rgba(249,115,22,0.12)','rgba(249,115,22,0.15)'),
-  ('#a855f7','rgba(168,85,247,0.12)','rgba(168,85,247,0.15)'),
-  ('#f43f5e','rgba(244,63,94,0.12)','rgba(244,63,94,0.15)'),
-  ('#eab308','rgba(234,179,8,0.12)','rgba(234,179,8,0.15)'),
-  ('#2094f3','rgba(32,148,243,0.12)','rgba(32,148,243,0.15)'),
-  ('#f59e0b','rgba(245,158,11,0.12)','rgba(245,158,11,0.15)')
-] %}
+<div class="bgt-shell">
+  {# ════ MAIN COLUMN ════ #}
+  <div class="bgt-main">
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-{% for cb in cat_budget_data %}
-  {% set p = palette[loop.index0 % palette|length] %}
-  {% set icon = cat_icons.get(cb.category, 'category') %}
-  {% set bar_color = '#ef4444' if cb.status=='over' else ('#f59e0b' if cb.status=='warn' else p[0]) %}
-
-  <a href="{{ url_for('budget_bp.edit_category_budget', mcb_id=cb.id) }}"
-     class="group bg-[#0f172a] rounded-2xl border p-6 flex flex-col gap-4 transition-all cursor-pointer
-       {{ 'border-red-500/20 hover:border-red-500/30' if cb.status=='over' else ('border-amber-500/15 hover:border-amber-500/25' if cb.status=='warn' else 'border-slate-800 hover:border-slate-700') }}">
-
-    <div class="flex items-start justify-between">
-      <div class="flex items-center gap-3">
-        <div class="size-11 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform"
-             style="background:{{ p[1] }};color:{{ p[0] }}">
-          <span class="material-symbols-outlined">{{ icon }}</span>
-        </div>
-        <div>
-          <p class="font-bold text-white text-sm {{ 'uppercase tracking-tight' if cb.status=='over' else '' }}">{{ cb.category }}</p>
-          <p class="text-xs mt-0.5 {{ 'text-expense font-bold' if cb.status=='over' else ('text-amber-400' if cb.status=='warn' else 'text-slate-500') }}">
-            {% if cb.status=='over' %}Budget Exceeded{% elif cb.status=='warn' %}Approaching limit{% else %}{{ cb.raw_pct }}% of budget used{% endif %}
-          </p>
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="material-symbols-outlined text-slate-700 group-hover:text-slate-400 transition-colors text-sm">edit</span>
-        <span class="text-xs font-bold px-2 py-0.5 rounded-lg"
-              style="background:{{ 'rgba(239,68,68,0.12)' if cb.status=='over' else ('rgba(245,158,11,0.12)' if cb.status=='warn' else p[1]) }};color:{{ '#ef4444' if cb.status=='over' else ('#f59e0b' if cb.status=='warn' else p[0]) }}">
-          {{ cb.raw_pct }}%
+    {# ── Monthly Overview Hero ── #}
+    <div class="mo-hero fu">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:4px;">
+        <div class="mo-label">Monthly Overview</div>
+        {% if days_remaining > 0 %}
+        <span class="mo-days-badge">
+          <span class="material-symbols-outlined" style="font-size:12px;">schedule</span>
+          {{ days_remaining }} Days Remaining
         </span>
+        {% endif %}
+      </div>
+      <div class="mo-amount">₹{{ "{:,.2f}".format(monthly_expense) }}</div>
+      <div class="mo-sub">
+        {% if monthly_budget %}/ ₹{{ "{:,.2f}".format(monthly_budget['budget_amount']) }} Total Budget
+        {% else %}No budget set for this month{% endif %}
+      </div>
+
+      <div class="mo-stats">
+        <div>
+          <div class="mo-stat-label">Avg Daily Spend</div>
+          <div class="mo-stat-val">₹{{ "{:,.2f}".format(avg_daily_spend) }}</div>
+        </div>
+        <div>
+          <div class="mo-stat-label">Projected Spend</div>
+          <div class="mo-stat-val">₹{{ "{:,.2f}".format(projected_spend) }}</div>
+        </div>
+        <div>
+          <div class="mo-stat-label">Savings Goal</div>
+          <div class="mo-stat-val green">
+            {% if savings_goal >= 0 %}₹{{ "{:,.2f}".format(savings_goal) }}
+            {% else %}<span style="color:var(--red);">-₹{{ "{:,.2f}".format(savings_goal|abs) }}</span>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% if monthly_budget %}
+      {% set pct = monthly_budget_pct %}
+      {% set bar_col = '#ef4444' if pct >= 100 else ('#f59e0b' if pct >= 80 else '#6366f1') %}
+      <div class="mo-util-row">
+        <span class="mo-util-label">{{ pct }}% of monthly budget utilized</span>
+      </div>
+      <div class="mo-track">
+        <div class="mo-fill" style="width:{{ pct }}%; background:{{ bar_col }};"></div>
+      </div>
+      {% endif %}
+    </div>
+
+    {# ── Category Budgets grid ── #}
+    <div class="fu" style="animation-delay:.06s;">
+      <div class="section-head">
+        <span class="section-title">Category Budgets</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+          {% if has_defaults %}
+          <button type="button" onclick="document.getElementById('apply-defaults-modal').classList.remove('hidden')"
+            class="sort-btn">
+            <span class="material-symbols-outlined" style="font-size:14px;">auto_fix_high</span> Defaults
+          </button>
+          {% endif %}
+          <button id="sort-btn" onclick="sortCards()" class="sort-btn">
+            <span class="material-symbols-outlined" style="font-size:14px;">filter_list</span>
+            <span id="sort-label">Sort by %</span>
+          </button>
+        </div>
+      </div>
+
+      {% if cat_budget_data %}
+      {% set cat_icons = {
+        'Food & Dining':'restaurant','Transport':'directions_car',
+        'Shopping':'shopping_bag','Entertainment':'movie',
+        'Health & Medical':'medical_services','Utilities':'bolt',
+        'Rent & Housing':'home','Education':'school',
+        'Travel':'flight','Personal Care':'spa',
+        'Insurance':'shield','Subscriptions':'subscriptions',
+        'Loan EMI':'account_balance','Other':'category'
+      } %}
+      {% set palette = [
+        ('#6366f1','rgba(99,102,241,.15)'),
+        ('#22c55e','rgba(34,197,94,.12)'),
+        ('#f97316','rgba(249,115,22,.12)'),
+        ('#a855f7','rgba(168,85,247,.12)'),
+        ('#06b6d4','rgba(6,182,212,.12)'),
+        ('#eab308','rgba(234,179,8,.12)'),
+        ('#f43f5e','rgba(244,63,94,.12)'),
+        ('#2094f3','rgba(32,148,243,.12)'),
+      ] %}
+
+      <div class="cat-grid" id="cat-grid">
+        {% for cb in cat_budget_data %}
+        {% set p = palette[loop.index0 % palette|length] %}
+        {% set icon = cat_icons.get(cb.category, 'category') %}
+        {% set bar_c = '#ef4444' if cb.status=='over' else ('#f59e0b' if cb.status=='warn' else p[0]) %}
+        {% set remaining = cb.budget - cb.spent %}
+
+        <a href="{{ url_for('budget_bp.edit_category_budget', mcb_id=cb.id) }}"
+          class="cat-card {{ 'over' if cb.status=='over' else '' }}"
+          data-pct="{{ cb.raw_pct }}">
+          <div class="cat-card-head">
+            <div class="cat-icon" style="background:{{ p[1] }};">
+              <span class="material-symbols-outlined" style="color:{{ p[0] }};">{{ icon }}</span>
+            </div>
+            <span class="cat-pct-badge"
+              style="background:{{ 'rgba(239,68,68,.15)' if cb.status=='over' else ('rgba(245,158,11,.12)' if cb.status=='warn' else p[1]) }};
+                     color:{{ '#ef4444' if cb.status=='over' else ('#f59e0b' if cb.status=='warn' else p[0]) }};">
+              {% if cb.status == 'over' %}{{ cb.raw_pct }}% USED{% else %}{{ cb.raw_pct }}% Used{% endif %}
+            </span>
+          </div>
+          <div>
+            <div class="cat-name">{{ cb.category }}</div>
+            <div class="cat-spent" style="{{ 'color:var(--red)' if cb.status=='over' else '' }}">
+              ₹{{ "{:,.2f}".format(cb.spent) }}
+            </div>
+            <div class="cat-limit">of ₹{{ "{:,.2f}".format(cb.budget) }} monthly limit</div>
+          </div>
+          <div class="cat-bar-track">
+            <div class="cat-bar-fill" style="width:{{ cb.pct }}%; background:{{ bar_c }};"></div>
+          </div>
+          <div class="cat-footer">
+            <span class="cat-remaining-label">
+              {{ 'Over Budget' if cb.status=='over' else 'Remaining' }}
+            </span>
+            <span class="cat-remaining-val"
+              style="color:{{ '#ef4444' if cb.status=='over' else ('#22c55e' if remaining > 0 else 'var(--tx2)') }};">
+              {{ '-' if remaining < 0 else '' }}₹{{ "{:,.2f}".format(remaining|abs) }}
+            </span>
+          </div>
+        </a>
+        {% endfor %}
+
+        {# Create new budget card #}
+        <a class="cat-card-new" onclick="document.getElementById('add-cat-modal').classList.remove('hidden'); return false;" href="#">
+          <div class="cat-card-new-icon">
+            <span class="material-symbols-outlined" style="color:var(--tx3); font-size:20px;">add</span>
+          </div>
+          <span class="cat-card-new-label">Create New Budget</span>
+        </a>
+      </div>
+
+      {% else %}
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+           padding:48px; border:1px dashed var(--bd); border-radius:16px; text-align:center;">
+        <span class="material-symbols-outlined" style="font-size:40px; color:var(--tx3); margin-bottom:10px;">grid_view</span>
+        <p style="font-size:14px; font-weight:700; color:var(--tx2); margin-bottom:4px;">No category budgets yet</p>
+        <p style="font-size:12px; color:var(--tx3); margin-bottom:16px;">Set per-category limits to track detailed spending.</p>
+        <button onclick="document.getElementById('add-cat-modal').classList.remove('hidden')"
+          style="padding:9px 20px; border-radius:10px; background:var(--ind); color:#fff;
+                 font-size:13px; font-weight:700; border:none; cursor:pointer; font-family:inherit;">
+          Add Category Budget
+        </button>
+      </div>
+      {% endif %}
+    </div>
+
+    {# ── Bottom row: Stability Score + Recent Adjustments ── #}
+    <div class="bgt-bottom fu" style="animation-delay:.12s;">
+
+      {# Budget Stability Score #}
+      <div class="stability-card">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+          <span class="material-symbols-outlined" style="font-size:18px; color:var(--ind2);">bar_chart</span>
+          <span style="font-size:13px; font-weight:800; color:var(--tx);">Budget Stability Score</span>
+        </div>
+        {% set over_count = cat_budget_data | selectattr('status','eq','over') | list | length %}
+        {% set warn_count = cat_budget_data | selectattr('status','eq','warn') | list | length %}
+        {% set ok_count   = cat_budget_data | selectattr('status','eq','ok')   | list | length %}
+        {% set total_cats = cat_budget_data | length %}
+        {% set score = ((ok_count / total_cats * 100) | round | int) if total_cats > 0 else 0 %}
+        {% set score_label = 'Optimal' if score >= 80 else ('Fair' if score >= 50 else 'At Risk') %}
+        {% set score_color = '#6366f1' if score >= 80 else ('#f59e0b' if score >= 50 else '#ef4444') %}
+
+        <div class="stability-score-wrap">
+          <div class="stability-ring">
+            <svg viewBox="0 0 36 36" width="110" height="110">
+              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--bd)" stroke-width="3"/>
+              <circle cx="18" cy="18" r="14" fill="none"
+                stroke="{{ score_color }}" stroke-width="3"
+                stroke-dasharray="{{ score }} {{ 100 - score }}"
+                stroke-linecap="round"/>
+            </svg>
+            <div class="stability-ring-inner">
+              <div class="stability-score-val" style="color:{{ score_color }}">{{ score }}</div>
+              <div class="stability-score-lbl">{{ score_label }}</div>
+            </div>
+          </div>
+          <div class="stability-meta">
+            {% if monthly_budget_pct > 0 %}
+            <div class="stability-meta-row" style="color:var(--ind2);">
+              <span class="dot" style="background:var(--ind2);"></span>
+              Financial discipline: {{ 'Improving' if monthly_budget_pct < 80 else 'Needs attention' }}
+            </div>
+            {% endif %}
+            {% if ok_count > 0 %}
+            <div class="stability-meta-row" style="color:var(--grn);">
+              <span class="dot" style="background:var(--grn);"></span>
+              Consistency: {{ 'High' if ok_count >= total_cats * 0.7 else 'Moderate' }}
+            </div>
+            {% endif %}
+            {% if monthly_income > 0 %}
+            {% set sr = ((monthly_income - monthly_expense) / monthly_income * 100) | round | int %}
+            <div class="stability-meta-row" style="color:{{ 'var(--grn)' if sr > 0 else 'var(--red)' }};">
+              <span class="dot" style="background:{{ '#22c55e' if sr > 0 else '#ef4444' }};"></span>
+              Savings rate: {{ sr }}%
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {# Recent Budget Adjustments — links to edit and default pages #}
+      <div class="adj-card">
+        <div style="font-size:13px; font-weight:800; color:var(--tx); margin-bottom:14px;">Recent Budget Activity</div>
+        {% set over_cats = cat_budget_data | selectattr('status','eq','over') | list %}
+        {% set warn_cats = cat_budget_data | selectattr('status','eq','warn') | list %}
+        {% set ok_cats   = cat_budget_data | selectattr('status','eq','ok')   | list | sort(attribute='raw_pct', reverse=True) %}
+
+        {% if over_cats %}
+        {% for cb in over_cats[:2] %}
+        <div class="adj-item">
+          <div class="adj-icon" style="background:rgba(239,68,68,.12);">
+            <span class="material-symbols-outlined" style="font-size:15px; color:#ef4444;">lock</span>
+          </div>
+          <div style="min-width:0; flex:1;">
+            <div class="adj-name">{{ cb.category }} Over Budget</div>
+            <div class="adj-detail">₹{{ "{:,.0f}".format(cb.spent - cb.budget) }} above limit</div>
+          </div>
+          <a href="{{ url_for('budget_bp.edit_category_budget', mcb_id=cb.id) }}"
+            style="font-size:10px; color:var(--ind2); white-space:nowrap; text-decoration:none; font-weight:600;">
+            Edit →
+          </a>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if warn_cats %}
+        {% for cb in warn_cats[:2] %}
+        <div class="adj-item">
+          <div class="adj-icon" style="background:rgba(251,191,36,.1);">
+            <span class="material-symbols-outlined" style="font-size:15px; color:var(--amb);">trending_up</span>
+          </div>
+          <div style="min-width:0; flex:1;">
+            <div class="adj-name">{{ cb.category }}</div>
+            <div class="adj-detail">{{ cb.raw_pct }}% used — ₹{{ "{:,.0f}".format(cb.budget - cb.spent) }} left</div>
+          </div>
+          <a href="{{ url_for('budget_bp.edit_category_budget', mcb_id=cb.id) }}"
+            style="font-size:10px; color:var(--ind2); white-space:nowrap; text-decoration:none; font-weight:600;">
+            Adjust →
+          </a>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% for cb in ok_cats[:2] %}
+        <div class="adj-item">
+          <div class="adj-icon" style="background:rgba(34,197,94,.1);">
+            <span class="material-symbols-outlined" style="font-size:15px; color:var(--grn);">check_circle</span>
+          </div>
+          <div style="min-width:0; flex:1;">
+            <div class="adj-name">{{ cb.category }}</div>
+            <div class="adj-detail">{{ cb.raw_pct }}% used · On track</div>
+          </div>
+        </div>
+        {% endfor %}
+
+        {% if not cat_budget_data %}
+        <div style="text-align:center; padding:20px; color:var(--tx3); font-size:12px;">
+          No category data yet.
+        </div>
+        {% endif %}
+        <a href="{{ url_for('defaults_bp.default_budgets') }}"
+          style="display:block; margin-top:10px; text-align:center; font-size:11px;
+                 font-weight:700; color:var(--ind2); text-decoration:none;">
+          View Default Settings →
+        </a>
       </div>
     </div>
 
-    <div class="flex justify-between text-xs">
-      <span class="{{ 'text-expense font-semibold' if cb.status=='over' else 'text-slate-300' }}">Spent: ₹{{ "{:,.0f}".format(cb.spent) }}</span>
-      <span class="text-slate-500">Limit: ₹{{ "{:,.0f}".format(cb.budget) }}</span>
+  </div>{# /bgt-main #}
+
+  {# ════ SIDEBAR ════ #}
+  <div class="bgt-side fu" style="animation-delay:.1s;">
+
+    {# Quick actions — now first #}
+    <div class="side-card" style="padding:16px;">
+      <div style="font-size:12px; font-weight:700; color:var(--tx2); text-transform:uppercase;
+           letter-spacing:.08em; margin-bottom:12px;">Quick Actions</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button onclick="document.getElementById('add-cat-modal').classList.remove('hidden')"
+          style="display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px;
+                 background:var(--s3); border:1px solid var(--bd2); color:var(--tx);
+                 font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;
+                 text-align:left; transition:background .15s; width:100%;"
+          onmouseover="this.style.background='var(--s4)'" onmouseout="this.style.background='var(--s3)'">
+          <span class="material-symbols-outlined" style="font-size:16px; color:var(--ind2);">add_chart</span>
+          Add Category Budget
+        </button>
+        {% if monthly_budget %}
+        <button onclick="document.getElementById('set-monthly-modal').classList.remove('hidden')"
+          style="display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px;
+                 background:var(--s3); border:1px solid var(--bd2); color:var(--tx);
+                 font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;
+                 text-align:left; transition:background .15s; width:100%;"
+          onmouseover="this.style.background='var(--s4)'" onmouseout="this.style.background='var(--s3)'">
+          <span class="material-symbols-outlined" style="font-size:16px; color:var(--tx2);">edit</span>
+          Edit Monthly Budget
+        </button>
+        {% else %}
+        <button onclick="document.getElementById('set-monthly-modal').classList.remove('hidden')"
+          style="display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px;
+                 background:var(--ind); color:#fff; font-size:13px; font-weight:700;
+                 border:none; cursor:pointer; font-family:inherit; transition:filter .15s; width:100%;"
+          onmouseover="this.style.filter='brightness(1.12)'" onmouseout="this.style.filter=''">
+          <span class="material-symbols-outlined" style="font-size:16px;">add</span>
+          Set Monthly Budget
+        </button>
+        {% endif %}
+        <a href="{{ url_for('budget_bp.budget_yearly', year=sel_year) }}"
+          style="display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px;
+                 background:var(--s3); border:1px solid var(--bd2); color:var(--tx);
+                 font-size:13px; font-weight:600; text-decoration:none; transition:background .15s;"
+          onmouseover="this.style.background='var(--s4)'" onmouseout="this.style.background='var(--s3)'">
+          <span class="material-symbols-outlined" style="font-size:16px; color:var(--tx2);">calendar_month</span>
+          Yearly Overview
+        </a>
+        <a href="{{ url_for('defaults_bp.default_budgets') }}"
+          style="display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px;
+                 background:var(--s3); border:1px solid var(--bd2); color:var(--tx);
+                 font-size:13px; font-weight:600; text-decoration:none; transition:background .15s;"
+          onmouseover="this.style.background='var(--s4)'" onmouseout="this.style.background='var(--s3)'">
+          <span class="material-symbols-outlined" style="font-size:16px; color:var(--tx2);">tune</span>
+          Default Budget Settings
+        </a>
+      </div>
     </div>
 
-    <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-      <div class="h-full rounded-full transition-all duration-700"
-           style="width:{{ cb.pct }}%;background:{{ bar_color }}"></div>
+    {# Insights & Alerts — now second, no View Detailed Report #}
+    <div class="side-card">
+      <div class="side-card-head">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="material-symbols-outlined" style="font-size:17px; color:var(--ind2);">lightbulb</span>
+          <span class="side-card-title">Insights & Alerts</span>
+        </div>
+        <span class="live-badge">LIVE</span>
+      </div>
+
+      {% if budget_insights %}
+        {% for ins in budget_insights %}
+        <div class="insight-item">
+          <div class="insight-row">
+            <div class="insight-icon" style="background:{{ ins.color }}18;">
+              <span class="material-symbols-outlined" style="color:{{ ins.color }};">{{ ins.icon }}</span>
+            </div>
+            <div>
+              <div class="insight-title" style="color:{{ ins.color if ins.type in ('danger','warn') else 'var(--tx)' }}">
+                {{ ins.title }}
+              </div>
+              <div class="insight-body">{{ ins.body }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div style="padding:20px 18px; text-align:center;">
+        <span class="material-symbols-outlined" style="font-size:32px; color:var(--tx3); display:block; margin-bottom:6px;">check_circle</span>
+        <p style="font-size:12px; color:var(--grn); font-weight:700;">All budgets healthy!</p>
+        <p style="font-size:11px; color:var(--tx3); margin-top:3px;">No alerts this month.</p>
+      </div>
+      {% endif %}
     </div>
-  </a>
-{% endfor %}
+
+  </div>{# /bgt-side #}
 </div>
 
-{% else %}
-<div class="flex flex-col items-center justify-center py-14 border border-dashed border-slate-800 rounded-2xl text-center">
-  <span class="material-symbols-outlined text-4xl text-slate-700 mb-3">grid_view</span>
-  <p class="text-slate-400 font-medium mb-1">No category budgets yet</p>
-  <p class="text-slate-600 text-sm mb-5">Set per-category limits to track detailed spending.</p>
-  <button onclick="document.getElementById('add-cat-modal').classList.remove('hidden')"
-    class="inline-flex items-center gap-2 text-primary text-sm font-bold hover:underline">
-    <span class="material-symbols-outlined text-sm">add</span> Add Category Budget
-  </button>
-</div>
-{% endif %}
+{# ════ MODALS (all existing, restyled) ════ #}
 
-
-<!-- ── MODAL: Set/Edit Monthly Budget ── -->
-<div id="set-monthly-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-  <div class="bg-[#0d141c] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
-    <div class="flex items-center justify-between p-6 border-b border-slate-800">
-      <div class="flex items-center gap-3">
-        <div class="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <span class="material-symbols-outlined text-primary text-xl">event_repeat</span>
-        </div>
-        <div>
-          <p class="font-bold text-white">{{ 'Edit' if monthly_budget else 'Set' }} Monthly Budget</p>
-          <p class="text-xs text-slate-500">{{ sel_month_name }}</p>
-        </div>
+{# Set/Edit Monthly Budget #}
+<div id="set-monthly-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+  style="background:rgba(0,0,0,.65); backdrop-filter:blur(6px);">
+  <div style="background:var(--s2); border:1px solid var(--bd2); border-radius:18px;
+       width:100%; max-width:420px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.5);">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--bd);">
+      <div>
+        <p style="font-size:15px; font-weight:800; color:var(--tx);">{{ 'Edit' if monthly_budget else 'Set' }} Monthly Budget</p>
+        <p style="font-size:11px; color:var(--tx3); margin-top:1px;">{{ sel_month_name }}</p>
       </div>
       <button onclick="document.getElementById('set-monthly-modal').classList.add('hidden')"
-        class="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
+        style="background:none; border:none; cursor:pointer; color:var(--tx3);"
+        onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--tx3)'">
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
-    <form method="POST" class="p-6 space-y-5">
+    <form method="POST" style="padding:20px 22px;">
       <input type="hidden" name="action" value="set_monthly">
       <input type="hidden" name="post_month" value="{{ sel_month }}">
       <input type="hidden" name="post_year"  value="{{ sel_year }}">
-      <div>
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Total Budget Amount</label>
-        <div class="relative">
-          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
-          <input type="number" name="budget_amount" required min="1" step="1"
-            value="{{ monthly_budget['budget_amount']|int if monthly_budget else '' }}"
-            placeholder="0"
-            class="w-full h-13 bg-slate-900/60 border border-slate-800 rounded-xl pl-9 pr-4 py-3 text-white text-xl font-bold placeholder-slate-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"/>
-        </div>
+      <label style="display:block; font-size:11px; font-weight:600; color:var(--tx2);
+             text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;">Total Budget Amount</label>
+      <div style="position:relative; margin-bottom:16px;">
+        <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%);
+              font-size:18px; font-weight:800; color:var(--tx2);">₹</span>
+        <input type="number" name="budget_amount" required min="1" step="1"
+          value="{{ monthly_budget['budget_amount']|int if monthly_budget else '' }}"
+          placeholder="0" class="modal-input"
+          style="width:100%; background:var(--s3); border:1px solid var(--bd2); border-radius:12px;
+                 padding:12px 14px 12px 38px; color:var(--tx); font-size:20px; font-weight:800;
+                 font-family:inherit; outline:none;"
+          onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
       </div>
-      <div class="flex gap-3">
-        <button type="submit" class="flex-1 h-12 bg-primary text-white font-bold rounded-xl hover:brightness-110 primary-glow transition-all flex items-center justify-center gap-2">
-          <span class="material-symbols-outlined">save</span> Save
+      <div style="display:flex; gap:10px;">
+        <button type="submit"
+          style="flex:1; padding:11px; border-radius:10px; background:var(--ind); color:#fff;
+                 font-size:13px; font-weight:700; border:none; cursor:pointer; font-family:inherit;">
+          Save Budget
         </button>
         <button type="button" onclick="document.getElementById('set-monthly-modal').classList.add('hidden')"
-          class="flex-1 h-12 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all">
+          style="padding:11px 18px; border-radius:10px; background:var(--s4); border:1px solid var(--bd2);
+                 color:var(--tx2); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">
           Cancel
         </button>
       </div>
@@ -241,50 +628,56 @@
   </div>
 </div>
 
-<!-- ── MODAL: Add Category Budget ── -->
-<div id="add-cat-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-  <div class="bg-[#0d141c] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
-    <div class="flex items-center justify-between p-6 border-b border-slate-800">
-      <div class="flex items-center gap-3">
-        <div class="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <span class="material-symbols-outlined text-primary text-xl">add_chart</span>
-        </div>
-        <div>
-          <p class="font-bold text-white">Add Category Budget</p>
-          <p class="text-xs text-slate-500">Monthly spending limit per category</p>
-        </div>
+{# Add Category Budget #}
+<div id="add-cat-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+  style="background:rgba(0,0,0,.65); backdrop-filter:blur(6px);">
+  <div style="background:var(--s2); border:1px solid var(--bd2); border-radius:18px;
+       width:100%; max-width:420px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.5);">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--bd);">
+      <div>
+        <p style="font-size:15px; font-weight:800; color:var(--tx);">Add Category Budget</p>
+        <p style="font-size:11px; color:var(--tx3); margin-top:1px;">Set a monthly spending limit</p>
       </div>
       <button onclick="document.getElementById('add-cat-modal').classList.add('hidden')"
-        class="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
+        style="background:none; border:none; cursor:pointer; color:var(--tx3);"
+        onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--tx3)'">
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
-    <form method="POST" class="p-6 space-y-5">
+    <form method="POST" style="padding:20px 22px; display:flex; flex-direction:column; gap:14px;">
       <input type="hidden" name="action" value="add_category">
       <input type="hidden" name="post_month" value="{{ sel_month }}">
       <input type="hidden" name="post_year"  value="{{ sel_year }}">
       <div>
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Category</label>
-        <select name="category" required
-          class="w-full bg-slate-900/60 border border-slate-800 h-12 rounded-xl px-4 text-sm text-slate-200 focus:ring-2 focus:ring-primary focus:border-primary appearance-none transition-all">
+        <label style="display:block; font-size:11px; font-weight:600; color:var(--tx2);
+               text-transform:uppercase; letter-spacing:.06em; margin-bottom:7px;">Category</label>
+        <select name="category" required class="modal-input"
+          style="width:100%; background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+                 padding:10px 14px; color:var(--tx); font-size:13px; font-family:inherit;
+                 outline:none; appearance:none;"
+          onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'">
           <option value="" disabled selected>Select category</option>
           {% for c in expense_categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
         </select>
       </div>
       <div>
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Monthly Limit (₹)</label>
-        <div class="relative">
-          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-          <input type="number" name="cat_budget_amount" required min="1" step="1" placeholder="e.g. 10000"
-            class="w-full h-12 bg-slate-900/60 border border-slate-800 rounded-xl pl-9 pr-4 text-sm text-white placeholder-slate-700 focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none transition-all"/>
-        </div>
+        <label style="display:block; font-size:11px; font-weight:600; color:var(--tx2);
+               text-transform:uppercase; letter-spacing:.06em; margin-bottom:7px;">Monthly Limit (₹)</label>
+        <input type="number" name="cat_budget_amount" required min="1" step="1"
+          placeholder="e.g. 10000" class="modal-input"
+          style="width:100%; background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+                 padding:10px 14px; color:var(--tx); font-size:13px; font-family:inherit; outline:none;"
+          onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
       </div>
-      <div class="flex gap-3">
-        <button type="submit" class="flex-1 h-12 bg-primary text-white font-bold rounded-xl hover:brightness-110 primary-glow transition-all flex items-center justify-center gap-2 text-sm">
-          <span class="material-symbols-outlined">save</span> Save
+      <div style="display:flex; gap:10px;">
+        <button type="submit"
+          style="flex:1; padding:11px; border-radius:10px; background:var(--ind); color:#fff;
+                 font-size:13px; font-weight:700; border:none; cursor:pointer; font-family:inherit;">
+          Save
         </button>
         <button type="button" onclick="document.getElementById('add-cat-modal').classList.add('hidden')"
-          class="flex-1 h-12 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all text-sm">
+          style="padding:11px 18px; border-radius:10px; background:var(--s4); border:1px solid var(--bd2);
+                 color:var(--tx2); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">
           Cancel
         </button>
       </div>
@@ -292,65 +685,55 @@
   </div>
 </div>
 
-<!-- ── MODAL: Apply Defaults ── -->
-<div id="apply-defaults-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-  <div class="bg-[#0d141c] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
-    <div class="flex items-center justify-between p-6 border-b border-slate-800">
-      <div class="flex items-center gap-3">
-        <div class="size-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-          <span class="material-symbols-outlined text-emerald-400 text-xl">auto_fix_high</span>
-        </div>
-        <div>
-          <p class="font-bold text-white">Add Default Budgets</p>
-          <p class="text-xs text-slate-500">{{ sel_month_name }}</p>
-        </div>
+{# Apply Defaults #}
+<div id="apply-defaults-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+  style="background:rgba(0,0,0,.65); backdrop-filter:blur(6px);">
+  <div style="background:var(--s2); border:1px solid var(--bd2); border-radius:18px;
+       width:100%; max-width:420px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.5);">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--bd);">
+      <div>
+        <p style="font-size:15px; font-weight:800; color:var(--tx);">Apply Default Budgets</p>
+        <p style="font-size:11px; color:var(--tx3); margin-top:1px;">{{ sel_month_name }}</p>
       </div>
       <button onclick="document.getElementById('apply-defaults-modal').classList.add('hidden')"
-        class="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
+        style="background:none; border:none; cursor:pointer; color:var(--tx3);"
+        onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--tx3)'">
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
-    <div class="p-6 space-y-4">
-      <p class="text-slate-300 text-sm">Apply your default template to <strong class="text-white">{{ sel_month_name }}</strong>. Choose how to handle existing entries:</p>
-
-      <!-- Option 1: Fill missing only -->
+    <div style="padding:20px 22px; display:flex; flex-direction:column; gap:10px;">
+      <p style="font-size:13px; color:var(--tx2); margin-bottom:4px;">Apply your default template to <strong style="color:var(--tx);">{{ sel_month_name }}</strong>:</p>
       <form method="POST">
         <input type="hidden" name="action" value="apply_defaults">
         <input type="hidden" name="overwrite" value="0">
         <input type="hidden" name="post_month" value="{{ sel_month }}">
         <input type="hidden" name="post_year"  value="{{ sel_year }}">
         <button type="submit"
-          class="w-full text-left bg-slate-800/60 border border-slate-700 hover:border-primary/40 rounded-xl p-4 transition-all group">
-          <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-primary text-xl shrink-0">playlist_add</span>
-            <div>
-              <p class="font-semibold text-white text-sm">Fill Missing Only</p>
-              <p class="text-xs text-slate-500 mt-0.5">Add defaults for categories not yet set. Your existing entries stay untouched.</p>
-            </div>
-          </div>
+          style="width:100%; text-align:left; padding:14px; border-radius:12px;
+                 background:var(--s3); border:1px solid var(--bd2); color:var(--tx);
+                 cursor:pointer; font-family:inherit; transition:border-color .15s;"
+          onmouseover="this.style.borderColor='var(--ind)'" onmouseout="this.style.borderColor='var(--bd2)'">
+          <div style="font-size:13px; font-weight:700; margin-bottom:3px;">Fill Missing Only</div>
+          <div style="font-size:11px; color:var(--tx3);">Add defaults for categories not yet set. Existing entries untouched.</div>
         </button>
       </form>
-
-      <!-- Option 2: Reset all -->
       <form method="POST">
         <input type="hidden" name="action" value="apply_defaults">
         <input type="hidden" name="overwrite" value="1">
         <input type="hidden" name="post_month" value="{{ sel_month }}">
         <input type="hidden" name="post_year"  value="{{ sel_year }}">
         <button type="submit"
-          class="w-full text-left bg-slate-800/60 border border-slate-700 hover:border-amber-500/40 rounded-xl p-4 transition-all group">
-          <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-amber-400 text-xl shrink-0">restart_alt</span>
-            <div>
-              <p class="font-semibold text-white text-sm">Reset All to Defaults</p>
-              <p class="text-xs text-slate-500 mt-0.5">Replace all category budgets this month with the default template.</p>
-            </div>
-          </div>
+          style="width:100%; text-align:left; padding:14px; border-radius:12px;
+                 background:var(--s3); border:1px solid var(--bd2); color:var(--tx);
+                 cursor:pointer; font-family:inherit; transition:border-color .15s;"
+          onmouseover="this.style.borderColor='var(--amb)'" onmouseout="this.style.borderColor='var(--bd2)'">
+          <div style="font-size:13px; font-weight:700; margin-bottom:3px;">Reset All to Defaults</div>
+          <div style="font-size:11px; color:var(--tx3);">Replace all category budgets this month with the default template.</div>
         </button>
       </form>
-
-      <button type="button" onclick="document.getElementById('apply-defaults-modal').classList.add('hidden')"
-        class="w-full h-10 bg-slate-800 border border-slate-700 text-slate-400 text-sm font-semibold rounded-xl hover:bg-slate-700 transition-all">
+      <button onclick="document.getElementById('apply-defaults-modal').classList.add('hidden')"
+        style="padding:10px; border-radius:10px; background:var(--s4); border:1px solid var(--bd2);
+               color:var(--tx2); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">
         Cancel
       </button>
     </div>
@@ -361,29 +744,50 @@
 
 {% block extra_js %}
 <script>
-  // Month filter: value is "month_year" e.g. "3_2026"
-  // Split it, update hidden year field, then submit with clean month value
-  const monthSel   = document.getElementById('month-sel');
-  const yearHidden = document.getElementById('year-hidden');
-
+  // Month selector
+  const monthSel    = document.getElementById('month-sel');
   const monthHidden = document.getElementById('month-hidden');
-
+  const yearHidden  = document.getElementById('year-hidden');
   if (monthSel) {
-    monthSel.addEventListener('change', function () {
+    monthSel.addEventListener('change', function() {
       const [m, y] = this.value.split('_');
-      monthHidden.value = m;   // update hidden month field
-      yearHidden.value  = y;   // update hidden year field
+      monthHidden.value = m;
+      yearHidden.value  = y;
       this.closest('form').submit();
     });
   }
 
+  // Close modals on backdrop click or Escape
   ['set-monthly-modal','add-cat-modal','apply-defaults-modal'].forEach(id => {
     const el = document.getElementById(id);
-    el.addEventListener('click', e => { if(e.target===el) el.classList.add('hidden'); });
+    if (el) {
+      el.addEventListener('click', e => { if (e.target === el) el.classList.add('hidden'); });
+    }
   });
   document.addEventListener('keydown', e => {
-    if(e.key==='Escape') ['set-monthly-modal','add-cat-modal','apply-defaults-modal'].forEach(id =>
-      document.getElementById(id).classList.add('hidden'));
+    if (e.key === 'Escape') {
+      ['set-monthly-modal','add-cat-modal','apply-defaults-modal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+    }
   });
+
+  // Sort category cards by %
+  let sortAsc = false;
+  function sortCards() {
+    const grid  = document.getElementById('cat-grid');
+    if (!grid) return;
+    const newCard = grid.querySelector('.cat-card-new');
+    const cards   = Array.from(grid.querySelectorAll('.cat-card'));
+    sortAsc = !sortAsc;
+    cards.sort((a, b) => {
+      const pa = parseInt(a.dataset.pct || 0);
+      const pb = parseInt(b.dataset.pct || 0);
+      return sortAsc ? pa - pb : pb - pa;
+    });
+    cards.forEach(c => grid.insertBefore(c, newCard));
+    document.getElementById('sort-label').textContent = sortAsc ? 'Sort by % ↑' : 'Sort by % ↓';
+  }
 </script>
 {% endblock %}

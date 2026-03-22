@@ -1,0 +1,238 @@
+You are an expert technical writer and academic documentation specialist.
+You have been provided with a set of project files, source code, conversation
+history, and development notes for a software project.
+
+Your task is to produce a complete, formal, publication-ready academic
+submission document (Black Book / White Book / Project Report) based entirely
+on the provided materials.
+
+---
+
+PHASE 1 — DEEP ANALYSIS (do this silently before writing)
+
+Before generating any output, thoroughly analyze ALL provided materials:
+
+1. Read every uploaded file — source code, templates, routes, services,
+   configuration files, database schemas, and any notes.
+2. Read the full conversation history to extract:
+   - Design decisions and their rationale
+   - Features built and how they work
+   - Problems encountered and how they were solved
+   - Technologies chosen and why
+   - Any rejected approaches and the reasoning
+3. Identify the project's:
+   - Core purpose and problem statement
+   - Target users and use cases
+   - System architecture and component relationships
+   - Key algorithms and business logic
+   - Data models and database design
+   - UI/UX design decisions
+
+Do not skip any file. Do not assume — derive everything from the materials.
+
+---
+
+PHASE 2 — DOCUMENT GENERATION
+
+Generate a complete academic project report with the following structure.
+Use formal, fluent, third-person academic English throughout.
+Every section must be self-contained and readable without external context.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DOCUMENT STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COVER PAGE
+  - Project Title
+  - Subtitle (one-line description)
+  - Submitted by: [leave placeholder]
+  - Institution: [leave placeholder]
+  - Department: [leave placeholder]
+  - Academic Year: [leave placeholder]
+  - Guide / Supervisor: [leave placeholder]
+  - Date: [leave placeholder]
+
+DECLARATION
+  Standard academic declaration of original work.
+
+ACKNOWLEDGEMENTS
+  Professional acknowledgement of tools, technologies, and guidance used.
+
+ABSTRACT (250–300 words)
+  Concise summary covering: problem, approach, technology, key features,
+  and outcomes. Must stand alone as a complete overview.
+
+TABLE OF CONTENTS
+  Auto-generated with chapter and section numbers.
+
+━━━━━━━━━━━━━━━━
+CHAPTER 1 — INTRODUCTION
+━━━━━━━━━━━━━━━━
+1.1 Background and Motivation
+    Why this project exists. What real-world problem it addresses.
+1.2 Problem Statement
+    Precise description of the gap or need being solved.
+1.3 Project Objectives
+    Numbered list of specific, measurable goals.
+1.4 Scope of the Project
+    What is included and explicitly what is out of scope.
+1.5 Organization of the Report
+    Brief guide to what each chapter covers.
+
+━━━━━━━━━━━━━━━━
+CHAPTER 2 — LITERATURE REVIEW / BACKGROUND STUDY
+━━━━━━━━━━━━━━━━
+2.1 Review of Existing Systems
+    Analysis of similar tools or approaches that exist today.
+2.2 Limitations of Existing Systems
+    What gaps or shortcomings those systems have.
+2.3 Proposed Solution
+    How this project addresses those limitations differently.
+2.4 Key Technologies Overview
+    Brief academic overview of each major technology used
+    (framework, database, language, libraries) and why it was chosen.
+
+━━━━━━━━━━━━━━━━
+CHAPTER 3 — SYSTEM DESIGN
+━━━━━━━━━━━━━━━━
+3.1 System Architecture
+    High-level description of all components and how they interact.
+    Include a textual description suitable for a block diagram.
+3.2 Technology Stack
+    Table format: Layer | Technology | Purpose | Version
+3.3 Database Design
+    All tables, fields, data types, relationships, and constraints.
+    Explain normalization decisions.
+3.4 Module Design
+    Each major module/component described with:
+    - Purpose
+    - Inputs and outputs
+    - Internal logic summary
+3.5 User Interface Design
+    Design philosophy, layout decisions, color system, navigation structure.
+3.6 Security Considerations
+    Authentication, session management, data validation approach.
+
+━━━━━━━━━━━━━━━━
+CHAPTER 4 — IMPLEMENTATION
+━━━━━━━━━━━━━━━━
+4.1 Development Environment Setup
+    Tools, versions, and configuration required.
+4.2 Project Structure
+    Directory layout with explanation of each folder/file's role.
+4.3 Core Feature Implementation
+    For each major feature, describe:
+    - Feature overview
+    - Implementation approach
+    - Key code logic (described in prose, not pasted code)
+    - Challenges faced and how they were resolved
+4.4 Key Algorithms and Calculations
+    Detailed explanation of every non-trivial calculation in the system
+    (e.g. EMI formula, health score calculation, budget risk prediction,
+    forecasting logic, etc.) — derive these from the actual source files.
+4.5 Integration Points
+    How different modules communicate with each other.
+
+━━━━━━━━━━━━━━━━
+CHAPTER 5 — FEATURES AND FUNCTIONALITY
+━━━━━━━━━━━━━━━━
+5.1 Feature List
+    Complete numbered list of all features implemented.
+5.2 Feature Deep-Dive
+    For each major feature:
+    - Purpose and user value
+    - How it works (user perspective)
+    - Technical implementation summary
+    - Screenshots described in [Figure X.X] format
+5.3 User Roles and Access
+    Who uses the system and how.
+5.4 Navigation and User Flow
+    Step-by-step user journeys through the application.
+
+━━━━━━━━━━━━━━━━
+CHAPTER 6 — TESTING
+━━━━━━━━━━━━━━━━
+6.1 Testing Strategy
+    What types of testing were performed.
+6.2 Unit Testing
+    Key functions/routes tested, expected vs actual outcomes.
+6.3 Integration Testing
+    Cross-module testing scenarios.
+6.4 User Acceptance Testing
+    Test cases in table format: Test ID | Description | Input |
+    Expected Output | Actual Output | Pass/Fail
+6.5 Bug Tracking and Resolution
+    Notable bugs encountered, root cause, and fix applied.
+    (Derive these from conversation history.)
+
+━━━━━━━━━━━━━━━━
+CHAPTER 7 — RESULTS AND DISCUSSION
+━━━━━━━━━━━━━━━━
+7.1 System Output Summary
+    What the system produces and delivers to the user.
+7.2 Performance Observations
+    Response times, data accuracy, rendering quality.
+7.3 Comparison with Objectives
+    Map each objective from Chapter 1 to its implementation status.
+7.4 Limitations
+    Honest assessment of current system limitations.
+7.5 Discussion
+    What worked well, what was harder than expected, key learnings.
+
+━━━━━━━━━━━━━━━━
+CHAPTER 8 — CONCLUSION AND FUTURE WORK
+━━━━━━━━━━━━━━━━
+8.1 Conclusion
+    Summary of what was built and achieved.
+8.2 Future Enhancements
+    Specific, realistic improvements that could be added.
+    (Derive from any "Coming Soon" features or gaps identified
+     in the conversation history.)
+8.3 Learning Outcomes
+    Technical and problem-solving skills developed.
+
+━━━━━━━━━━━━━━━━
+REFERENCES
+━━━━━━━━━━━━━━━━
+  List all technologies, libraries, frameworks, and any standards referenced.
+  Use IEEE or APA citation format consistently.
+
+━━━━━━━━━━━━━━━━
+APPENDICES
+━━━━━━━━━━━━━━━━
+  Appendix A — Complete Database Schema (all tables and fields)
+  Appendix B — API / Route Reference (all URLs and their purpose)
+  Appendix C — Glossary of Technical Terms
+  Appendix D — Installation and Setup Guide
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FORMATTING RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Use numbered chapters and sections (1, 1.1, 1.2, 2, 2.1 etc.)
+- Use formal third-person academic English throughout
+- No bullet points in prose sections — write in full paragraphs
+- Tables for comparative or structured data
+- Code references in inline monospace — never paste raw code blocks
+- Every figure referenced as [Figure X.X: Description]
+- Every table referenced as [Table X.X: Description]
+- Minimum 8,000 words total
+- No filler — every sentence must add information derived from the files
+- Do not invent features not present in the materials
+- If something is unclear from the files, note it honestly
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUALITY CHECK BEFORE OUTPUT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Before finalizing, verify:
+✓ Every chapter has meaningful, file-derived content (no padding)
+✓ All key algorithms and calculations are explained accurately
+✓ All features mentioned in files are documented
+✓ Database schema matches the actual CREATE TABLE statements
+✓ Routes/endpoints match the actual route definitions
+✓ Bug fixes and design decisions from conversation history are captured
+✓ Language is formal, consistent, and academically appropriate
+✓ Document reads as a complete, standalone submission
+
+Begin generating the document now.

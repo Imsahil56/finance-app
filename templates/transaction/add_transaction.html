@@ -2,211 +2,575 @@
 {% block title %}Add Transaction — FinanceOS{% endblock %}
 {% block page_title %}Add Transaction{% endblock %}
 
+{% block extra_css %}
+<style>
+/* ── Page tokens (match dashboard) ── */
+:root{
+  --bg:    #0b0e17;
+  --s2:    #161929;
+  --s3:    #1c1f32;
+  --s4:    #22263a;
+  --bd:    #252a40;
+  --bd2:   #2e3450;
+  --tx:    #e2e4f0;
+  --tx2:   #8085a8;
+  --tx3:   #484e6e;
+  --ind:   #6366f1;
+  --ind2:  #818cf8;
+  --grn:   #22c55e;
+  --grn2:  #4ade80;
+  --red:   #f87171;
+  --amb:   #fb923c;
+  --r:     14px;
+}
+
+/* ── Layout ── */
+.at-grid{
+  display:grid;
+  grid-template-columns:1fr 320px;
+  gap:20px;
+  max-width:1040px;
+  margin:0 auto;
+  padding:4px 0 24px;
+}
+
+/* ── Shared card ── */
+.at-card{
+  background:var(--s2);
+  border:1px solid var(--bd);
+  border-radius:var(--r);
+  overflow:hidden;
+  position:relative;
+}
+.at-card::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 80% 50% at 0% 0%,rgba(99,102,241,.06),transparent 60%);
+}
+
+/* ── Form card header ── */
+.fc-head{
+  display:flex;align-items:center;gap:12px;
+  padding:24px 28px 20px;
+  border-bottom:1px solid var(--bd);
+}
+.fc-head-icon{
+  width:40px;height:40px;border-radius:12px;
+  background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.25);
+  display:flex;align-items:center;justify-content:center;
+}
+.fc-head-icon svg{width:20px;height:20px;}
+.fc-head-title{font-size:16px;font-weight:700;color:var(--tx);}
+
+/* ── Type toggle pills ── */
+.type-pills{display:flex;gap:8px;padding:20px 28px 0;}
+.type-pill{
+  padding:7px 22px;border-radius:99px;font-size:13px;font-weight:600;
+  cursor:pointer;border:none;transition:all .2s;
+}
+.type-pill.active-expense{
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  color:#fff;
+  box-shadow:0 4px 14px rgba(99,102,241,.4);
+}
+.type-pill.active-income{
+  background:linear-gradient(135deg,#22c55e,#4ade80);
+  color:#0b0e17;
+  box-shadow:0 4px 14px rgba(34,197,94,.35);
+}
+.type-pill.inactive{
+  background:var(--s4);
+  color:var(--tx2);
+  border:1px solid var(--bd2);
+}
+.type-pill.inactive:hover{background:var(--bd2);color:var(--tx);}
+
+/* ── Form body ── */
+.fc-body{padding:20px 28px 28px;}
+
+/* ── Field label ── */
+.f-lbl{
+  font-size:10px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--tx3);margin-bottom:7px;display:block;
+}
+
+/* ── Inputs ── */
+.f-input{
+  width:100%;background:var(--s4);
+  border:1px solid var(--bd2);border-radius:10px;
+  padding:12px 14px;font-size:14px;font-weight:500;color:var(--tx);
+  outline:none;transition:border-color .15s,box-shadow .15s;
+  font-family:inherit;
+  -webkit-appearance:none;
+}
+.f-input::placeholder{color:var(--tx3);}
+.f-input:focus{border-color:var(--ind);box-shadow:0 0 0 3px rgba(99,102,241,.15);}
+.f-input:-webkit-autofill,
+.f-input:-webkit-autofill:focus{
+  -webkit-box-shadow:0 0 0 1000px var(--s4) inset !important;
+  -webkit-text-fill-color:var(--tx) !important;
+}
+select.f-input{cursor:pointer;}
+select.f-input option{background:var(--s3);}
+textarea.f-input{resize:none;line-height:1.6;}
+input[type="date"].f-input{color-scheme:dark;}
+
+/* Amount field — big ₹ prefix */
+.amount-wrap{
+  display:flex;align-items:center;gap:0;
+  background:var(--s4);border:1px solid var(--bd2);border-radius:10px;
+  transition:border-color .15s,box-shadow .15s;overflow:hidden;
+}
+.amount-wrap:focus-within{border-color:var(--ind);box-shadow:0 0 0 3px rgba(99,102,241,.15);}
+.amount-prefix{
+  padding:0 14px;font-size:20px;font-weight:700;color:var(--tx3);
+  border-right:1px solid var(--bd2);background:var(--s3);
+  display:flex;align-items:center;height:52px;
+}
+.amount-input{
+  flex:1;background:transparent;border:none;outline:none;
+  padding:0 16px;font-size:22px;font-weight:700;color:var(--tx);
+  font-family:inherit;font-variant-numeric:tabular-nums;height:52px;
+}
+.amount-input::placeholder{color:var(--tx3);}
+.amount-input:-webkit-autofill{
+  -webkit-box-shadow:0 0 0 1000px var(--s4) inset !important;
+  -webkit-text-fill-color:var(--tx) !important;
+}
+
+/* Field with leading icon */
+.f-icon-wrap{position:relative;}
+.f-icon-wrap .f-input{padding-left:38px;}
+.f-icon{
+  position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  color:var(--tx3);pointer-events:none;
+  display:flex;align-items:center;
+}
+.f-icon svg{width:16px;height:16px;}
+
+/* Two-col field row */
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+/* ── Save / Discard buttons ── */
+.btn-save{
+  width:100%;padding:14px;border-radius:10px;border:none;cursor:pointer;
+  font-size:14px;font-weight:700;font-family:inherit;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  color:#fff;transition:all .2s;
+  box-shadow:0 4px 16px rgba(99,102,241,.4);
+}
+.btn-save:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,.5);}
+.btn-save:active{transform:none;}
+.btn-save.income-mode{
+  background:linear-gradient(135deg,#22c55e,#4ade80);
+  color:#0b0e17;
+  box-shadow:0 4px 16px rgba(34,197,94,.35);
+}
+.btn-discard{
+  background:transparent;border:none;cursor:pointer;
+  font-size:13px;font-weight:600;color:var(--tx2);
+  padding:10px;transition:color .15s;font-family:inherit;
+}
+.btn-discard:hover{color:var(--tx);}
+
+/* ── Recurring row ── */
+.rec-row{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;
+  background:var(--s4);border:1px solid var(--bd2);border-radius:10px;
+  cursor:pointer;transition:border-color .15s;
+}
+.rec-row:hover{border-color:var(--ind);}
+.rec-row input[type="checkbox"]{
+  width:16px;height:16px;accent-color:var(--ind);flex-shrink:0;cursor:pointer;
+}
+.rec-row-info{flex:1;}
+.rec-row-title{font-size:13px;font-weight:600;color:var(--tx);}
+.rec-row-sub{font-size:11px;color:var(--tx3);margin-top:2px;}
+.rec-icon{color:var(--ind2);}
+.rec-icon svg{width:18px;height:18px;}
+
+/* ══ RIGHT SIDEBAR ══ */
+
+/* Quick Add */
+.qa-card{
+  background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);
+  padding:20px;margin-bottom:12px;position:relative;overflow:hidden;
+}
+.qa-card::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 40% at 100% 0%,rgba(99,102,241,.05),transparent 60%);
+}
+.qa-title{font-size:12px;font-weight:700;color:var(--tx);margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;}
+.qa-title svg{width:14px;height:14px;color:var(--ind2);}
+.qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.qa-chip{
+  display:flex;flex-direction:column;gap:4px;
+  padding:11px 12px;border-radius:10px;
+  background:var(--s4);border:1px solid var(--bd2);
+  cursor:pointer;transition:all .18s;text-align:left;
+}
+.qa-chip:hover{background:var(--s3);border-color:var(--ind);transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(99,102,241,.2);}
+.qa-chip-top{display:flex;align-items:center;gap:7px;margin-bottom:2px;}
+.qa-chip-icon{
+  width:28px;height:28px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.qa-chip-icon svg{width:14px;height:14px;}
+.qa-chip-cat{font-size:12px;font-weight:600;color:var(--tx);}
+.qa-chip-amt{font-size:13px;font-weight:700;color:var(--ind2);
+  font-variant-numeric:tabular-nums;}
+
+/* Monthly Pulse */
+.pulse-card{
+  background:linear-gradient(135deg,#151a2e,#0f1420);
+  border:1px solid #1e2a44;border-radius:var(--r);
+  padding:20px;margin-bottom:12px;position:relative;overflow:hidden;
+}
+.pulse-card::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 60% at 10% 10%,rgba(34,197,94,.08),transparent 55%);
+}
+.pulse-label{
+  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;
+  color:rgba(74,222,128,.5);margin-bottom:6px;display:flex;align-items:center;gap:6px;
+}
+.pulse-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--grn2);
+  box-shadow:0 0 6px var(--grn2);
+  animation:pdot 2s ease-in-out infinite;
+}
+@keyframes pdot{0%,100%{opacity:1;}50%{opacity:.4;}}
+.pulse-title{font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:4px;}
+.pulse-val{font-size:26px;font-weight:800;color:var(--tx);letter-spacing:-1px;
+  font-variant-numeric:tabular-nums;margin-bottom:10px;}
+.pulse-remaining{
+  font-size:12px;font-weight:500;color:var(--grn2);line-height:1.5;
+}
+.pulse-remaining.over{color:var(--red);}
+.pulse-bar-wrap{margin-top:12px;}
+.pulse-bar-lbl{display:flex;justify-content:space-between;
+  font-size:10px;color:var(--tx3);margin-bottom:5px;}
+.pulse-track{height:4px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden;}
+.pulse-fill{height:100%;border-radius:99px;transition:width 1s cubic-bezier(.4,0,.2,1);}
+
+/* Smart Insights */
+.ins-card{
+  background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);
+  padding:20px;position:relative;overflow:hidden;
+}
+.ins-card::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 50% at 100% 100%,rgba(168,85,247,.06),transparent 55%);
+}
+.ins-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.ins-icon{
+  width:30px;height:30px;border-radius:8px;
+  background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.2);
+  display:flex;align-items:center;justify-content:center;
+}
+.ins-icon svg{width:14px;height:14px;color:#c084fc;}
+.ins-title{font-size:12px;font-weight:700;color:var(--tx);}
+.ins-body{font-size:12px;color:var(--tx2);line-height:1.6;}
+.ins-body b{color:var(--ind2);}
+.ins-body .ins-save{color:var(--grn2);font-weight:600;}
+
+/* Gap between fields */
+.f-gap{margin-bottom:14px;}
+</style>
+{% endblock %}
+
 {% block content %}
 <span id="meta-monthly-expense" data-value="{{ monthly_expense }}" class="hidden"></span>
-<span id="meta-monthly-pct" data-value="{{ monthly_budget_pct }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ monthly_budget_pct }}" class="hidden"></span>
 
-<!-- Centered card layout -->
-<div class="flex justify-center">
-  <div class="w-full max-w-lg">
+<div class="at-grid">
 
-    <div class="bg-[#0d141c] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+  {# ════════════════════════════════
+     LEFT — Transaction Details form
+  ════════════════════════════════ #}
+  <div class="at-card">
 
-      <!-- Card header -->
-      <div class="flex items-center justify-between px-8 pt-8 pb-5">
-        <div>
-          <h1 class="text-xl font-bold text-white">New Transaction</h1>
-          <p class="text-slate-500 text-sm mt-0.5">Record income or expense</p>
+    {# Header #}
+    <div class="fc-head">
+      <div class="fc-head-icon">
+        <svg viewBox="0 0 24 24" fill="#818cf8"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+      </div>
+      <span class="fc-head-title">Transaction Details</span>
+    </div>
+
+    {# Type toggle #}
+    <div class="type-pills">
+      <button type="button" id="pill-expense" class="type-pill active-expense" onclick="selectType('expense')">Expense</button>
+      <button type="button" id="pill-income"  class="type-pill inactive"        onclick="selectType('income')">Income</button>
+    </div>
+
+    {# Form body #}
+    <form method="POST" id="txn-form" class="fc-body">
+      <input type="hidden" name="type" id="type-hidden" value="expense"/>
+
+      {# Amount #}
+      <div class="f-gap">
+        <label class="f-lbl">Amount</label>
+        <div class="amount-wrap">
+          <span class="amount-prefix">₹</span>
+          <input type="number" name="amount" id="amount-input"
+            class="amount-input" placeholder="0.00"
+            required min="0.01" step="0.01" autocomplete="off"/>
         </div>
-        <a href="{{ url_for('transactions_bp.transactions') }}"
-          class="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl transition-all border border-slate-700">
-          <span class="material-symbols-outlined text-sm">arrow_back</span> Back
+      </div>
+
+      {# Category + Date #}
+      <div class="f-row f-gap">
+        <div>
+          <label class="f-lbl">Category</label>
+          <div class="f-icon-wrap">
+            <span class="f-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </span>
+            <select name="category" id="category-select" required class="f-input">
+              <option value="" disabled selected>Select Category</option>
+              <optgroup label="── Expense ──" id="expense-cats">
+                {% for c in expense_categories %}
+                <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+              </optgroup>
+              <optgroup label="── Income ──" id="income-cats" class="hidden">
+                {% for c in income_categories %}
+                <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="f-lbl">Date</label>
+          <div class="f-icon-wrap">
+            <span class="f-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+            </span>
+            <input type="date" name="date" value="{{ today }}" required class="f-input"/>
+          </div>
+        </div>
+      </div>
+
+      {# Payment Method (decorative — no account system) #}
+      <div class="f-gap">
+        <label class="f-lbl">Payment Method</label>
+        <div class="f-icon-wrap">
+          <span class="f-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+          </span>
+          <select class="f-input">
+            <option>Main Account (₹ default)</option>
+          </select>
+        </div>
+      </div>
+
+      {# Notes #}
+      <div class="f-gap">
+        <label class="f-lbl">Notes <span style="text-transform:none;letter-spacing:0;color:var(--tx3);font-weight:400;">(Optional)</span></label>
+        <textarea name="description" rows="3" class="f-input"
+          placeholder="Add a description for this transaction…"></textarea>
+      </div>
+
+      {# Recurring (shown when type is expense) #}
+      <div class="f-gap" id="rec-section">
+        <label class="rec-row">
+          <input type="checkbox" name="is_recurring" id="is-recurring" value="1"/>
+          <div class="rec-row-info">
+            <div class="rec-row-title" id="rec-title">Recurring monthly expense</div>
+            <div class="rec-row-sub" id="rec-sub">Creates a Commitment to track this every month</div>
+          </div>
+          <span class="rec-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+          </span>
+        </label>
+      </div>
+
+      {# Buttons #}
+      <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
+        <button type="submit" id="btn-save" class="btn-save" style="flex:1">
+          Save Transaction
+        </button>
+        <a href="{{ url_for('transactions_bp.transactions') }}" class="btn-discard">
+          Discard
         </a>
       </div>
 
-      <form method="POST" id="txn-form" class="px-8 py-7 space-y-6">
-
-        <!-- Transaction Type -->
-        <div>
-          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Transaction Type</label>
-          <div class="grid grid-cols-2 gap-3">
-
-            <label id="card-income" class="cursor-pointer flex items-center gap-4 p-5 rounded-2xl border-2 border-slate-700 bg-slate-800/30 transition-all hover:border-slate-600">
-              <input type="radio" name="type" value="income" id="type-income" class="hidden">
-              <div id="icon-income" class="w-11 h-11 rounded-xl flex items-center justify-center bg-slate-700 transition-all shrink-0">
-                <span class="material-symbols-outlined text-slate-400 transition-all text-xl">south_west</span>
-              </div>
-              <div>
-                <p class="text-sm font-bold text-white">Income</p>
-                <p class="text-xs text-slate-500 mt-0.5">Money received</p>
-              </div>
-            </label>
-
-            <label id="card-expense" class="cursor-pointer flex items-center gap-4 p-5 rounded-2xl border-2 border-slate-700 bg-slate-800/30 transition-all hover:border-slate-600">
-              <input type="radio" name="type" value="expense" id="type-expense" class="hidden">
-              <div id="icon-expense" class="w-11 h-11 rounded-xl flex items-center justify-center bg-slate-700 transition-all shrink-0">
-                <span class="material-symbols-outlined text-slate-400 transition-all text-xl">north_east</span>
-              </div>
-              <div>
-                <p class="text-sm font-bold text-white">Expense</p>
-                <p class="text-xs text-slate-500 mt-0.5">Money spent</p>
-              </div>
-            </label>
-
-          </div>
-        </div>
-
-        <!-- Amount -->
-        <div>
-          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Amount (₹)</label>
-          <div class="flex items-center gap-3 bg-[#141d26] border border-slate-700 rounded-xl px-4 py-4 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
-            <span class="text-slate-400 font-bold text-lg shrink-0">₹</span>
-            <input type="number" name="amount" required min="0.01" step="0.01" placeholder="0.00"
-              class="flex-1 bg-transparent text-white text-2xl font-bold placeholder-slate-700 focus:outline-none dark-input"/>
-          </div>
-        </div>
-
-        <!-- Category + Date side by side -->
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Category</label>
-            <div class="relative">
-              <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-base pointer-events-none">category</span>
-              <select name="category" id="category-select" required
-                class="w-full bg-[#141d26] border border-slate-700 rounded-xl pl-9 pr-8 py-3 text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none dark-input">
-                <option value="" disabled selected>Select a category</option>
-                <optgroup label="── Income ──" id="income-cats" class="hidden">
-                  {% for c in income_categories %}
-                    <option value="{{ c }}">{{ c }}</option>
-                  {% endfor %}
-                </optgroup>
-                <optgroup label="── Expense ──" id="expense-cats" class="hidden">
-                  {% for c in expense_categories %}
-                    <option value="{{ c }}">{{ c }}</option>
-                  {% endfor %}
-                </optgroup>
-              </select>
-              <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none">expand_more</span>
-            </div>
-          </div>
-          <div>
-            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Date</label>
-            <div class="relative">
-              <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-base pointer-events-none">calendar_today</span>
-              <input type="date" name="date" value="{{ today }}" required
-                class="w-full bg-[#141d26] border border-slate-700 rounded-xl pl-9 pr-4 py-3 text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all [color-scheme:dark] dark-input"/>
-            </div>
-          </div>
-        </div>
-
-        <!-- Description -->
-        <div>
-          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
-            Description <span class="normal-case font-normal text-slate-600">(optional)</span>
-          </label>
-          <div class="relative">
-            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-base pointer-events-none">notes</span>
-            <input type="text" name="description" placeholder="e.g. Grocery run, Netflix..."
-              class="w-full bg-[#141d26] border border-slate-700 rounded-xl pl-9 pr-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all dark-input"/>
-          </div>
-        </div>
-
-        <!-- Recurring toggle -->
-        <div id="recurring-section" class="hidden">
-          <label class="flex items-center gap-4 p-4 rounded-xl border border-slate-700 bg-slate-800/30 cursor-pointer hover:border-slate-600 transition-all">
-            <input type="checkbox" name="is_recurring" id="is-recurring" value="1" class="w-4 h-4 accent-emerald-500 shrink-0">
-            <div class="flex-1">
-              <p class="text-sm font-semibold text-white" id="recurring-label">Recurring monthly</p>
-              <p class="text-xs text-slate-500 mt-0.5" id="recurring-sublabel">Mark this as a fixed recurring entry</p>
-            </div>
-            <span class="material-symbols-outlined ml-auto shrink-0" id="recurring-icon"
-              style="color:#10b981">repeat</span>
-          </label>
-        </div>
-
-        <!-- Submit + Cancel -->
-        <div class="space-y-3 pt-1">
-          <button type="submit" id="submit-btn"
-            class="w-full flex items-center justify-center gap-2 bg-expense hover:brightness-110 text-white font-bold py-4 rounded-xl transition-all text-sm">
-            <span class="material-symbols-outlined text-xl">add_circle</span>
-            Add Transaction
-          </button>
-          <a href="{{ url_for('transactions_bp.transactions') }}"
-            class="w-full flex items-center justify-center gap-2 text-sm font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700 py-4 rounded-xl transition-all border border-slate-700/60">
-            Cancel
-          </a>
-        </div>
-
-      </form>
-    </div>
+    </form>
   </div>
-</div>
+
+  {# ════════════════════════════════
+     RIGHT — Sidebar widgets
+  ════════════════════════════════ #}
+  <div>
+
+    {# Quick Add #}
+    <div class="qa-card">
+      <div class="qa-title">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 3.21-1.81 6-4.72 7.72L13 18v4l6-3.37C21.72 16.85 23 14.5 23 12c0-5.18-3.95-9.45-10-9.95zM11 2.05C4.95 2.55 1 6.82 1 12c0 2.5 1.28 4.85 3 6.63L7 22v-4l-2.28-1.3C3.81 18 2 15.21 2 12c0-4.08 3.05-7.44 7-7.93V2.05h2z"/></svg>
+        Quick Add
+      </div>
+      <div class="qa-grid">
+        {% set qa_presets = [
+          {'cat':'Food & Dining', 'amt':'350', 'label':'Dining',     'color':'#22c55e', 'bg':'rgba(34,197,94,.12)',  'path':'M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z'},
+          {'cat':'Transport',    'amt':'150', 'label':'Transport',   'color':'#6366f1', 'bg':'rgba(99,102,241,.12)', 'path':'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.08 3.11H5.77L6.85 7zM19 17H5v-5h14v5zM8 15H6v-2h2v2zm10 0h-2v-2h2v2z'},
+          {'cat':'Shopping',     'amt':'500', 'label':'Shopping',    'color':'#a78bfa', 'bg':'rgba(167,139,250,.12)','path':'M19 6h-2c0-2.76-2.24-5-5-5S7 3.24 7 6H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-7-3c1.66 0 3 1.34 3 3H9c0-1.66 1.34-3 3-3zm0 10c-1.66 0-3-1.34-3-3h2c0 .55.45 1 1 1s1-.45 1-1h2c0 1.66-1.34 3-3 3z'},
+          {'cat':'Entertainment','amt':'200', 'label':'Entertain.',  'color':'#fb923c', 'bg':'rgba(251,146,60,.12)', 'path':'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z'},
+        ] %}
+        {% for p in qa_presets %}
+        <button type="button" class="qa-chip"
+          onclick="quickFill('{{ p['cat'] }}','{{ p['amt'] }}')">
+          <div class="qa-chip-top">
+            <div class="qa-chip-icon" style="background:{{ p['bg'] }}">
+              <svg viewBox="0 0 24 24" fill="{{ p['color'] }}"><path d="{{ p['path'] }}"/></svg>
+            </div>
+            <span class="qa-chip-cat">{{ p['label'] }}</span>
+          </div>
+          <span class="qa-chip-amt">₹{{ p['amt'] }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# Monthly Pulse #}
+    {% set remaining = (monthly_expense or 0) %}
+    {% set budget_pct = monthly_budget_pct or 0 %}
+    <div class="pulse-card">
+      <div class="pulse-label">
+        <span class="pulse-dot"></span>
+        Monthly Pulse
+      </div>
+      <div class="pulse-title">Spent this month</div>
+      <div class="pulse-val">₹{{ "{:,.2f}".format(monthly_expense or 0) }}</div>
+      {% if monthly_budget_pct %}
+        {% if monthly_budget_pct < 100 %}
+        <div class="pulse-remaining">
+          You've used <b>{{ monthly_budget_pct }}%</b> of your monthly budget.
+          Keep it up!
+        </div>
+        {% else %}
+        <div class="pulse-remaining over">
+          You've exceeded your monthly budget this month.
+        </div>
+        {% endif %}
+      {% else %}
+      <div class="pulse-remaining" style="color:var(--tx2)">
+        No budget set for this month. <a href="{{ url_for('budget_bp.budget_monthly') }}" style="color:var(--ind2)">Set one →</a>
+      </div>
+      {% endif %}
+      <div class="pulse-bar-wrap">
+        <div class="pulse-bar-lbl">
+          <span>Budget used</span>
+          <span>{{ budget_pct }}%</span>
+        </div>
+        <div class="pulse-track">
+          <div class="pulse-fill" id="pulse-fill"
+            style="width:0%;background:{{ '#f87171' if budget_pct>=100 else ('#fbbf24' if budget_pct>=80 else '#22c55e') }};">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Smart Insights #}
+    <div class="ins-card">
+      <div class="ins-head">
+        <div class="ins-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        </div>
+        <span class="ins-title">Smart Insights</span>
+      </div>
+      {% set top_cat = ('Food & Dining', 0) %}
+      <div class="ins-body">
+        {% if monthly_expense and monthly_expense > 0 %}
+          Your top spending category this month has been recorded.
+          Adding transactions regularly helps <b>FinanceOS</b> give you
+          better budget insights and <span class="ins-save">savings opportunities</span>.
+        {% else %}
+          Start adding transactions to unlock personalized insights and
+          <b>spending trends</b>. FinanceOS will help you identify
+          <span class="ins-save">savings opportunities</span> automatically.
+        {% endif %}
+      </div>
+    </div>
+
+  </div>{# /right sidebar #}
+
+</div>{# /at-grid #}
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  const incomeCard  = document.getElementById('card-income');
-  const expenseCard = document.getElementById('card-expense');
-  const incomeRadio = document.getElementById('type-income');
-  const expenseRadio= document.getElementById('type-expense');
-  const incomeCats  = document.getElementById('income-cats');
-  const expenseCats = document.getElementById('expense-cats');
-  const catSelect   = document.getElementById('category-select');
-  const submitBtn   = document.getElementById('submit-btn');
+// ── State ──
+let currentType = 'expense';
 
-  function selectType(type) {
-    // Reset both cards
-    [incomeCard, expenseCard].forEach(c => {
-      c.classList.remove('border-emerald-400','bg-emerald-500/5','border-red-400','bg-red-500/5');
-      c.classList.add('border-slate-700','bg-slate-800/30');
-    });
-    document.getElementById('icon-income').className  = 'w-11 h-11 rounded-xl flex items-center justify-center bg-slate-700 transition-all shrink-0';
-    document.getElementById('icon-income').querySelector('span').className  = 'material-symbols-outlined text-slate-400 transition-all text-xl';
-    document.getElementById('icon-expense').className = 'w-11 h-11 rounded-xl flex items-center justify-center bg-slate-700 transition-all shrink-0';
-    document.getElementById('icon-expense').querySelector('span').className = 'material-symbols-outlined text-slate-400 transition-all text-xl';
-    catSelect.value = '';
+// ── Type toggle ──
+function selectType(type) {
+  currentType = type;
+  document.getElementById('type-hidden').value = type;
 
-    if (type === 'income') {
-      incomeRadio.checked = true;
-      incomeCard.classList.remove('border-slate-700','bg-slate-800/30');
-      incomeCard.classList.add('border-emerald-400','bg-emerald-500/5');
-      document.getElementById('icon-income').className = 'w-11 h-11 rounded-xl flex items-center justify-center bg-emerald-500/20 transition-all shrink-0';
-      document.getElementById('icon-income').querySelector('span').className = 'material-symbols-outlined text-emerald-400 transition-all text-xl';
-      incomeCats.classList.remove('hidden');
-      expenseCats.classList.add('hidden');
-      submitBtn.className = 'w-full flex items-center justify-center gap-2 bg-emerald-500 hover:brightness-110 text-white font-bold py-4 rounded-xl transition-all text-sm';
-      document.getElementById('recurring-label').textContent    = 'Fixed monthly income';
-      document.getElementById('recurring-sublabel').textContent = 'e.g. salary, rent received — marks this as a regular income';
-      document.getElementById('recurring-icon').style.color     = '#10b981';
-      document.getElementById('is-recurring').className         = 'w-4 h-4 accent-emerald-500 shrink-0';
-      document.getElementById('recurring-section').classList.remove('hidden');
-    } else {
-      expenseRadio.checked = true;
-      expenseCard.classList.remove('border-slate-700','bg-slate-800/30');
-      expenseCard.classList.add('border-red-400','bg-red-500/5');
-      document.getElementById('icon-expense').className = 'w-11 h-11 rounded-xl flex items-center justify-center bg-red-500/20 transition-all shrink-0';
-      document.getElementById('icon-expense').querySelector('span').className = 'material-symbols-outlined text-red-400 transition-all text-xl';
-      expenseCats.classList.remove('hidden');
-      incomeCats.classList.add('hidden');
-      submitBtn.className = 'w-full flex items-center justify-center gap-2 bg-expense hover:brightness-110 text-white font-bold py-4 rounded-xl transition-all text-sm';
-      document.getElementById('recurring-label').textContent    = 'Recurring monthly expense';
-      document.getElementById('recurring-sublabel').textContent = 'Creates a Commitment to track this every month';
-      document.getElementById('recurring-icon').style.color     = '#a855f7';
-      document.getElementById('is-recurring').className         = 'w-4 h-4 accent-purple-500 shrink-0';
-      document.getElementById('recurring-section').classList.remove('hidden');
-    }
+  const pe = document.getElementById('pill-expense');
+  const pi = document.getElementById('pill-income');
+  const bs = document.getElementById('btn-save');
+  const ic = document.getElementById('income-cats');
+  const ec = document.getElementById('expense-cats');
+  const rs = document.getElementById('rec-section');
+  const rt = document.getElementById('rec-title');
+  const rb = document.getElementById('rec-sub');
+  const cat= document.getElementById('category-select');
+
+  cat.value = '';
+
+  if (type === 'expense') {
+    pe.className = 'type-pill active-expense';
+    pi.className = 'type-pill inactive';
+    bs.className = 'btn-save';
+    ic.classList.add('hidden');
+    ec.classList.remove('hidden');
+    rs.style.display = '';
+    rt.textContent = 'Recurring monthly expense';
+    rb.textContent = 'Creates a Commitment to track this every month';
+  } else {
+    pi.className = 'type-pill active-income';
+    pe.className = 'type-pill inactive';
+    bs.className = 'btn-save income-mode';
+    ec.classList.add('hidden');
+    ic.classList.remove('hidden');
+    rs.style.display = '';
+    rt.textContent = 'Fixed monthly income';
+    rb.textContent = 'e.g. salary — marks this as a regular income source';
   }
+}
 
-  incomeCard.addEventListener('click',  () => selectType('income'));
-  expenseCard.addEventListener('click', () => selectType('expense'));
+// ── Quick Add ──
+function quickFill(category, amount) {
+  // Set type to expense
   selectType('expense');
+  // Set amount
+  document.getElementById('amount-input').value = amount;
+  // Set category
+  const sel = document.getElementById('category-select');
+  for (let opt of sel.options) {
+    if (opt.value === category) { sel.value = category; break; }
+  }
+  // Animate the amount input
+  const inp = document.getElementById('amount-input');
+  inp.style.color = '#818cf8';
+  setTimeout(() => { inp.style.color = ''; }, 600);
+}
 
-  document.getElementById('txn-form').addEventListener('submit', function(e) {
-    if (!incomeRadio.checked && !expenseRadio.checked) {
-      e.preventDefault();
-      alert('Please select a transaction type.');
-    }
-  });
+// ── Animate pulse bar on load ──
+document.addEventListener('DOMContentLoaded', () => {
+  const pct = {{ monthly_budget_pct or 0 }};
+  setTimeout(() => {
+    const fill = document.getElementById('pulse-fill');
+    if (fill) fill.style.width = Math.min(pct, 100) + '%';
+  }, 400);
+});
+
+// ── Init ──
+selectType('expense');
 </script>
 {% endblock %}

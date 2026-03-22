@@ -71,7 +71,7 @@ def budget():
     ).fetchone()
 
     monthly_rows = db.execute(
-        "SELECT type, amount FROM txn WHERE user_id=? "
+        "SELECT type, category, amount FROM txn WHERE user_id=? "
         "AND strftime('%m',date)=? AND strftime('%Y',date)=?",
         (uid, f'{month:02d}', str(year))
     ).fetchall()
@@ -116,6 +116,101 @@ def budget():
         (uid, month, year)
     ).fetchone()[0]
 
+    import calendar as cal_mod
+    from dateutil.relativedelta import relativedelta
+
+    # ── Category spend this month ──────────────────────────────────────────────
+    cat_spend = {}
+    for r in monthly_rows:
+        if r['type'] == 'expense':
+            cat_spend[r['category']] = cat_spend.get(r['category'], 0) + r['amount']
+
+    # ── Category budget data (monthly override or default) ─────────────────────
+    cat_rows = db.execute(
+        'SELECT category, amount FROM monthly_category_budget WHERE user_id=? AND month=? AND year=?',
+        (uid, month, year)
+    ).fetchall()
+    if not cat_rows:
+        cat_rows = db.execute(
+            'SELECT category, amount FROM default_category_budget WHERE user_id=?', (uid,)
+        ).fetchall()
+    top_categories = []
+    for c in cat_rows:
+        spent   = cat_spend.get(c['category'], 0)
+        raw_pct = round(spent / c['amount'] * 100) if c['amount'] else 0
+        top_categories.append({
+            'category': c['category'],
+            'budget':   round(c['amount']),
+            'spent':    round(spent),
+            'pct':      min(raw_pct, 100),
+            'raw_pct':  raw_pct,
+            'status':   'over' if raw_pct >= 100 else ('warn' if raw_pct >= 80 else 'ok'),
+        })
+    top_categories.sort(key=lambda x: x['raw_pct'], reverse=True)
+
+    # ── 6-month spending trend ─────────────────────────────────────────────────
+    spending_trend = []
+    for i in range(5, -1, -1):
+        d = now + relativedelta(months=-i)
+        s = db.execute(
+            "SELECT COALESCE(SUM(amount),0) as s FROM txn "
+            "WHERE user_id=? AND type='expense' "
+            "AND strftime('%m',date)=? AND strftime('%Y',date)=?",
+            (uid, f'{d.month:02d}', str(d.year))
+        ).fetchone()['s']
+        avg_s = db.execute(
+            "SELECT COALESCE(AVG(t),0) as a FROM ("
+            "  SELECT SUM(amount) as t FROM txn "
+            "  WHERE user_id=? AND type='expense' "
+            "  AND strftime('%Y-%m',date) < ? "
+            "  GROUP BY strftime('%Y-%m',date) ORDER BY strftime('%Y-%m',date) DESC LIMIT 3"
+            ")",
+            (uid, d.strftime('%Y-%m'))
+        ).fetchone()['a']
+        spending_trend.append({
+            'label':  d.strftime('%b').upper(),
+            'amount': round(s),
+            'avg':    round(avg_s),
+        })
+
+    # ── Critical insights ──────────────────────────────────────────────────────
+    critical_insights = []
+    over_cats = [c for c in top_categories if c['status'] == 'over']
+    warn_cats = [c for c in top_categories if c['status'] == 'warn']
+    ok_cats   = [c for c in top_categories if c['status'] == 'ok']
+
+    for c in over_cats[:2]:
+        critical_insights.append({
+            'type':  'danger',
+            'icon':  'warning',
+            'title': f'Adjust {c["category"]} Budget',
+            'body':  f'{c["raw_pct"]}% used. Consider reducing or adjusting your limit.',
+            'color': '#f87171',
+        })
+    for c in warn_cats[:2]:
+        critical_insights.append({
+            'type':  'warn',
+            'icon':  'bolt',
+            'title': f'Immediate Action: {c["category"]}',
+            'body':  f'{c["raw_pct"]}% used — only ₹{c["budget"] - c["spent"]:,} remaining.',
+            'color': '#fbbf24',
+        })
+    if ok_cats:
+        best = ok_cats[-1]
+        critical_insights.append({
+            'type':  'good',
+            'icon':  'auto_awesome',
+            'title': f'Optimize {best["category"]}',
+            'body':  f'Only {best["raw_pct"]}% used — ahead of budget this month.',
+            'color': '#818cf8',
+        })
+    critical_insights = critical_insights[:3]
+
+    # ── Days remaining in month ────────────────────────────────────────────────
+    days_total     = cal_mod.monthrange(year, month)[1]
+    days_remaining = max(0, days_total - now.day)
+    avg_daily      = round(monthly_expense / now.day, 0) if now.day > 0 else 0
+
     m_exp, m_pct = get_monthly_spend()
     return render_template('budget/budget_landing.html',
         monthly_budget=monthly_budget, monthly_budget_pct=monthly_budget_pct,
@@ -124,6 +219,11 @@ def budget():
         yearly_expense=yearly_expense, yearly_income=yearly_income,
         cat_count=cat_count, total_allocated=total_allocated,
         month_name=now.strftime('%B'), year=year,
+        top_categories=top_categories,
+        spending_trend=spending_trend,
+        critical_insights=critical_insights,
+        days_remaining=days_remaining,
+        avg_daily=avg_daily,
         sidebar_expense=m_exp, sidebar_pct=m_pct
     )
 
@@ -223,6 +323,45 @@ def budget_monthly():
         month_options.append({'month': m, 'year': y,
                               'label': date_cls(y, m, 1).strftime('%B %Y')})
 
+    # ── Extra data for new UI ─────────────────────────────────────────────────
+    import calendar
+    today_d = date_cls.today()
+    days_total   = calendar.monthrange(sel_year, sel_month)[1]
+    days_passed  = today_d.day if (sel_month == today_d.month and sel_year == today_d.year) else days_total
+    days_remaining = max(0, days_total - days_passed)
+    avg_daily_spend  = round(monthly_expense / days_passed, 2) if days_passed > 0 else 0
+    projected_spend  = round(avg_daily_spend * days_total, 2)
+    savings_goal     = round((monthly_budget['budget_amount'] - projected_spend), 2) if monthly_budget else 0
+
+    # ── Insights for sidebar ──────────────────────────────────────────────────
+    budget_insights = []
+    for cb in cat_budget_data:
+        if cb['status'] == 'over':
+            budget_insights.append({
+                'type': 'danger',
+                'icon': 'warning',
+                'title': f'{cb["category"]} Over-limit',
+                'body': f'You\'ve exceeded your {cb["category"]} budget by ₹{cb["spent"] - cb["budget"]:,.0f}.',
+                'color': '#ef4444',
+            })
+        elif cb['status'] == 'warn' and cb['raw_pct'] >= 90:
+            budget_insights.append({
+                'type': 'warn',
+                'icon': 'trending_up',
+                'title': f'{cb["category"]} Near Limit',
+                'body': f'At {cb["raw_pct"]}% — only ₹{cb["budget"] - cb["spent"]:,.0f} remaining.',
+                'color': '#f59e0b',
+            })
+        elif cb['status'] == 'ok' and cb['raw_pct'] < 50 and cb['spent'] > 0:
+            budget_insights.append({
+                'type': 'good',
+                'icon': 'check_circle',
+                'title': f'On Track: {cb["category"]}',
+                'body': f'Spending is {100 - cb["raw_pct"]}% below your limit. Great discipline!',
+                'color': '#22c55e',
+            })
+    budget_insights = budget_insights[:4]
+
     m_exp, m_pct = get_monthly_spend()
     return render_template('budget/budget_monthly.html',
         monthly_budget=monthly_budget, monthly_budget_pct=monthly_budget_pct,
@@ -234,6 +373,11 @@ def budget_monthly():
         sel_month_name=datetime(sel_year, sel_month, 1).strftime('%B %Y'),
         month_options=month_options,
         expense_categories=EXPENSE_CATEGORIES,
+        days_remaining=days_remaining,
+        avg_daily_spend=avg_daily_spend,
+        projected_spend=projected_spend,
+        savings_goal=savings_goal,
+        budget_insights=budget_insights,
         sidebar_expense=m_exp, sidebar_pct=m_pct
     )
 
@@ -282,41 +426,132 @@ def budget_yearly():
         if r['type'] == 'expense':
             cat_spend_yearly[r['category']] = cat_spend_yearly.get(r['category'], 0) + r['amount']
 
-    # Yearly category budgets = sum of monthly rows for the year
-    monthly_agg = db.execute(
-        'SELECT category, SUM(amount) as yearly_total, COUNT(*) as months_set '
-        'FROM monthly_category_budget WHERE user_id=? AND year=? '
-        'GROUP BY category ORDER BY category',
+    # ── Per-category yearly budget logic ─────────────────────────────────────
+    # For each category:
+    #   - If monthly_category_budget rows exist for the year → sum them
+    #   - For months with NO row set → use default_category_budget amount
+    #   - Fall back to default × 12 if no monthly rows at all
+
+    default_cats = {
+        row['category']: row['amount']
+        for row in db.execute(
+            'SELECT category, amount FROM default_category_budget WHERE user_id=?', (uid,)
+        ).fetchall()
+    }
+
+    # Get all monthly category budget rows for the year
+    monthly_cat_rows = db.execute(
+        'SELECT category, month, amount FROM monthly_category_budget '
+        'WHERE user_id=? AND year=? ORDER BY category, month',
         (uid, sel_year)
     ).fetchall()
 
+    # Group by category
+    from collections import defaultdict
+    cat_months = defaultdict(dict)
+    for r in monthly_cat_rows:
+        cat_months[r['category']][r['month']] = r['amount']
+
+    # All categories = union of monthly rows + defaults
+    all_cats = set(cat_months.keys()) | set(default_cats.keys())
+
     cat_budget_data = []
-    for row in monthly_agg:
-        cat    = row['category']
-        budget = row['yearly_total']
-        spent  = cat_spend_yearly.get(cat, 0)
-        raw_pct = round(spent / budget * 100) if budget else 0
+    for cat in sorted(all_cats):
+        # For each of 12 months: use the monthly override if set, else default, else 0
+        yearly_total = 0
+        default_amt  = default_cats.get(cat, 0)
+        months_overridden = 0
+        for m in range(1, 13):
+            if m in cat_months.get(cat, {}):
+                yearly_total += cat_months[cat][m]
+                if cat_months[cat][m] != default_amt:
+                    months_overridden += 1
+            else:
+                yearly_total += default_amt
+
+        spent   = cat_spend_yearly.get(cat, 0)
+        raw_pct = round(spent / yearly_total * 100) if yearly_total else 0
         status  = 'over' if raw_pct >= 100 else ('warn' if raw_pct >= 80 else 'ok')
+        source  = 'mixed' if months_overridden > 0 else ('auto' if cat_months.get(cat) else 'projection')
         cat_budget_data.append({
-            'category': cat, 'budget': budget, 'spent': spent,
-            'pct': min(raw_pct, 100), 'raw_pct': raw_pct, 'status': status,
-            'months_set': row['months_set'], 'source': 'auto',
+            'category':          cat,
+            'budget':            round(yearly_total),
+            'spent':             round(spent),
+            'pct':               min(raw_pct, 100),
+            'raw_pct':           raw_pct,
+            'status':            status,
+            'months_overridden': months_overridden,
+            'source':            source,
         })
 
-    # Fall back to defaults × 12 if no monthly category budgets for this year
-    if not cat_budget_data:
-        for d in db.execute(
-            'SELECT * FROM default_category_budget WHERE user_id=? ORDER BY category', (uid,)
-        ).fetchall():
-            budget  = d['amount'] * 12
-            spent   = cat_spend_yearly.get(d['category'], 0)
-            raw_pct = round(spent / budget * 100) if budget else 0
-            status  = 'over' if raw_pct >= 100 else ('warn' if raw_pct >= 80 else 'ok')
-            cat_budget_data.append({
-                'category': d['category'], 'budget': budget, 'spent': spent,
-                'pct': min(raw_pct, 100), 'raw_pct': raw_pct, 'status': status,
-                'months_set': 0, 'source': 'projection',
+    # ── Monthly velocity (spend per month for the year) ───────────────────────
+    monthly_velocity = []
+    for m in range(1, 13):
+        rows = db.execute(
+            "SELECT COALESCE(SUM(amount),0) as s FROM txn "
+            "WHERE user_id=? AND type='expense' "
+            "AND strftime('%m',date)=? AND strftime('%Y',date)=?",
+            (uid, f'{m:02d}', str(sel_year))
+        ).fetchone()
+        inc = db.execute(
+            "SELECT COALESCE(SUM(amount),0) as s FROM txn "
+            "WHERE user_id=? AND type='income' "
+            "AND strftime('%m',date)=? AND strftime('%Y',date)=?",
+            (uid, f'{m:02d}', str(sel_year))
+        ).fetchone()
+        # Monthly budget for this month
+        mb = db.execute(
+            'SELECT budget_amount FROM monthly_budget WHERE user_id=? AND month=? AND year=?',
+            (uid, m, sel_year)
+        ).fetchone()
+        label = date_cls(sel_year, m, 1).strftime('%b').upper()
+        monthly_velocity.append({
+            'month':   m,
+            'label':   label,
+            'expense': round(rows['s']),
+            'income':  round(inc['s']),
+            'budget':  round(mb['budget_amount']) if mb else 0,
+        })
+
+    # ── Smart insights ────────────────────────────────────────────────────────
+    yearly_insights = []
+    # Peak spend month
+    if monthly_velocity:
+        peak = max(monthly_velocity, key=lambda x: x['expense'])
+        if peak['expense'] > 0:
+            yearly_insights.append({
+                'section': 'PEAK EXPENDITURE',
+                'title':   peak['label'],
+                'body':    f'₹{peak["expense"]:,.0f} peak total spend',
+                'color':   '#f87171',
+                'icon':    'trending_up',
             })
+    # Biggest over-budget category
+    over_cats = [c for c in cat_budget_data if c['status'] == 'over']
+    if over_cats:
+        worst = max(over_cats, key=lambda x: x['raw_pct'])
+        yearly_insights.append({
+            'section': 'CRITICAL',
+            'title':   worst['category'],
+            'body':    f'Over by ₹{worst["spent"] - worst["budget"]:,.0f}',
+            'color':   '#f87171',
+            'icon':    'warning',
+        })
+    # Savings trend
+    months_with_data = [m for m in monthly_velocity if m['expense'] > 0 or m['income'] > 0]
+    if months_with_data:
+        avg_save_rate = sum(
+            (m['income'] - m['expense']) / m['income'] * 100
+            for m in months_with_data if m['income'] > 0
+        ) / max(len(months_with_data), 1)
+        color = '#22c55e' if avg_save_rate > 0 else '#f87171'
+        yearly_insights.append({
+            'section': 'SAVINGS TREND',
+            'title':   f'{avg_save_rate:+.0f}% avg savings rate',
+            'body':    'Across months with data this year',
+            'color':   color,
+            'icon':    'savings',
+        })
 
     yearly_budget_pct = 0
     if yearly_budget and yearly_budget['budget_amount']:
@@ -330,6 +565,8 @@ def budget_yearly():
         yearly_budget=yearly_budget, yearly_budget_pct=yearly_budget_pct,
         yearly_expense=yearly_expense, yearly_income=yearly_income,
         cat_budget_data=cat_budget_data,
+        monthly_velocity=monthly_velocity,
+        yearly_insights=yearly_insights,
         sel_year=sel_year, year_options=year_options,
         sidebar_expense=m_exp, sidebar_pct=m_pct
     )

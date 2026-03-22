@@ -1,217 +1,482 @@
 {% extends "base.html" %}
-{% block title %}Yearly Budget — FinanceOS{% endblock %}
+{% block title %}Yearly Budget {{ sel_year }} — FinanceOS{% endblock %}
 {% block page_title %}Yearly Budget{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --s2:#161929; --s3:#1c1f32; --s4:#22263a;
+  --bd:#252a40; --bd2:#2e3450;
+  --tx:#e2e4f0; --tx2:#8085a8; --tx3:#484e6e;
+  --ind:#6366f1; --ind2:#818cf8;
+  --grn:#22c55e; --red:#f87171; --amb:#fbbf24;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+@keyframes barIn  { from{width:0} }
+.fu { animation:fadeUp .38s cubic-bezier(.4,0,.2,1) both; }
+
+/* ── Layout ── */
+.yr-shell { display:grid; grid-template-columns:1fr 240px; gap:22px; align-items:start; }
+.yr-main  { display:flex; flex-direction:column; gap:20px; padding-bottom:28px; }
+
+/* ── Fiscal horizon hero card ── */
+.fh-card {
+  background:linear-gradient(135deg,#0e1020 0%,#15103a 50%,#0e1020 100%);
+  border:1px solid rgba(99,102,241,.2); border-radius:18px; padding:22px 26px;
+  position:relative; overflow:hidden;
+}
+.fh-card::before {
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(circle at 80% 50%, rgba(99,102,241,.12), transparent 60%);
+  pointer-events:none;
+}
+.fh-eyebrow { font-size:9px; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--ind2); margin-bottom:6px; }
+.fh-amount  { font-size:36px; font-weight:900; color:#fff; letter-spacing:-.5px; line-height:1; }
+.fh-sub     { font-size:11px; color:rgba(255,255,255,.35); margin-bottom:18px; }
+.fh-row     { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.fh-stats   { display:flex; gap:24px; }
+.fh-stat-label { font-size:9px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.1em; color:rgba(255,255,255,.35); margin-bottom:3px; }
+.fh-stat-val   { font-size:16px; font-weight:800; }
+.fh-bar-wrap { flex:1; min-width:200px; }
+.fh-util-row { display:flex; justify-content:space-between; margin-bottom:6px; }
+.fh-util-label { font-size:11px; font-weight:600; color:rgba(255,255,255,.45); letter-spacing:.05em; text-transform:uppercase; }
+.fh-util-pct   { font-size:20px; font-weight:900; color:#fff; }
+.fh-track { height:6px; background:rgba(255,255,255,.08); border-radius:99px; overflow:hidden; }
+.fh-fill  { height:100%; border-radius:99px; animation:barIn .8s ease both; }
+
+/* ── Spending Dynamics chart area ── */
+.dyn-card {
+  background:var(--s2); border:1px solid var(--bd); border-radius:18px;
+  padding:20px 22px;
+}
+.dyn-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.dyn-title { font-size:15px; font-weight:800; color:var(--tx); }
+.dyn-actions { display:flex; gap:8px; }
+.dyn-btn {
+  font-size:10px; font-weight:700; padding:5px 12px; border-radius:8px;
+  border:1px solid var(--bd2); background:var(--s3); color:var(--tx2);
+  cursor:pointer; font-family:inherit; text-decoration:none; letter-spacing:.04em;
+  text-transform:uppercase; transition:all .15s;
+}
+.dyn-btn:hover,.dyn-btn.active { background:var(--ind); color:#fff; border-color:var(--ind); }
+.chart-area { position:relative; height:130px; }
+.chart-svg  { width:100%; height:100%; overflow:visible; }
+.chart-labels { display:flex; justify-content:space-between; margin-top:6px; }
+.chart-lbl    { font-size:9px; color:var(--tx3); text-transform:uppercase; letter-spacing:.05em; flex:1; text-align:center; }
+
+/* ── Category grid ── */
+.cat-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+.cat-card {
+  background:var(--s2); border:1px solid var(--bd); border-radius:14px;
+  padding:16px; text-decoration:none; display:block; transition:all .18s;
+  position:relative; overflow:hidden;
+}
+.cat-card:hover { border-color:var(--bd2); transform:translateY(-1px); box-shadow:0 8px 28px rgba(0,0,0,.3); }
+.cat-card.over  { border-color:rgba(248,113,113,.25); background:rgba(248,113,113,.04); }
+.cat-card.warn  { border-color:rgba(251,191,36,.2); }
+.cat-card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.cat-icon { width:36px; height:36px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center; }
+.cat-icon .material-symbols-outlined { font-size:17px; }
+.cat-status-badge {
+  font-size:9px; font-weight:700; padding:3px 8px; border-radius:6px;
+  letter-spacing:.06em; text-transform:uppercase;
+}
+.cat-util { font-size:10px; color:var(--tx3); margin-bottom:3px; text-transform:uppercase; letter-spacing:.06em; }
+.cat-spent { font-size:18px; font-weight:900; color:var(--tx); letter-spacing:-.3px; }
+.cat-limit { font-size:10px; color:var(--tx3); margin-top:1px; }
+.cat-bar-track { width:100%; height:4px; background:var(--bd); border-radius:99px; overflow:hidden; margin:10px 0 8px; }
+.cat-bar-fill  { height:100%; border-radius:99px; animation:barIn .7s ease both; }
+.cat-footer    { display:flex; justify-content:space-between; align-items:center; }
+.cat-rem-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--tx3); }
+.cat-rem-val   { font-size:12px; font-weight:800; }
+.cat-source-dot { font-size:9px; color:var(--tx3); margin-top:2px; }
+
+/* ── Monthly Velocity ── */
+.vel-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; }
+.vel-card {
+  background:var(--s2); border:1px solid var(--bd); border-radius:12px;
+  padding:12px; text-align:center;
+}
+.vel-month   { font-size:9px; font-weight:700; color:var(--tx3); text-transform:uppercase;
+  letter-spacing:.1em; margin-bottom:6px; }
+.vel-amount  { font-size:14px; font-weight:800; color:var(--tx); margin-bottom:4px; }
+.vel-bar-track { width:100%; height:3px; background:var(--bd); border-radius:99px; overflow:hidden; margin-bottom:4px; }
+.vel-bar-fill  { height:100%; border-radius:99px; }
+.vel-income  { font-size:9px; color:var(--tx3); }
+
+/* ── Sidebar ── */
+.yr-side { display:flex; flex-direction:column; gap:14px; position:sticky; top:16px; }
+.side-card { background:var(--s2); border:1px solid var(--bd); border-radius:16px; overflow:hidden; }
+.side-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 16px; border-bottom:1px solid var(--bd);
+}
+.side-title { font-size:12px; font-weight:800; color:var(--tx); }
+.ins-item { padding:10px 16px; border-bottom:1px solid rgba(37,42,64,.5); }
+.ins-item:last-child { border-bottom:none; }
+.ins-section { font-size:8px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:3px; }
+.ins-title { font-size:12px; font-weight:700; color:var(--tx); margin-bottom:1px; }
+.ins-body  { font-size:11px; color:var(--tx2); }
+.quick-action {
+  display:flex; align-items:center; gap:8px; padding:10px 14px;
+  font-size:12px; font-weight:600; color:var(--tx); cursor:pointer;
+  border-bottom:1px solid var(--bd); text-decoration:none; transition:background .15s;
+  font-family:inherit; background:none; border-left:none; border-right:none; border-top:none; width:100%; text-align:left;
+}
+.quick-action:last-child { border-bottom:none; }
+.quick-action:hover { background:var(--s3); }
+</style>
+{% endblock %}
 
 {% block content %}
 <span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
 <span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
 
-<!-- Header row -->
-<div class="flex items-start justify-between mb-8 gap-4">
+{# ── Page header ── #}
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
   <div>
-    <div class="flex items-center gap-2 text-slate-500 text-sm mb-1">
-      <a href="{{ url_for('budget_bp.budget') }}" class="hover:text-primary transition-colors">Budget</a>
-      <span class="material-symbols-outlined text-sm">chevron_right</span>
-      <span class="text-slate-300">Yearly</span>
-    </div>
-    <h2 class="text-2xl font-bold text-white">Yearly Budget ({{ sel_year }})</h2>
-    <p class="text-slate-500 text-sm mt-1">Comprehensive overview of your annual financial planning</p>
+    <h2 style="font-size:24px; font-weight:900; color:var(--tx); letter-spacing:-.3px;">Yearly Budget</h2>
+    <p style="font-size:12px; color:var(--tx2); margin-top:2px;">Fiscal Horizon {{ sel_year }}</p>
   </div>
-
-  <!-- Year filter -->
-  <form method="GET" class="shrink-0">
-    <select name="year" onchange="this.form.submit()"
-      class="bg-[#0f172a] border border-slate-800 text-slate-200 text-sm rounded-xl px-4 py-2.5 focus:ring-primary focus:border-primary appearance-none pr-8 cursor-pointer"
-      style="background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 viewBox=%220 0 20 20%22><path stroke=%22%2364748b%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%221.5%22 d=%22M6 8l4 4 4-4%22/></svg>');background-position:right .5rem center;background-repeat:no-repeat;background-size:1.5em">
-      {% for y in year_options %}
+  <div style="display:flex; gap:10px; align-items:center;">
+    <form method="GET" style="display:inline;">
+      <select name="year" onchange="this.form.submit()"
+        style="background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+               padding:8px 14px; font-size:13px; color:var(--tx); font-family:inherit;
+               outline:none; cursor:pointer; appearance:none;">
+        {% for y in year_options %}
         <option value="{{ y }}" {{ 'selected' if y==sel_year else '' }}>{{ y }}</option>
-      {% endfor %}
-    </select>
-  </form>
-</div>
-
-<!-- Yearly Summary Card -->
-{% if yearly_budget %}
-<div class="bg-[#0f172a] rounded-2xl border border-slate-800 p-8 mb-8">
-  <div class="flex flex-col md:flex-row md:items-start justify-between gap-8 mb-8">
-    <div>
-      <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Total Yearly Budget</p>
-      <p class="text-5xl font-black text-white tracking-tighter">₹{{ "{:,.0f}".format(yearly_budget['budget_amount']) }}</p>
-    </div>
-    <div class="flex gap-10">
-      <div>
-        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Allocated</p>
-        <p class="text-2xl font-bold text-white">₹{{ "{:,.0f}".format(yearly_expense) }}</p>
-      </div>
-      <div>
-        <p class="text-[10px] font-bold uppercase tracking-widest mb-2
-          {{ 'text-expense' if yearly_expense > yearly_budget['budget_amount'] else 'text-primary' }}">Remaining</p>
-        {% set rem = yearly_budget['budget_amount'] - yearly_expense %}
-        <p class="text-2xl font-bold {{ 'text-expense' if rem < 0 else 'text-primary' }}">
-          ₹{{ "{:,.0f}".format(rem|abs) }}
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <div>
-    <div class="flex justify-between items-center mb-2">
-      <div>
-        <span class="text-slate-300 text-sm">Budget Utilization</span>
-        <p class="text-[10px] text-slate-600 mt-0.5">₹{{ "{:,.0f}".format(yearly_expense) }} of ₹{{ "{:,.0f}".format(yearly_budget['budget_amount']) }} used</p>
-      </div>
-      <span class="text-lg font-bold {{ 'text-expense' if yearly_budget_pct>=100 else ('text-amber-400' if yearly_budget_pct>=80 else 'text-primary') }}">
-        {{ yearly_budget_pct }}%
-      </span>
-    </div>
-    <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-      <div class="h-full rounded-full transition-all duration-700"
-           style="width:{{ yearly_budget_pct }}%;background:{{ '#ef4444' if yearly_budget_pct>=100 else ('#f59e0b' if yearly_budget_pct>=80 else '#2094f3') }};box-shadow:0 0 10px {{ 'rgba(239,68,68,0.3)' if yearly_budget_pct>=100 else ('rgba(245,158,11,0.25)' if yearly_budget_pct>=80 else 'rgba(32,148,243,0.25)') }}"></div>
-    </div>
-    {% if yearly_budget_pct >= 80 %}
-    <p class="text-slate-500 text-xs mt-3 flex items-center gap-1.5">
-      <span class="material-symbols-outlined text-sm">info</span>
-      {% if yearly_budget_pct >= 100 %}Yearly budget exceeded.{% else %}Approaching your yearly limit.{% endif %}
-    </p>
-    {% endif %}
+        {% endfor %}
+      </select>
+    </form>
+    <a href="{{ url_for('budget_bp.budget_monthly') }}"
+      style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:10px;
+             background:var(--s3); border:1px solid var(--bd2); color:var(--tx2);
+             font-size:12px; font-weight:600; text-decoration:none; transition:color .15s;"
+      onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--tx2)'">
+      <span class="material-symbols-outlined" style="font-size:15px;">calendar_month</span> Monthly View
+    </a>
   </div>
 </div>
 
-{% else %}
-<div class="bg-[#0f172a] rounded-2xl border border-dashed border-slate-700 p-10 mb-8 flex flex-col items-center text-center">
-  <span class="material-symbols-outlined text-4xl text-slate-700 mb-3">event_repeat</span>
-  <p class="font-semibold text-slate-400 mb-1">No yearly budget set for {{ sel_year }}</p>
-  <p class="text-slate-600 text-sm mb-5">Set an annual spending goal to track your year-long progress.</p>
-  <button onclick="document.getElementById('set-yearly-modal').classList.remove('hidden')"
-    class="inline-flex items-center gap-2 bg-primary text-white text-sm font-bold px-6 py-2.5 rounded-xl hover:brightness-110 primary-glow transition-all">
-    <span class="material-symbols-outlined text-sm">add</span> Set Yearly Budget
-  </button>
-</div>
-{% endif %}
+<div class="yr-shell">
+<div class="yr-main">
 
-<!-- Action row -->
-<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
-  <div class="flex gap-3">
-    <button onclick="document.getElementById('set-yearly-modal').classList.remove('hidden')"
-      class="flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-200 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
-      <span class="material-symbols-outlined text-sm">edit</span> {{ 'Edit' if yearly_budget else 'Set' }} Yearly Budget
-    </button>
-  </div>
-  <a href="{{ url_for('budget_bp.budget_monthly') }}"
-     class="flex items-center gap-2 text-primary text-sm font-semibold hover:underline transition-colors">
-    <span class="material-symbols-outlined text-sm">arrow_back</span> View Monthly Detail
-  </a>
-</div>
-
-<!-- Category Cards (yearly = monthly × 12) -->
-{% if cat_budget_data %}
-{% set cat_icons = {'Food & Dining':'restaurant','Transport':'directions_car','Shopping':'shopping_bag','Entertainment':'theater_comedy','Health & Medical':'medical_services','Utilities':'bolt','Rent & Housing':'home','Education':'school','Travel':'flight','Personal Care':'spa','Insurance':'shield','Subscriptions':'subscriptions','Other':'category'} %}
-{% set palette = [
-  ('#3b82f6','rgba(59,130,246,0.12)'),
-  ('#10b981','rgba(16,185,129,0.12)'),
-  ('#f97316','rgba(249,115,22,0.12)'),
-  ('#a855f7','rgba(168,85,247,0.12)'),
-  ('#f43f5e','rgba(244,63,94,0.12)'),
-  ('#eab308','rgba(234,179,8,0.12)'),
-  ('#2094f3','rgba(32,148,243,0.12)'),
-  ('#f59e0b','rgba(245,158,11,0.12)')
-] %}
-
-<div class="mb-4 flex items-center justify-between">
-  <h3 class="text-base font-bold text-white">Budget Categories</h3>
-  <p class="text-xs text-slate-500">Yearly targets = monthly limit × 12</p>
-</div>
-
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-{% for cb in cat_budget_data %}
-  {% set p = palette[loop.index0 % palette|length] %}
-  {% set icon = cat_icons.get(cb.category, 'category') %}
-  {% set bar_color = '#ef4444' if cb.status=='over' else ('#f59e0b' if cb.status=='warn' else p[0]) %}
-
-  <a href="{{ url_for('budget_bp.budget_monthly') }}"
-     class="group bg-[#0f172a] rounded-2xl border p-6 flex flex-col gap-4 transition-all cursor-pointer
-       {{ 'border-red-500/20 hover:border-red-500/30' if cb.status=='over' else ('border-amber-500/15 hover:border-amber-500/25' if cb.status=='warn' else 'border-slate-800 hover:border-slate-700') }}">
-
-    <div class="flex items-start justify-between">
-      <div class="size-12 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform"
-           style="background:{{ p[1] }};color:{{ p[0] }}">
-        <span class="material-symbols-outlined">{{ icon }}</span>
-      </div>
-      <span class="text-xs font-bold px-2 py-0.5 rounded-lg"
-            style="background:{{ 'rgba(239,68,68,0.12)' if cb.status=='over' else ('rgba(245,158,11,0.12)' if cb.status=='warn' else p[1]) }};color:{{ '#ef4444' if cb.status=='over' else ('#f59e0b' if cb.status=='warn' else p[0]) }}">
-        {{ cb.raw_pct }}%
-      </span>
-    </div>
-
-    <div>
-      <p class="font-bold text-white text-sm mb-0.5">{{ cb.category }}</p>
-      <div class="flex justify-between text-xs mb-3">
-        <span class="text-slate-500">Yearly Target</span>
-        <span class="font-bold text-white">₹{{ "{:,.0f}".format(cb.budget) }}</span>
-      </div>
-      <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mb-2">
-        <div class="h-full rounded-full transition-all duration-700" style="width:{{ cb.pct }}%;background:{{ bar_color }}"></div>
-      </div>
-      <div class="flex justify-between text-[10px]">
-        <span class="{{ 'text-expense font-semibold' if cb.status=='over' else 'text-slate-500' }}">
-          Spent: ₹{{ "{:,.0f}".format(cb.spent) }}
-        </span>
-        <span class="{{ 'text-expense' if cb.status=='over' else ('text-amber-400' if cb.status=='warn' else 'text-slate-500') }}">
-          {{ cb.raw_pct }}%
-        </span>
-      </div>
-    </div>
-  </a>
-{% endfor %}
-</div>
-
-{% else %}
-<div class="flex flex-col items-center justify-center py-14 border border-dashed border-slate-800 rounded-2xl text-center">
-  <span class="material-symbols-outlined text-4xl text-slate-700 mb-3">grid_view</span>
-  <p class="text-slate-400 font-medium mb-1">No category budgets configured</p>
-  <p class="text-slate-600 text-sm mb-4">Set monthly category budgets — yearly targets are calculated automatically.</p>
-  <a href="{{ url_for('budget_bp.budget_monthly') }}" class="text-primary text-sm font-semibold hover:underline">
-    Go to Monthly Budget →
-  </a>
-</div>
-{% endif %}
-
-<!-- ── MODAL: Set/Edit Yearly Budget ── -->
-<div id="set-yearly-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-  <div class="bg-[#0d141c] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
-    <div class="flex items-center justify-between p-6 border-b border-slate-800">
-      <div class="flex items-center gap-3">
-        <div class="size-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-          <span class="material-symbols-outlined text-purple-400 text-xl">event_repeat</span>
+  {# ── Fiscal Horizon Hero ── #}
+  <div class="fh-card fu">
+    <div class="fh-eyebrow">Yearly Fiscal Horizon {{ sel_year }}</div>
+    {% if yearly_budget %}
+    <div class="fh-amount">₹{{ "{:,.0f}".format(yearly_budget['budget_amount']) }}</div>
+    <div class="fh-sub">Total Allocated Yearly Budget</div>
+    <div class="fh-row">
+      <div class="fh-stats">
+        <div>
+          <div class="fh-stat-label">Total Spent</div>
+          <div class="fh-stat-val" style="color:var(--red);">₹{{ "{:,.0f}".format(yearly_expense) }}</div>
         </div>
         <div>
-          <p class="font-bold text-white">{{ 'Edit' if yearly_budget else 'Set' }} Yearly Budget</p>
-          <p class="text-xs text-slate-500">{{ sel_year }}</p>
+          {% set rem = yearly_budget['budget_amount'] - yearly_expense %}
+          <div class="fh-stat-label">Remaining</div>
+          <div class="fh-stat-val" style="color:{{ '#22c55e' if rem >= 0 else 'var(--red)' }};">
+            {{ '-' if rem < 0 else '' }}₹{{ "{:,.0f}".format(rem|abs) }}
+          </div>
         </div>
       </div>
+      <div class="fh-bar-wrap">
+        {% set pct = yearly_budget_pct %}
+        {% set bc = '#ef4444' if pct >= 100 else ('#f59e0b' if pct >= 80 else '#6366f1') %}
+        <div class="fh-util-row">
+          <span class="fh-util-label">Overall Utilization</span>
+          <span class="fh-util-pct">{{ pct }}%</span>
+        </div>
+        <div class="fh-track">
+          <div class="fh-fill" style="width:{{ pct }}%; background:{{ bc }};"></div>
+        </div>
+        {% if pct >= 80 %}
+        <p style="font-size:10px; color:rgba(248,113,113,.7); margin-top:6px;">
+          {% if pct >= 100 %}Yearly budget exceeded by ₹{{ "{:,.0f}".format(yearly_expense - yearly_budget['budget_amount']) }}
+          {% else %}Approaching annual limit — ₹{{ "{:,.0f}".format(yearly_budget['budget_amount'] - yearly_expense) }} left{% endif %}
+        </p>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="fh-amount" style="color:var(--tx2);">No budget set</div>
+    <div class="fh-sub">Set a yearly budget to track annual utilization</div>
+    <button onclick="document.getElementById('set-yearly-modal').classList.remove('hidden')"
+      style="margin-top:12px; padding:9px 20px; border-radius:10px; background:var(--ind);
+             color:#fff; font-size:13px; font-weight:700; border:none; cursor:pointer; font-family:inherit;">
+      Set Yearly Budget
+    </button>
+    {% endif %}
+  </div>
+
+  {# ── Spending Dynamics Chart ── #}
+  <div class="dyn-card fu" style="animation-delay:.05s;">
+    <div class="dyn-head">
+      <span class="dyn-title">Spending Dynamics</span>
+      <div class="dyn-actions">
+        <a href="{{ url_for('budget_bp.budget_yearly', year=sel_year) }}" class="dyn-btn active">Expense</a>
+      </div>
+    </div>
+
+    {% set vel = monthly_velocity %}
+    {% set max_exp = vel | map(attribute='expense') | max if vel else 1 %}
+    {% set max_val = max_exp if max_exp > 0 else 1 %}
+
+    <div class="chart-area">
+      <svg class="chart-svg" viewBox="0 0 600 120" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="yrgrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#6366f1" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
+          </linearGradient>
+        </defs>
+        {# Build smooth curve points #}
+        {% set pts = [] %}
+        {% for mo in vel %}
+          {% set x = (loop.index0 / (vel|length - 1) * 560 + 20)|round(1) %}
+          {% set y = (100 - (mo.expense / max_val * 85))|round(1) %}
+          {% if pts.append((x, y)) %}{% endif %}
+        {% endfor %}
+        {# Area fill #}
+        <path fill="url(#yrgrad)"
+          d="M{% for p in pts %}{{ p[0] }},{{ p[1] }} {% endfor %}{{ pts[-1][0] }},110 {{ pts[0][0] }},110 Z"/>
+        {# Line #}
+        <polyline fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          points="{% for p in pts %}{{ p[0] }},{{ p[1] }} {% endfor %}"/>
+        {# Dots for non-zero months #}
+        {% for p in pts %}
+        {% if vel[loop.index0].expense > 0 %}
+        <circle cx="{{ p[0] }}" cy="{{ p[1] }}" r="3" fill="#6366f1" stroke="#161929" stroke-width="1.5"/>
+        {% endif %}
+        {% endfor %}
+      </svg>
+    </div>
+    <div class="chart-labels">
+      {% for mo in vel %}
+      <span class="chart-lbl">{{ mo.label[:3] }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Category Cards ── #}
+  {% if cat_budget_data %}
+  <div class="fu" style="animation-delay:.08s;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+      <span style="font-size:15px; font-weight:800; color:var(--tx);">Category Budgets</span>
+      <span style="font-size:10px; color:var(--tx3);">
+        Yearly = monthly limits × 12 (adjusted for any month-specific changes)
+      </span>
+    </div>
+    {% set cat_icons = {
+      'Food & Dining':'restaurant','Transport':'directions_car',
+      'Shopping':'shopping_bag','Entertainment':'movie',
+      'Health & Medical':'medical_services','Utilities':'bolt',
+      'Rent & Housing':'home','Education':'school',
+      'Travel':'flight','Personal Care':'spa',
+      'Insurance':'shield','Subscriptions':'subscriptions',
+      'Loan EMI':'account_balance','Other':'category'
+    } %}
+    {% set palette = [
+      ('#6366f1','rgba(99,102,241,.15)'),
+      ('#22c55e','rgba(34,197,94,.12)'),
+      ('#f97316','rgba(249,115,22,.12)'),
+      ('#a855f7','rgba(168,85,247,.12)'),
+      ('#06b6d4','rgba(6,182,212,.12)'),
+      ('#eab308','rgba(234,179,8,.12)'),
+      ('#f43f5e','rgba(244,63,94,.12)'),
+      ('#2094f3','rgba(32,148,243,.12)'),
+    ] %}
+
+    <div class="cat-grid">
+    {% for cb in cat_budget_data %}
+    {% set p = palette[loop.index0 % palette|length] %}
+    {% set icon = cat_icons.get(cb.category, 'category') %}
+    {% set bar_c = '#ef4444' if cb.status=='over' else ('#f59e0b' if cb.status=='warn' else p[0]) %}
+    {% set remaining = cb.budget - cb.spent %}
+
+    <a href="{{ url_for('budget_bp.budget_monthly') }}" class="cat-card {{ cb.status }}">
+      <div class="cat-card-top">
+        <div class="cat-icon" style="background:{{ p[1] }};">
+          <span class="material-symbols-outlined" style="color:{{ p[0] }};">{{ icon }}</span>
+        </div>
+        <span class="cat-status-badge"
+          style="background:{{ 'rgba(248,113,113,.15)' if cb.status=='over' else ('rgba(251,191,36,.1)' if cb.status=='warn' else p[1]) }};
+                 color:{{ '#f87171' if cb.status=='over' else ('#fbbf24' if cb.status=='warn' else p[0]) }};">
+          {% if cb.status == 'over' %}OVER BUDGET{% elif cb.status == 'warn' %}NEAR LIMIT{% else %}{{ cb.raw_pct }}% Used{% endif %}
+        </span>
+      </div>
+      <div class="cat-util">{{ cb.raw_pct }}% Utilization</div>
+      <div class="cat-spent" style="{{ 'color:var(--red)' if cb.status=='over' else '' }}">
+        ₹{{ "{:,.0f}".format(cb.spent) }}
+      </div>
+      <div class="cat-limit">₹{{ "{:,.0f}".format(cb.budget) }} / yearly limit</div>
+      <div class="cat-bar-track">
+        <div class="cat-bar-fill" style="width:{{ cb.pct }}%; background:{{ bar_c }};"></div>
+      </div>
+      <div class="cat-footer">
+        <span class="cat-rem-label">{{ 'Over Budget' if cb.status=='over' else 'Remaining' }}</span>
+        <span class="cat-rem-val" style="color:{{ '#f87171' if remaining < 0 else ('#22c55e' if remaining > 0 else 'var(--tx2)') }};">
+          {{ '-' if remaining < 0 else '' }}₹{{ "{:,.0f}".format(remaining|abs) }}
+        </span>
+      </div>
+      {% if cb.source == 'mixed' %}
+      <div class="cat-source-dot">⟳ {{ cb.months_overridden }} month{{ 's' if cb.months_overridden != 1 }} with custom limits</div>
+      {% elif cb.source == 'projection' %}
+      <div class="cat-source-dot">≈ Projected from default × 12</div>
+      {% endif %}
+    </a>
+    {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+       padding:48px; border:1px dashed var(--bd); border-radius:16px; text-align:center;">
+    <span class="material-symbols-outlined" style="font-size:40px; color:var(--tx3); margin-bottom:10px;">grid_view</span>
+    <p style="font-size:14px; font-weight:700; color:var(--tx2); margin-bottom:4px;">No category budgets</p>
+    <p style="font-size:12px; color:var(--tx3); margin-bottom:16px;">Set monthly category budgets — yearly totals are calculated automatically.</p>
+    <a href="{{ url_for('budget_bp.budget_monthly') }}"
+      style="padding:9px 20px; border-radius:10px; background:var(--ind); color:#fff;
+             font-size:13px; font-weight:700; text-decoration:none;">
+      Go to Monthly Budget →
+    </a>
+  </div>
+  {% endif %}
+
+  {# ── Monthly Velocity ── #}
+  <div class="fu" style="animation-delay:.12s;">
+    <div style="font-size:15px; font-weight:800; color:var(--tx); margin-bottom:14px;">Monthly Velocity</div>
+    {% set max_v = monthly_velocity | map(attribute='expense') | max if monthly_velocity else 1 %}
+    <div class="vel-grid">
+      {% for mo in monthly_velocity %}
+      {% set vp = ((mo.expense / max_v * 100) | round | int) if max_v > 0 else 0 %}
+      {% set vc = '#6366f1' if mo.expense > 0 else 'var(--bd2)' %}
+      <div class="vel-card">
+        <div class="vel-month">{{ mo.label }}</div>
+        <div class="vel-amount">
+          {% if mo.expense > 0 %}
+          ₹{{ "{:.0f}k".format(mo.expense / 1000) }}
+          {% else %}
+          <span style="color:var(--tx3);">—</span>
+          {% endif %}
+        </div>
+        <div class="vel-bar-track">
+          <div class="vel-bar-fill" style="width:{{ vp }}%; background:{{ vc }};"></div>
+        </div>
+        {% if mo.budget > 0 %}
+        {% set bpct = ((mo.expense / mo.budget * 100)|round|int) if mo.budget > 0 else 0 %}
+        <div class="vel-income" style="color:{{ '#f87171' if bpct > 100 else ('#fbbf24' if bpct > 80 else 'var(--tx3)') }};">
+          {{ bpct }}% bdgt
+        </div>
+        {% else %}
+        <div class="vel-income" style="color:var(--tx3);">—</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>{# /yr-main #}
+
+{# ════ SIDEBAR ════ #}
+<div class="yr-side fu" style="animation-delay:.1s;">
+
+  {# Smart Insights #}
+  <div class="side-card">
+    <div class="side-head">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span class="material-symbols-outlined" style="font-size:16px; color:var(--ind2);">auto_awesome</span>
+        <span class="side-title">Smart Insights</span>
+      </div>
+    </div>
+    {% if yearly_insights %}
+    {% for ins in yearly_insights %}
+    <div class="ins-item">
+      <div class="ins-section" style="color:{{ ins.color }};">{{ ins.section }}</div>
+      <div class="ins-title">{{ ins.title }}</div>
+      <div class="ins-body">{{ ins.body }}</div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="padding:20px 16px; text-align:center;">
+      <span class="material-symbols-outlined" style="font-size:28px; color:var(--tx3); display:block; margin-bottom:6px;">check_circle</span>
+      <p style="font-size:12px; color:var(--grn); font-weight:700;">Looking healthy!</p>
+      <p style="font-size:11px; color:var(--tx3); margin-top:2px;">No major issues this year.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  {# Quick Actions #}
+  <div class="side-card">
+    <div class="side-head">
+      <span class="side-title">Quick Actions</span>
+    </div>
+    <button onclick="document.getElementById('set-yearly-modal').classList.remove('hidden')"
+      class="quick-action">
+      <span class="material-symbols-outlined" style="font-size:16px; color:var(--ind2);">edit_calendar</span>
+      {{ 'Edit' if yearly_budget else 'Set' }} Yearly Budget
+    </button>
+    <a href="{{ url_for('budget_bp.budget_monthly') }}" class="quick-action">
+      <span class="material-symbols-outlined" style="font-size:16px; color:var(--tx2);">calendar_view_month</span>
+      Monthly Budget
+    </a>
+    <a href="{{ url_for('defaults_bp.default_budgets') }}" class="quick-action">
+      <span class="material-symbols-outlined" style="font-size:16px; color:var(--tx2);">tune</span>
+      Default Budgets
+    </a>
+    <a href="{{ url_for('analysis.overview') }}" class="quick-action">
+      <span class="material-symbols-outlined" style="font-size:16px; color:var(--tx2);">analytics</span>
+      Full Analysis
+    </a>
+  </div>
+
+</div>{# /yr-side #}
+</div>
+
+{# ── Set Yearly Budget Modal ── #}
+<div id="set-yearly-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+  style="background:rgba(0,0,0,.65); backdrop-filter:blur(6px);">
+  <div style="background:var(--s2); border:1px solid var(--bd2); border-radius:18px;
+       width:100%; max-width:400px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.5);">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--bd);">
+      <div>
+        <p style="font-size:15px; font-weight:800; color:var(--tx);">{{ 'Edit' if yearly_budget else 'Set' }} Yearly Budget</p>
+        <p style="font-size:11px; color:var(--tx3); margin-top:1px;">{{ sel_year }}</p>
+      </div>
       <button onclick="document.getElementById('set-yearly-modal').classList.add('hidden')"
-        class="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
+        style="background:none; border:none; cursor:pointer; color:var(--tx3);"
+        onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--tx3)'">
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
-    <form method="POST" class="p-6 space-y-5">
+    <form method="POST" style="padding:20px 22px;">
       <input type="hidden" name="post_year" value="{{ sel_year }}">
-      <div>
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Total Yearly Amount</label>
-        <div class="relative">
-          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
-          <input type="number" name="budget_amount" required min="1" step="1"
-            value="{{ yearly_budget['budget_amount']|int if yearly_budget else '' }}"
-            placeholder="0"
-            class="w-full h-13 bg-slate-900/60 border border-slate-800 rounded-xl pl-9 pr-4 py-3 text-white text-xl font-bold placeholder-slate-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"/>
-        </div>
+      <label style="display:block; font-size:11px; font-weight:600; color:var(--tx2);
+             text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;">Total Yearly Amount</label>
+      <div style="position:relative; margin-bottom:16px;">
+        <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%);
+              font-size:18px; font-weight:800; color:var(--tx2);">₹</span>
+        <input type="number" name="budget_amount" required min="1" step="1"
+          value="{{ yearly_budget['budget_amount']|int if yearly_budget else '' }}"
+          placeholder="0" class="modal-input"
+          style="width:100%; background:var(--s3); border:1px solid var(--bd2); border-radius:12px;
+                 padding:12px 14px 12px 38px; color:var(--tx); font-size:20px; font-weight:800;
+                 font-family:inherit; outline:none;"
+          onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
       </div>
-      <div class="flex gap-3">
-        <button type="submit" class="flex-1 h-12 bg-primary text-white font-bold rounded-xl hover:brightness-110 primary-glow transition-all flex items-center justify-center gap-2">
-          <span class="material-symbols-outlined">save</span> Save
+      <div style="display:flex; gap:10px;">
+        <button type="submit"
+          style="flex:1; padding:11px; border-radius:10px; background:var(--ind); color:#fff;
+                 font-size:13px; font-weight:700; border:none; cursor:pointer; font-family:inherit;">
+          Save Budget
         </button>
         <button type="button" onclick="document.getElementById('set-yearly-modal').classList.add('hidden')"
-          class="flex-1 h-12 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all">
+          style="padding:11px 18px; border-radius:10px; background:var(--s4); border:1px solid var(--bd2);
+                 color:var(--tx2); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">
           Cancel
         </button>
       </div>
@@ -224,7 +489,9 @@
 {% block extra_js %}
 <script>
   const modal = document.getElementById('set-yearly-modal');
-  modal.addEventListener('click', e => { if(e.target===modal) modal.classList.add('hidden'); });
-  document.addEventListener('keydown', e => { if(e.key==='Escape') modal.classList.add('hidden'); });
+  if (modal) {
+    modal.addEventListener('click', e => { if(e.target===modal) modal.classList.add('hidden'); });
+    document.addEventListener('keydown', e => { if(e.key==='Escape') modal.classList.add('hidden'); });
+  }
 </script>
 {% endblock %}

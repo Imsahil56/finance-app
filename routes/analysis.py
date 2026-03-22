@@ -1,9 +1,11 @@
 """
 routes/analysis.py
-Analysis blueprint — spending deep-dive, budget performance, trends, health score.
+Analysis blueprint — unified Analysis Workstation with tab-based sub-views.
+Old subpage routes redirect to the workstation with appropriate tab state.
 """
 
 from datetime import datetime, date
+import calendar
 
 from flask import Blueprint, render_template, redirect, url_for, request, session
 
@@ -18,84 +20,71 @@ from services import prediction_service
 
 analysis_bp = Blueprint('analysis', __name__, url_prefix='/analysis')
 
+VALID_TABS = ['overview', 'spending', 'savings', 'debt', 'health', 'loan_payoff']
+
+
+# ── Main Workstation (all tabs) ───────────────────────────────────────────────
 
 @analysis_bp.route('/', methods=['GET'])
 @login_required
 def overview():
     db  = get_db()
     uid = session['user_id']
+    active_tab = request.args.get('tab', 'overview')
+    if active_tab not in VALID_TABS:
+        active_tab = 'overview'
 
-    period   = request.args.get('period', 'last_30')
-    compare  = request.args.get('compare', '0') == '1'
-    c_start  = request.args.get('start')
-    c_end    = request.args.get('end')
-
-    start, end = parse_date_range(period, c_start, c_end)
-
-    # Aggregated data for all 4 cards
-    overview_data = get_analysis_overview(db, uid, start, end, compare)
-
-    # Health score
-    health = compute_health_score(db, uid)
-
-    # Insights
-    budget_perf = get_budget_performance(db, uid)
-    insights = generate_insights(db, uid, overview_data['spending'], budget_perf, health)
-
-    # Predictions & debt analytics
-    predictions = prediction_service.get_all_predictions(db, uid, health.get('score', 0))
-    fin_status  = prediction_service.get_financial_status(predictions)
-
-    sidebar_expense, sidebar_pct = get_monthly_spend()
-
-    return render_template('analysis/overview.html',
-        period=period, compare=compare, start=start, end=end,
-        overview=overview_data, health=health,
-        budget_perf=budget_perf, insights=insights,
-        predictions=predictions,
-        fin_status=fin_status,
-        sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
-    )
-
-
-# ─────────────────────────────────────────────
-# 2. Spending Deep Dive  /analysis/spending
-# ─────────────────────────────────────────────
-
-@analysis_bp.route('/spending', methods=['GET'])
-@login_required
-def spending():
-    db  = get_db()
-    uid = session['user_id']
-
-    # Month navigation
     today = date.today()
+
+    # ── Month context (for spending/budget tabs) ──
     try:
         sel_month = int(request.args.get('month', today.month))
-        sel_year  = int(request.args.get('year',  today.year))
-        if not (1 <= sel_month <= 12):
-            raise ValueError
+        sel_year  = int(request.args.get('year', today.year))
+        if not (1 <= sel_month <= 12): raise ValueError
     except (ValueError, TypeError):
         sel_month, sel_year = today.month, today.year
 
-    from datetime import datetime
-    import calendar
-    last_day = calendar.monthrange(sel_year, sel_month)[1]
-    start = date(sel_year, sel_month, 1)
-    end   = date(sel_year, sel_month, last_day)
+    last_day  = calendar.monthrange(sel_year, sel_month)[1]
+    start     = date(sel_year, sel_month, 1)
+    end       = date(sel_year, sel_month, last_day)
 
-    active_tab = request.args.get('tab', 'overview')
+    # ── Core data (always loaded — used by overview + insights strip) ──
+    period = request.args.get('period', 'last_30')
+    p_start, p_end = parse_date_range(period, None, None)
+    overview_data  = get_analysis_overview(db, uid, p_start, p_end, compare=False)
+    health         = compute_health_score(db, uid)
+    budget_perf    = get_budget_performance(db, uid)
+    insights       = generate_insights(db, uid, overview_data['spending'], budget_perf, health)
+    predictions    = prediction_service.get_all_predictions(db, uid, health.get('score', 0))
+    fin_status     = prediction_service.get_financial_status(predictions)
 
-    # Overview tab data
-    spending_data = get_spending_overview(db, uid, start, end, compare=True)
+    # ── Tab-specific data ──
+    spending_data = categories = trends = None
+    savings_data  = wealth    = None
+    debt_data     = loans     = None
+    budget_risks  = None
 
-    # Categories tab data
-    categories = get_spending_categories(db, uid, start, end)
+    if active_tab == 'spending':
+        spending_data = get_spending_overview(db, uid, start, end, compare=True)
+        categories    = get_spending_categories(db, uid, start, end)
+        trends        = get_spending_trends(db, uid, months=6)
 
-    # Trends tab data
-    trends = get_spending_trends(db, uid, months=6)
+    elif active_tab == 'savings':
+        savings_data  = prediction_service.predict_savings(db, uid)
+        wealth        = prediction_service.predict_wealth_projection(db, uid)
+        trends        = get_trends_data(db, uid, granularity='monthly')
 
-    # Month nav options (last 12 months)
+    elif active_tab in ('debt', 'loan_payoff'):
+        debt_data = prediction_service.get_debt_analytics(db, uid)
+        loans     = db.execute(
+            "SELECT * FROM loans WHERE user_id=? AND status='active' ORDER BY loan_amount DESC",
+            (uid,)
+        ).fetchall()
+
+    elif active_tab == 'health':
+        pass  # health already loaded above
+
+    # ── Month nav options ──
     month_options = []
     for i in range(11, -1, -1):
         m = (today.month - i - 1) % 12 + 1
@@ -105,156 +94,143 @@ def spending():
 
     sidebar_expense, sidebar_pct = get_monthly_spend()
 
-    return render_template('analysis/spending.html',
-        spending=spending_data, categories=categories, trends=trends,
-        sel_month=sel_month, sel_year=sel_year,
-        sel_month_name=start.strftime('%B %Y'),
-        month_options=month_options,
-        active_tab=active_tab,
-        sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
+    return render_template('analysis/workstation.html',
+        active_tab    = active_tab,
+        period        = period,
+        # overview
+        overview      = overview_data,
+        health        = health,
+        budget_perf   = budget_perf,
+        insights      = insights,
+        predictions   = predictions,
+        fin_status    = fin_status,
+        # spending
+        spending      = spending_data,
+        categories    = categories,
+        trends        = trends,
+        sel_month     = sel_month,
+        sel_year      = sel_year,
+        sel_month_name = start.strftime('%B %Y'),
+        month_options = month_options,
+        # savings
+        savings       = savings_data,
+        wealth        = wealth,
+        # debt
+        debt          = debt_data,
+        loans         = loans,
+        # budget
+        budget_risks  = budget_risks,
+        sidebar_expense = sidebar_expense,
+        sidebar_pct     = sidebar_pct,
     )
 
 
-# ─────────────────────────────────────────────
-# 3. Budget Performance  /analysis/budget-performance
-# ─────────────────────────────────────────────
-
-@analysis_bp.route('/budget-performance', methods=['GET'])
+@analysis_bp.route('/forecasting')
 @login_required
-def budget_performance():
+def forecasting():
     db  = get_db()
     uid = session['user_id']
 
-    perf = get_budget_performance(db, uid)
+    forecast    = prediction_service.forecast_month_spend(db, uid)
+    savings     = prediction_service.predict_savings(db, uid)
+    wealth      = prediction_service.predict_wealth_projection(db, uid)
+    budget_risks = prediction_service.predict_budget_risk(db, uid)
+    health      = compute_health_score(db, uid)
+    debt        = prediction_service.get_debt_analytics(db, uid)
+
+    # 6-month trend for chart
+    trends_data = get_trends_data(db, uid, granularity='monthly')
+
     sidebar_expense, sidebar_pct = get_monthly_spend()
-
-    return render_template('analysis/budget_performance.html',
-        perf=perf,
+    return render_template('analysis/forecasting.html',
+        forecast=forecast, savings=savings, wealth=wealth,
+        budget_risks=budget_risks, health=health,
+        debt=debt, trends=trends_data,
         sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
     )
 
 
-# ─────────────────────────────────────────────
-# 4. Trends & Comparison  /analysis/trends
-# ─────────────────────────────────────────────
-
-@analysis_bp.route('/trends', methods=['GET'])
+@analysis_bp.route('/simulation')
 @login_required
-def trends():
+def simulation():
     db  = get_db()
     uid = session['user_id']
 
-    granularity = request.args.get('granularity', 'monthly')
-    compare     = request.args.get('compare', '0') == '1'
+    savings  = prediction_service.predict_savings(db, uid)
+    forecast = prediction_service.forecast_month_spend(db, uid)
+    wealth   = prediction_service.predict_wealth_projection(db, uid)
+    debt     = prediction_service.get_debt_analytics(db, uid)
+    health   = compute_health_score(db, uid)
 
-    trends_data = get_trends_data(db, uid, granularity=granularity, compare=compare)
     sidebar_expense, sidebar_pct = get_monthly_spend()
-
-    return render_template('analysis/trends.html',
-        trends=trends_data, granularity=granularity, compare=compare,
+    return render_template('analysis/simulation.html',
+        savings=savings, forecast=forecast, wealth=wealth,
+        debt=debt, health=health,
         sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
     )
 
 
-# ─────────────────────────────────────────────
-# 5. Health Score  /analysis/health-score
-# ─────────────────────────────────────────────
-
-@analysis_bp.route('/health-score', methods=['GET'])
+@analysis_bp.route('/optimization')
 @login_required
-def health_score():
+def optimization():
     db  = get_db()
     uid = session['user_id']
 
-    health = compute_health_score(db, uid)
-    sidebar_expense, sidebar_pct = get_monthly_spend()
-
-    return render_template('analysis/health_score.html',
-        health=health,
-        sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
-    )
-
-
-# ─────────────────────────────────────────────
-# 6. Savings  /analysis/savings
-# ─────────────────────────────────────────────
-
-@analysis_bp.route('/savings', methods=['GET'])
-@login_required
-def savings():
-    db  = get_db()
-    uid = session['user_id']
-
-    savings_data  = prediction_service.predict_savings(db, uid)
+    budget_risks  = prediction_service.predict_budget_risk(db, uid)
+    budget_perf   = get_budget_performance(db, uid)
+    savings       = prediction_service.predict_savings(db, uid)
+    forecast      = prediction_service.forecast_month_spend(db, uid)
+    health        = compute_health_score(db, uid)
+    debt          = prediction_service.get_debt_analytics(db, uid)
     wealth        = prediction_service.predict_wealth_projection(db, uid)
-    trends_data   = get_trends_data(db, uid, granularity='monthly')
-    sidebar_expense, sidebar_pct = get_monthly_spend()
 
-    return render_template('analysis/savings.html',
-        savings=savings_data, wealth=wealth,
-        trends=trends_data,
+    sidebar_expense, sidebar_pct = get_monthly_spend()
+    return render_template('analysis/optimization.html',
+        budget_risks=budget_risks, budget_perf=budget_perf,
+        savings=savings, forecast=forecast,
+        health=health, debt=debt, wealth=wealth,
         sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
     )
 
 
-# ─────────────────────────────────────────────
-# 7. Budget  /analysis/budget
-# ─────────────────────────────────────────────
+# ── Legacy redirects — keep old URLs alive ────────────────────────────────────
 
-@analysis_bp.route('/budget', methods=['GET'])
+@analysis_bp.route('/spending')
+@login_required
+def spending():
+    return redirect(url_for('analysis.overview', tab='spending'))
+
+@analysis_bp.route('/budget')
 @login_required
 def budget():
-    db  = get_db()
-    uid = session['user_id']
+    return redirect(url_for('analysis.overview', tab='overview'))
 
-    perf         = get_budget_performance(db, uid)
-    budget_risks = prediction_service.predict_budget_risk(db, uid)
-    sidebar_expense, sidebar_pct = get_monthly_spend()
+@analysis_bp.route('/budget-performance')
+@login_required
+def budget_performance():
+    return redirect(url_for('analysis.overview', tab='overview'))
 
-    return render_template('analysis/budget.html',
-        perf=perf, budget_risks=budget_risks,
-        sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
-    )
+@analysis_bp.route('/savings')
+@login_required
+def savings():
+    return redirect(url_for('analysis.overview', tab='savings'))
 
+@analysis_bp.route('/health-score')
+@login_required
+def health_score():
+    return redirect(url_for('analysis.overview', tab='health'))
 
-# ─────────────────────────────────────────────
-# 8. Debt  /analysis/debt
-# ─────────────────────────────────────────────
-
-@analysis_bp.route('/debt', methods=['GET'])
+@analysis_bp.route('/debt')
 @login_required
 def debt():
-    db  = get_db()
-    uid = session['user_id']
+    return redirect(url_for('analysis.overview', tab='debt'))
 
-    debt_data = prediction_service.get_debt_analytics(db, uid)
-    sidebar_expense, sidebar_pct = get_monthly_spend()
-
-    return render_template('analysis/debt.html',
-        debt=debt_data,
-        sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
-    )
-
-
-# ─────────────────────────────────────────────
-# 9. Loan Payoff  /analysis/loan-payoff
-# ─────────────────────────────────────────────
-
-@analysis_bp.route('/loan-payoff', methods=['GET'])
+@analysis_bp.route('/loan-payoff')
 @login_required
 def loan_payoff():
-    db  = get_db()
-    uid = session['user_id']
+    return redirect(url_for('analysis.overview', tab='loan_payoff'))
 
-    debt_data = prediction_service.get_debt_analytics(db, uid)
-    # Get per-loan detail
-    loans = db.execute(
-        "SELECT * FROM loans WHERE user_id=? AND status='active' ORDER BY loan_amount DESC",
-        (uid,)
-    ).fetchall()
-    sidebar_expense, sidebar_pct = get_monthly_spend()
-
-    return render_template('analysis/loan_payoff.html',
-        debt=debt_data, loans=loans,
-        sidebar_expense=sidebar_expense, sidebar_pct=sidebar_pct,
-    )
+@analysis_bp.route('/trends')
+@login_required
+def trends():
+    return redirect(url_for('analysis.overview', tab='spending'))

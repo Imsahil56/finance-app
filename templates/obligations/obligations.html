@@ -2,217 +2,615 @@
 {% block title %}Commitments — FinanceOS{% endblock %}
 {% block page_title %}Commitments{% endblock %}
 
+{% block extra_css %}
+<style>
+:root {
+  --s2:#161929; --s3:#1c1f32; --s4:#22263a;
+  --bd:#252a40; --bd2:#2e3450;
+  --tx:#e2e4f0; --tx2:#8085a8; --tx3:#484e6e;
+  --ind:#6366f1; --ind2:#818cf8;
+  --grn:#22c55e; --red:#f87171; --amb:#fbbf24; --pur:#a78bfa;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+.fu { animation: fadeUp .35s cubic-bezier(.4,0,.2,1) both; }
+
+/* ── Page layout ── */
+.cm-page { display:flex; flex-direction:column; gap:20px; padding-bottom:32px; }
+
+/* ── Top stats row ── */
+.cm-top { display:grid; grid-template-columns:1fr 1.6fr; gap:18px; }
+
+/* Monthly obligations card */
+.mo-card {
+  background: linear-gradient(135deg, #1C1F3F 0%, #14182E 100%);
+  border: 1px solid rgba(99,102,241,.35);
+  border-radius: 16px; padding: 24px; position: relative; overflow: hidden;
+  box-shadow: 0 25px 60px rgba(99,102,241,.25);
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+.mo-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 80% 30%, rgba(99,102,241,.25), transparent 60%);
+  pointer-events: none;
+}
+.mo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 30px 70px rgba(99,102,241,.35);
+  border-color: rgba(99,102,241,.5);
+}
+.mo-label { font-size:10px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ind2); margin-bottom:8px; }
+.mo-amount { font-size:32px; font-weight:900; color:#fff; letter-spacing:-.5px; margin-bottom:4px; }
+.mo-change { font-size:12px; color:var(--grn); font-weight:600; margin-bottom:20px; }
+.mo-breakdown { display:flex; flex-direction:column; gap:8px; }
+.mo-row { display:flex; justify-content:space-between; align-items:center; }
+.mo-row-label { font-size:12px; color:var(--tx2); }
+.mo-row-val { font-size:13px; font-weight:700; color:var(--tx); }
+.mo-divider { height:1px; background:rgba(255,255,255,.08); margin:8px 0; }
+
+/* Due Soon card */
+.due-card {
+  background: linear-gradient(135deg, #171A2F 0%, #13162A 100%);
+  border: 1px solid rgba(37,42,64,.8);
+  border-radius: 16px; padding: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.3);
+  transition: border-color .25s ease;
+}
+.due-card:hover { border-color: rgba(99,102,241,.2); }
+.due-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.due-title { font-size:10px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--tx2); }
+.due-view-cal { font-size:11px; color:var(--ind2); text-decoration:none; font-weight:600; }
+.due-view-cal:hover { text-decoration:underline; }
+.due-items { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.due-item {
+  background:var(--s3); border:1px solid var(--bd);
+  border-radius:12px; padding:14px; position:relative; overflow:hidden;
+}
+.due-item.urgent { border-color:rgba(248,113,113,.3); background:rgba(248,113,113,.05); }
+.due-item-cat-icon {
+  width:32px; height:32px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:8px;
+}
+.due-item-name { font-size:12px; font-weight:700; color:var(--tx); margin-bottom:2px; }
+.due-item-amt { font-size:15px; font-weight:900; color:var(--tx); margin-bottom:4px; }
+.due-tag {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  padding:2px 7px; border-radius:99px;
+}
+.due-tag.urgent { background:rgba(248,113,113,.15); color:var(--red); }
+.due-tag.normal { background:rgba(34,197,94,.12); color:var(--grn); }
+.due-approve-btn {
+  position:absolute; bottom:10px; right:10px;
+  font-size:10px; font-weight:700; color:var(--ind2);
+  background:rgba(99,102,241,.12); border:1px solid rgba(99,102,241,.2);
+  border-radius:6px; padding:3px 8px; cursor:pointer; text-decoration:none;
+}
+.due-approve-btn:hover { background:rgba(99,102,241,.2); }
+
+/* ── Table card ── */
+.cm-table-card {
+  background:var(--s2); border:1px solid var(--bd); border-radius:16px; overflow:hidden;
+}
+.cm-table-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 20px; border-bottom:1px solid var(--bd);
+  flex-wrap:wrap; gap:10px;
+}
+.cm-table-title { font-size:11px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--tx2); }
+.cm-table-showing { font-size:11px; color:var(--tx3); }
+.cm-tbl { width:100%; border-collapse:collapse; }
+.cm-tbl th {
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--tx3); padding:10px 16px; text-align:left; border-bottom:1px solid var(--bd);
+  background:var(--s2);
+}
+.cm-tbl th:last-child { text-align:right; padding-right:20px; }
+.cm-tbl tbody tr { border-bottom:1px solid rgba(37,42,64,.6); transition:background .15s; }
+.cm-tbl tbody tr:hover { background:var(--s3); }
+.cm-tbl td { padding:14px 16px; vertical-align:middle; }
+.cm-tbl td:last-child { text-align:right; padding-right:20px; }
+
+/* Category pill */
+.cat-pill {
+  display:inline-block; font-size:9px; font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; padding:3px 8px; border-radius:6px; white-space:nowrap;
+}
+
+/* Commitment name + meta */
+.cm-name { font-size:13px; font-weight:700; color:var(--tx); }
+.cm-meta { font-size:11px; color:var(--tx3); margin-top:1px; }
+
+/* Status badge */
+.status-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  padding:3px 10px; border-radius:99px;
+}
+.status-active   { background:rgba(34,197,94,.12); color:var(--grn); }
+.status-paused   { background:rgba(251,191,36,.12); color:var(--amb); }
+.status-inactive { background:rgba(72,78,110,.2);   color:var(--tx3); }
+
+/* Amount col */
+.cm-amount { font-size:14px; font-weight:800; color:var(--tx); font-family:'DM Mono',monospace; }
+
+/* Actions */
+.cm-action-btn {
+  width:28px; height:28px; border-radius:7px; display:inline-flex;
+  align-items:center; justify-content:center;
+  background:transparent; border:none; cursor:pointer;
+  color:var(--tx3); transition:background .15s,color .15s;
+}
+.cm-action-btn:hover { background:var(--s4); color:var(--tx); }
+
+/* Show more row */
+.show-more-row td {
+  text-align:center; padding:14px;
+  font-size:12px; font-weight:600; color:var(--ind2);
+  cursor:pointer; letter-spacing:.04em; text-transform:uppercase;
+}
+.show-more-row:hover td { color:var(--ind); background:var(--s3); }
+
+/* ── Bottom row ── */
+.cm-bottom { display:grid; grid-template-columns:1.2fr 1fr; gap:18px; }
+
+/* Burn rate chart */
+.burn-card {
+  background: #171A2F;
+  border: 1px solid rgba(37,42,64,.6); border-radius:16px; padding:22px;
+  transition: border-color .2s ease;
+}
+.burn-card:hover { border-color: rgba(99,102,241,.15); }
+.burn-title { font-size:10px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--tx2); margin-bottom:16px; }
+.burn-chart { display:flex; align-items:flex-end; gap:10px; height:80px; }
+.burn-bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; }
+.burn-bar {
+  width:100%; border-radius:5px 5px 0 0;
+  background:linear-gradient(180deg,var(--ind) 0%,rgba(99,102,241,.4) 100%);
+  transition:height .4s;
+}
+.burn-bar-lbl { font-size:9px; color:var(--tx3); text-transform:uppercase; letter-spacing:.05em; }
+
+/* Optimization card */
+.opt-card {
+  background: #171A2F;
+  border: 1px solid rgba(37,42,64,.6); border-radius:16px;
+  padding:22px; display:flex; flex-direction:column; gap:14px;
+  transition: border-color .2s ease;
+}
+.opt-card:hover { border-color: rgba(99,102,241,.15); }
+.opt-head { display:flex; align-items:flex-start; gap:12px; }
+.opt-icon {
+  width:40px; height:40px; border-radius:10px; flex-shrink:0;
+  background:rgba(99,102,241,.15); border:1px solid rgba(99,102,241,.25);
+  display:flex; align-items:center; justify-content:center;
+}
+.opt-title { font-size:14px; font-weight:700; color:var(--tx); line-height:1.3; }
+.opt-body  { font-size:12px; color:var(--tx2); margin-top:3px; line-height:1.5; }
+.opt-btn {
+  width:100%; padding:10px; border-radius:10px; border:none; cursor:pointer;
+  background:rgba(99,102,241,.15); color:var(--ind2);
+  font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  transition:background .15s; font-family:inherit;
+}
+.opt-btn:hover { background:rgba(99,102,241,.25); }
+
+/* ── Action modals & delete confirm ── */
+.cm-confirm {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.6);
+  backdrop-filter:blur(4px); z-index:60; align-items:center; justify-content:center;
+}
+.cm-confirm.open { display:flex; }
+.cm-confirm-box {
+  background:var(--s2); border:1px solid var(--bd2); border-radius:16px;
+  padding:24px; width:340px; max-width:90vw;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
 <span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
 
-<!-- Header -->
-<div class="flex flex-wrap items-start justify-between gap-4 mb-8">
-  <div>
-    <h2 class="text-2xl font-bold text-white">My Commitments</h2>
-    <p class="text-slate-500 text-sm mt-1">EMIs, subscriptions, bills and other recurring monthly obligations.</p>
+<div class="cm-page">
+
+  {# ── Page header ── #}
+  <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div>
+      <h2 style="font-size:26px; font-weight:900; color:var(--tx); letter-spacing:-.3px;">Commitments</h2>
+      <p style="font-size:13px; color:var(--tx2); margin-top:3px;">Manage your recurring expenses and automated payments.</p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button onclick="document.getElementById('add-ob-modal').classList.remove('hidden')"
+        style="display:flex; align-items:center; gap:6px; padding:9px 18px; border-radius:10px;
+               background:var(--ind); color:#fff; font-size:13px; font-weight:700;
+               border:none; cursor:pointer; font-family:inherit; transition:filter .15s;"
+        onmouseover="this.style.filter='brightness(1.12)'" onmouseout="this.style.filter=''">
+        <span class="material-symbols-outlined" style="font-size:16px;">add</span> Add Commitment
+      </button>
+    </div>
   </div>
-  <button onclick="document.getElementById('add-ob-modal').classList.remove('hidden')"
-    class="flex items-center gap-2 bg-primary text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:brightness-110 primary-glow transition-all">
-    <span class="material-symbols-outlined text-sm">add</span> Add Obligation
-  </button>
-</div>
 
-<!-- Summary Cards -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+  {# ── TOP ROW: Monthly Stats + Due Soon ── #}
+  <div class="cm-top fu">
+    {# Monthly Obligations card #}
+    <div class="mo-card">
+      <div class="mo-label">Monthly Obligations</div>
+      <div class="mo-amount">₹{{ "{:,.2f}".format(total_monthly) }}</div>
+      <div class="mo-change">
+        <span class="material-symbols-outlined" style="font-size:13px; vertical-align:middle;">trending_up</span>
+        {{ active_count }} active commitment{{ 's' if active_count != 1 }}
+      </div>
+      <div class="mo-divider"></div>
+      <div class="mo-breakdown">
+        <div class="mo-row">
+          <span class="mo-row-label">Fixed Costs</span>
+          <span class="mo-row-val">₹{{ "{:,.2f}".format(fixed_costs_total) }}</span>
+        </div>
+        <div class="mo-row">
+          <span class="mo-row-label">Subscriptions</span>
+          <span class="mo-row-val">₹{{ "{:,.2f}".format(subs_total) }}</span>
+        </div>
+        {% if loan_count > 0 %}
+        <div class="mo-row">
+          <span class="mo-row-label">Loan EMIs ({{ loan_count }})</span>
+          <span class="mo-row-val" style="color:var(--ind2);">₹{{ "{:,.0f}".format(loan_emi_total) }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
 
-  <!-- Total Monthly hero card -->
-  <div class="relative rounded-2xl overflow-hidden p-6 text-white"
-    style="background: linear-gradient(135deg, #2563eb 0%, #6366f1 100%);">
-    <div class="absolute top-0 right-0 w-40 h-40 rounded-full opacity-10"
-      style="background:white; transform:translate(35%,-35%)"></div>
-    <div class="absolute bottom-0 left-0 w-24 h-24 rounded-full opacity-10"
-      style="background:white; transform:translate(-35%,35%)"></div>
-    <div class="relative">
-      <div class="flex items-center justify-between mb-4">
-        <p class="text-sm font-semibold opacity-90">Total Monthly Commitment</p>
-        <div class="size-9 rounded-xl flex items-center justify-center" style="background:rgba(255,255,255,0.15)">
-          <span class="material-symbols-outlined text-white text-[18px]">payments</span>
+    {# Due Soon card #}
+    <div class="due-card">
+      <div class="due-head">
+        <span class="due-title">Due Soon</span>
+        <a href="{{ url_for('obligations_bp.obligations') }}" class="due-view-cal">View All →</a>
+      </div>
+      {% if due_soon %}
+      <div class="due-items">
+        {% for item in due_soon[:4] %}
+        {% set cat_colors = {
+          'Loan EMI':        ('#6366f1','#1e1b4b'),
+          'Rent & Housing':  ('#22c55e','#052e16'),
+          'Subscriptions':   ('#a78bfa','#1e1036'),
+          'Utilities':       ('#fb923c','#1c0a00'),
+          'Health & Medical':('#ec4899','#1f0b17'),
+          'Transport':       ('#fbbf24','#1c1200'),
+        } %}
+        {% set cc = cat_colors.get(item.category, ('#818cf8','#1e1b4b')) %}
+        <div class="due-item {{ 'urgent' if item.urgent else '' }}">
+          <div class="due-item-cat-icon" style="background:{{ cc[1] }}; border:1px solid {{ cc[0] }}30;">
+            <span class="material-symbols-outlined" style="font-size:16px; color:{{ cc[0] }};">
+              {{ 'account_balance' if item.category == 'Loan EMI'
+                 else ('home' if item.category == 'Rent & Housing'
+                 else ('subscriptions' if item.category == 'Subscriptions'
+                 else ('bolt' if item.category == 'Utilities'
+                 else ('favorite' if item.category == 'Health & Medical'
+                 else 'payments')))) }}
+            </span>
+          </div>
+          <div class="due-item-name">{{ item.name[:22] }}{% if item.name|length > 22 %}…{% endif %}</div>
+          <div class="due-item-amt">₹{{ "{:,.0f}".format(item.amount) }}</div>
+          <span class="due-tag {{ 'urgent' if item.urgent else 'normal' }}">{{ item.days_label }}</span>
+          <a href="#" onclick="approvePendingInline({{ item.pending_id }}); return false;"
+            class="due-approve-btn">Pay Now →</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+                  height:120px; text-align:center;">
+        <span class="material-symbols-outlined" style="font-size:32px; color:var(--tx3); margin-bottom:6px;">check_circle</span>
+        <p style="font-size:13px; color:var(--tx2); font-weight:600;">All caught up!</p>
+        <p style="font-size:11px; color:var(--tx3); margin-top:2px;">No payments due in the next 14 days.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── ACTIVE COMMITMENTS TABLE ── #}
+  <div class="cm-table-card fu" style="animation-delay:.08s;">
+    <div class="cm-table-head">
+      <span class="cm-table-title">Active Commitments List</span>
+      {% set active_obs = obligations | selectattr('status','eq','active') | list %}
+      <span class="cm-table-showing" id="page-showing-head">
+        Showing 1–{{ [8, obligations|length]|min }} of {{ obligations|length }}
+      </span>
+    </div>
+
+    <table class="cm-tbl">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Commitment</th>
+          <th>Frequency</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="cm-tbody">
+        {% for ob in obligations %}
+        {% set row_cls = '' if ob.status == 'active' else 'style="opacity:.55"' %}
+        {% set cat_pill_colors = {
+          'Loan EMI':         ('#6366f1','rgba(99,102,241,.15)'),
+          'Rent & Housing':   ('#22c55e','rgba(34,197,94,.12)'),
+          'Subscriptions':    ('#a78bfa','rgba(167,139,250,.12)'),
+          'Utilities':        ('#fb923c','rgba(251,146,60,.12)'),
+          'Health & Medical': ('#f472b6','rgba(244,114,182,.12)'),
+          'Transport':        ('#fbbf24','rgba(251,191,36,.12)'),
+          'Food & Dining':    ('#f87171','rgba(248,113,113,.12)'),
+          'Education':        ('#34d399','rgba(52,211,153,.12)'),
+          'Other':            ('#8085a8','rgba(128,133,168,.12)'),
+        } %}
+        {% set pc = cat_pill_colors.get(ob.category or 'Other', cat_pill_colors['Other']) %}
+        <tr class="cm-row" data-index="{{ loop.index0 }}" data-status="{{ ob.status }}" {{ row_cls | safe }} style="{{ 'display:none' if loop.index0 >= 8 else '' }}{{ ';opacity:.55' if ob.status != 'active' else '' }}">
+          <td>
+            <span class="cat-pill" style="color:{{ pc[0] }}; background:{{ pc[1] }};">
+              {{ (ob.category or 'Other') | truncate(14, True, '') }}
+            </span>
+          </td>
+          <td>
+            <div class="cm-name">{{ ob.name }}</div>
+            <div class="cm-meta">
+              Due day {{ ob.due_day }}
+              {% if ob.source_type == 'loan' %} · Auto-linked loan{% endif %}
+            </div>
+          </td>
+          <td style="font-size:12px; color:var(--tx2); text-transform:capitalize;">{{ ob.frequency }}</td>
+          <td><span class="cm-amount">₹{{ "{:,.2f}".format(ob.amount) }}</span></td>
+          <td>
+            <span class="status-badge {{ 'status-active' if ob.status == 'active' else 'status-inactive' }}">
+              <span style="width:5px; height:5px; border-radius:50%; background:currentColor; display:inline-block;"></span>
+              {{ ob.status | capitalize }}
+            </span>
+          </td>
+          <td>
+            {% if ob.source_type != 'loan' %}
+            <button class="cm-action-btn" title="Delete"
+              onclick="confirmDelete({{ ob.id }}, '{{ ob.name | e }}')">
+              <span class="material-symbols-outlined" style="font-size:16px;">delete</span>
+            </button>
+            {% else %}
+            <a href="{{ url_for('loans_bp.loans') }}" class="cm-action-btn" title="View Loan">
+              <span class="material-symbols-outlined" style="font-size:16px;">open_in_new</span>
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center; padding:40px; color:var(--tx3); font-size:13px;">
+          No commitments yet. Add your first recurring obligation.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {# Pagination bar #}
+    {% if obligations | length > 8 %}
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 20px;
+         border-top:1px solid var(--bd);">
+      <span id="page-showing" style="font-size:11px; color:var(--tx3);">
+        Showing 1–{{ [8, obligations|length]|min }} of {{ obligations|length }}
+      </span>
+      <div style="display:flex; gap:6px;">
+        <button id="page-prev" onclick="changePage(-1)" disabled
+          style="width:30px; height:30px; border-radius:8px; border:1px solid var(--bd2);
+                 background:var(--s3); color:var(--tx3); cursor:pointer; display:flex;
+                 align-items:center; justify-content:center; transition:all .15s; font-family:inherit;"
+          onmouseover="if(!this.disabled)this.style.background='var(--s4)'"
+          onmouseout="this.style.background='var(--s3)'">
+          <span class="material-symbols-outlined" style="font-size:15px;">chevron_left</span>
+        </button>
+        <button id="page-next" onclick="changePage(1)"
+          style="width:30px; height:30px; border-radius:8px; border:1px solid var(--bd2);
+                 background:var(--s3); color:var(--tx2); cursor:pointer; display:flex;
+                 align-items:center; justify-content:center; transition:all .15s; font-family:inherit;"
+          onmouseover="this.style.background='var(--s4)'"
+          onmouseout="this.style.background='var(--s3)'">
+          <span class="material-symbols-outlined" style="font-size:15px;">chevron_right</span>
+        </button>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── BOTTOM ROW: Burn Rate + Optimization ── #}
+  <div class="cm-bottom fu" style="animation-delay:.15s;">
+
+    {# Subscription Burn Rate chart #}
+    <div class="burn-card">
+      <div class="burn-title">Subscription Burn Rate</div>
+      {% if burn_rate %}
+      {% set max_burn = burn_rate | map(attribute='amount') | max %}
+      <div class="burn-chart">
+        {% for mo in burn_rate %}
+        {% set bh = ((mo.amount / max_burn * 100) | round | int) if max_burn > 0 else 10 %}
+        <div class="burn-bar-wrap">
+          <div class="burn-bar" style="height:{{ bh }}%; min-height:4px;
+            background:{{ 'linear-gradient(180deg,#6366f1 0%,rgba(99,102,241,.35) 100%)' if loop.last else 'linear-gradient(180deg,rgba(99,102,241,.5) 0%,rgba(99,102,241,.2) 100%)' }};"></div>
+          <span class="burn-bar-lbl">{{ mo.label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:11px; color:var(--tx3);">Monthly subscription spend</span>
+        {% set latest = burn_rate[-1].amount %}
+        <span style="font-size:13px; font-weight:800; color:var(--tx);">₹{{ "{:,.0f}".format(latest) }}</span>
+      </div>
+      {% else %}
+      <div style="display:flex; align-items:center; justify-content:center; height:80px; color:var(--tx3); font-size:12px;">
+        No subscription data yet.
+      </div>
+      {% endif %}
+    </div>
+
+    {# Optimization Suggestions #}
+    <div class="opt-card">
+      {% set sub_obs = obligations | selectattr('category','eq','Subscriptions') | selectattr('status','eq','active') | list %}
+      <div class="opt-head">
+        <div class="opt-icon">
+          <span class="material-symbols-outlined" style="font-size:20px; color:var(--ind2);">lightbulb</span>
+        </div>
+        <div>
+          <div class="opt-title">Optimization Suggestion</div>
+          {% if sub_obs | length >= 2 %}
+          {% set saving = (sub_obs | map(attribute='amount') | sum * 0.2) | round | int %}
+          <div class="opt-body">
+            You have {{ sub_obs | length }} active subscriptions totalling
+            ₹{{ "{:,.0f}".format(sub_obs | map(attribute='amount') | sum) }}/mo.
+            Switching to annual plans could save ~₹{{ "{:,.0f}".format(saving * 12) }}/year.
+          </div>
+          {% elif loan_emi_total > 0 %}
+          <div class="opt-body">
+            Your loan EMIs total ₹{{ "{:,.0f}".format(loan_emi_total) }}/mo.
+            Making extra payments on your highest-rate loan can save significant interest.
+          </div>
+          {% else %}
+          <div class="opt-body">
+            Your commitments look well-managed. Consider reviewing subscriptions annually to avoid unused services.
+          </div>
+          {% endif %}
         </div>
       </div>
-      <p class="text-4xl font-black tracking-tight">₹{{ "{:,.0f}".format(total_monthly) }}
-        <span class="text-base font-normal opacity-70">/ month</span>
-      </p>
-      <div class="flex items-center gap-1.5 mt-4 text-xs font-semibold opacity-80">
-        <span class="material-symbols-outlined text-sm">check_circle</span>
-        {{ active_count }} Active Commitment{{ 's' if active_count != 1 else '' }}
-      </div>
-    </div>
-  </div>
-
-  <!-- Upcoming in 7 days -->
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6">
-    <div class="flex items-center justify-between mb-4">
-      <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Upcoming in 7 Days</p>
-      <div class="size-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
-        <span class="material-symbols-outlined text-amber-400 text-[18px]">schedule</span>
-      </div>
-    </div>
-    <p class="text-3xl font-black text-white mb-1">₹{{ "{:,.0f}".format(upcoming_total) }}</p>
-    <p class="text-xs text-slate-500 truncate">{{ upcoming_names if upcoming_total > 0 else 'Nothing due in 7 days' }}</p>
-  </div>
-
-  <!-- Loan installments -->
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6">
-    <div class="flex items-center justify-between mb-4">
-      <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Loan Installments</p>
-      <div class="size-9 rounded-xl bg-primary/10 flex items-center justify-center">
-        <span class="material-symbols-outlined text-primary text-[18px]">account_balance</span>
-      </div>
-    </div>
-    <p class="text-3xl font-black text-white mb-1">₹{{ "{:,.0f}".format(loan_emi_total) }}</p>
-    <p class="text-xs text-slate-500">{{ loan_count }} Active EMI Payment{{ 's' if loan_count != 1 else '' }}</p>
-  </div>
-
-</div>
-
-<!-- List -->
-{% if obligations %}
-<div class="space-y-3">
-  {% for ob in obligations %}
-  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-5 flex flex-wrap items-center gap-4
-    hover:border-slate-700 transition-all group">
-
-    <!-- Icon bubble -->
-    <div class="size-12 rounded-2xl flex items-center justify-center shrink-0"
-      style="background:{{ ob.color }}1a; border:1px solid {{ ob.color }}33;">
-      <span class="material-symbols-outlined text-xl" style="color:{{ ob.color }};">{{ ob.icon }}</span>
-    </div>
-
-    <!-- Name + meta -->
-    <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-2 flex-wrap mb-1">
-        <p class="font-bold text-white text-sm">{{ ob.name }}</p>
-        <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full
-          {{ 'bg-primary/10 text-primary' if ob.source_type == 'loan' else 'bg-purple-500/10 text-purple-400' }}">
-          {{ ob.source_type }}
-        </span>
-        <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full
-          {{ 'bg-emerald-500/10 text-emerald-400' if ob.status == 'active' else 'bg-slate-700 text-slate-500' }}">
-          {{ ob.status }}
-        </span>
-      </div>
-      <p class="text-xs text-slate-500">
-        {{ ob.frequency }} · due day {{ ob.due_day }}
-        {% if ob.start_date %} · {{ ob.start_date }}{% endif %}
-        {% if ob.end_date %} → {{ ob.end_date }}{% endif %}
-      </p>
-    </div>
-
-    <!-- Amount + delete -->
-    <div class="flex items-center gap-3 shrink-0">
-      <div class="text-right">
-        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Amount</p>
-        <p class="text-xl font-black text-white">₹{{ "{:,.0f}".format(ob.amount) }}</p>
-      </div>
-      {% if ob.source_type == 'manual' %}
-      <form method="POST" action="{{ url_for('obligations_bp.delete_obligation', ob_id=ob.id) }}">
-        <button type="submit"
-          class="p-2 rounded-xl text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100">
-          <span class="material-symbols-outlined text-base">delete</span>
-        </button>
-      </form>
-      {% else %}
-      <div class="w-9 shrink-0"></div>
+      {% if sub_obs | length >= 2 %}
+      <a href="{{ url_for('obligations_bp.obligations') }}"
+        class="opt-btn" style="text-decoration:none; display:block; text-align:center;">
+        Review Subscriptions
+      </a>
+      {% elif loan_emi_total > 0 %}
+      <a href="{{ url_for('loans_bp.loans') }}"
+        class="opt-btn" style="text-decoration:none; display:block; text-align:center;">
+        Review Loans →
+      </a>
       {% endif %}
     </div>
 
   </div>
-  {% endfor %}
 </div>
 
-{% else %}
-<div class="bg-[#0f172a] border border-dashed border-slate-700 rounded-2xl p-16 text-center">
-  <span class="material-symbols-outlined text-slate-600 text-5xl mb-4 block">repeat</span>
-  <p class="text-slate-300 font-bold text-lg mb-1">No commitments yet</p>
-  <p class="text-slate-600 text-sm mb-6">Commitments are created automatically when you add loans, or manually here.</p>
-  <button onclick="document.getElementById('add-ob-modal').classList.remove('hidden')"
-    class="inline-flex items-center gap-2 bg-primary text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:brightness-110 transition-all">
-    <span class="material-symbols-outlined text-sm">add</span> Add Commitment
-  </button>
-</div>
-{% endif %}
-
-
-<!-- ── MODAL: Add Obligation ── -->
-<div id="add-ob-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-  <div class="bg-[#0d141c] border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl">
-    <div class="flex items-center justify-between p-6 border-b border-slate-800">
-      <div class="flex items-center gap-3">
-        <div class="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <span class="material-symbols-outlined text-primary text-xl">add_task</span>
-        </div>
-        <div>
-          <p class="font-bold text-white">Add Commitment</p>
-          <p class="text-xs text-slate-500">Rent, subscriptions, bills…</p>
-        </div>
+{# ═══════════════════════════════════ ADD MODAL ═══════════════════════════════ #}
+<div id="add-ob-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+  style="background:rgba(0,0,0,.65); backdrop-filter:blur(6px);">
+  <div style="background:var(--s2); border:1px solid var(--bd2); border-radius:18px;
+       width:100%; max-width:480px; box-shadow:0 24px 60px rgba(0,0,0,.5); overflow:hidden;">
+    <div style="display:flex; align-items:center; justify-content:space-between;
+         padding:18px 22px; border-bottom:1px solid var(--bd);">
+      <div>
+        <p style="font-size:15px; font-weight:800; color:var(--tx);">Add Commitment</p>
+        <p style="font-size:11px; color:var(--tx3); margin-top:1px;">Track a recurring expense or obligation</p>
       </div>
       <button onclick="document.getElementById('add-ob-modal').classList.add('hidden')"
-        class="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
+        style="background:none; border:none; cursor:pointer; color:var(--tx3);"
+        onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--tx3)'">
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
-    <form method="POST" action="{{ url_for('obligations_bp.add_obligation') }}" class="p-6 space-y-4">
+    <form method="POST" action="{{ url_for('obligations_bp.add_obligation') }}"
+      style="padding:20px 22px; display:flex; flex-direction:column; gap:14px;">
+      {% macro field(label, name, type='text', req=True, ph='', val='') %}
       <div>
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Name *</label>
-        <input type="text" name="name" required placeholder="e.g. Netflix, Rent, Gym"
-          class="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary text-sm"/>
+        <label style="display:block; font-size:11px; font-weight:600; color:var(--tx2);
+                      text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">
+          {{ label }}{% if req %} *{% endif %}
+        </label>
+        <input type="{{ type }}" name="{{ name }}" {% if req %}required{% endif %}
+          placeholder="{{ ph }}" value="{{ val }}"
+          class="modal-input"
+          style="width:100%; background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+                 padding:10px 14px; color:var(--tx); font-size:13px; font-family:inherit;
+                 outline:none; transition:border-color .15s;"
+          onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      {% endmacro %}
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Amount (₹) *</label>
-          <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
-            <input type="number" name="amount" required min="1" step="1"
-              class="w-full bg-slate-900/60 border border-slate-700 rounded-xl pl-8 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary text-sm font-bold"/>
-          </div>
+          <label style="display:block; font-size:11px; font-weight:600; color:var(--tx2);
+                        text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">Name *</label>
+          <input type="text" name="name" required placeholder="e.g. Netflix"
+            class="modal-input"
+            style="width:100%; background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+                   padding:10px 14px; color:var(--tx); font-size:13px; font-family:inherit; outline:none;"
+            onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Frequency</label>
-          <select name="frequency"
-            class="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-            <option value="monthly">Monthly</option>
-            <option value="weekly">Weekly</option>
-            <option value="yearly">Yearly</option>
-          </select>
+          <label style="display:block; font-size:11px; font-weight:600; color:var(--tx2);
+                        text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">Amount (₹) *</label>
+          <input type="number" name="amount" required min="1" step="0.01" placeholder="499"
+            class="modal-input"
+            style="width:100%; background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+                   padding:10px 14px; color:var(--tx); font-size:13px; font-family:inherit; outline:none;"
+            onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
         </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Category</label>
-          <select name="category"
-            class="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-            {% for cat in ['Rent & Housing','Utilities','Subscriptions','Transport','Health & Medical','Education','Food & Dining','Loan EMI','Other'] %}
+          <label style="display:block; font-size:11px; font-weight:600; color:var(--tx2);
+                        text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">Category</label>
+          <select name="category" class="modal-input"
+            style="width:100%; background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+                   padding:10px 14px; color:var(--tx); font-size:13px; font-family:inherit;
+                   outline:none; appearance:none;">
+            {% for cat in ['Subscriptions','Rent & Housing','Utilities','Health & Medical',
+                           'Transport','Education','Food & Dining','Loan EMI','Other'] %}
             <option value="{{ cat }}">{{ cat }}</option>
             {% endfor %}
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Due Day (1–28)</label>
-          <input type="number" name="due_day" min="1" max="28" value="1"
-            class="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary text-sm"/>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Start Date *</label>
-          <input type="date" name="start_date" required
-            class="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary text-sm [color-scheme:dark]"/>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">End Date (optional)</label>
-          <input type="date" name="end_date"
-            class="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary text-sm [color-scheme:dark]"/>
+          <label style="display:block; font-size:11px; font-weight:600; color:var(--tx2);
+                        text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">Frequency</label>
+          <select name="frequency" class="modal-input"
+            style="width:100%; background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+                   padding:10px 14px; color:var(--tx); font-size:13px; font-family:inherit;
+                   outline:none; appearance:none;">
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+            <option value="weekly">Weekly</option>
+          </select>
         </div>
       </div>
-      <div class="flex gap-3 pt-2">
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+        <div>
+          <label style="display:block; font-size:11px; font-weight:600; color:var(--tx2);
+                        text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">Due Day</label>
+          <input type="number" name="due_day" min="1" max="28" value="1"
+            class="modal-input"
+            style="width:100%; background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+                   padding:10px 14px; color:var(--tx); font-size:13px; font-family:inherit; outline:none;"
+            onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
+        </div>
+        <div>
+          <label style="display:block; font-size:11px; font-weight:600; color:var(--tx2);
+                        text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">Start Date *</label>
+          <input type="date" name="start_date" required
+            class="modal-input"
+            style="width:100%; background:var(--s3); border:1px solid var(--bd2); border-radius:10px;
+                   padding:10px 14px; color:var(--tx); font-size:13px; font-family:inherit;
+                   outline:none; color-scheme:dark;"
+            onfocus="this.style.borderColor='var(--ind)'" onblur="this.style.borderColor='var(--bd2)'"/>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; padding-top:4px;">
         <button type="submit"
-          class="flex-1 h-12 bg-primary text-white font-bold rounded-xl hover:brightness-110 primary-glow transition-all flex items-center justify-center gap-2">
-          <span class="material-symbols-outlined text-sm">add</span> Add Commitment
+          style="flex:1; padding:11px; border-radius:10px; border:none; cursor:pointer;
+                 background:var(--ind); color:#fff; font-size:13px; font-weight:700;
+                 font-family:inherit; transition:filter .15s;"
+          onmouseover="this.style.filter='brightness(1.12)'" onmouseout="this.style.filter=''">
+          Add Commitment
         </button>
         <button type="button" onclick="document.getElementById('add-ob-modal').classList.add('hidden')"
-          class="flex-1 h-12 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-700 transition-all">
+          style="padding:11px 20px; border-radius:10px; background:var(--s4);
+                 border:1px solid var(--bd2); color:var(--tx2); font-size:13px;
+                 font-weight:600; cursor:pointer; font-family:inherit;">
           Cancel
         </button>
       </div>
@@ -220,15 +618,97 @@
   </div>
 </div>
 
+{# ═══════════════════ DELETE CONFIRM ═══════════════════════════════════════ #}
+<div class="cm-confirm" id="delete-confirm">
+  <div class="cm-confirm-box">
+    <p style="font-size:15px; font-weight:800; color:var(--tx); margin-bottom:6px;">Delete Commitment</p>
+    <p style="font-size:13px; color:var(--tx2); margin-bottom:18px;" id="delete-confirm-msg"></p>
+    <div style="display:flex; gap:10px;">
+      <form id="delete-form" method="POST" style="flex:1;">
+        <button type="submit"
+          style="width:100%; padding:10px; border-radius:10px; border:none; cursor:pointer;
+                 background:rgba(248,113,113,.15); color:var(--red); font-size:13px;
+                 font-weight:700; font-family:inherit; border:1px solid rgba(248,113,113,.25);">
+          Delete
+        </button>
+      </form>
+      <button onclick="document.getElementById('delete-confirm').classList.remove('open')"
+        style="flex:1; padding:10px; border-radius:10px; background:var(--s4);
+               border:1px solid var(--bd2); color:var(--tx2); font-size:13px;
+               font-weight:600; cursor:pointer; font-family:inherit;">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
+  function confirmDelete(id, name) {
+    document.getElementById('delete-form').action = '/obligations/delete/' + id;
+    document.getElementById('delete-confirm-msg').textContent = 'Remove "' + name + '" from your commitments?';
+    document.getElementById('delete-confirm').classList.add('open');
+  }
+
+  document.getElementById('delete-confirm').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+
   document.getElementById('add-ob-modal').addEventListener('click', function(e) {
     if (e.target === this) this.classList.add('hidden');
   });
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') document.getElementById('add-ob-modal').classList.add('hidden');
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.getElementById('add-ob-modal').classList.add('hidden');
+      document.getElementById('delete-confirm').classList.remove('open');
+    }
   });
+
+  // ── Pagination ──
+  const PER_PAGE = 8;
+  let currentPage = 0;
+  const allRows = Array.from(document.querySelectorAll('#cm-tbody .cm-row'));
+  const total = allRows.length;
+
+  function renderPage(page) {
+    const start = page * PER_PAGE;
+    const end   = Math.min(start + PER_PAGE, total);
+    allRows.forEach((row, i) => {
+      row.style.display = (i >= start && i < end) ? '' : 'none';
+    });
+    // Update showing text in both spots
+    const txt = total > 0 ? `Showing ${start + 1}–${end} of ${total}` : 'No commitments';
+    const sh1 = document.getElementById('page-showing');
+    const sh2 = document.getElementById('page-showing-head');
+    if (sh1) sh1.textContent = txt;
+    if (sh2) sh2.textContent = txt;
+    // Update buttons
+    const prev = document.getElementById('page-prev');
+    const next = document.getElementById('page-next');
+    if (prev) { prev.disabled = page === 0; prev.style.opacity = page === 0 ? '.3' : '1'; }
+    if (next) { next.disabled = end >= total; next.style.opacity = end >= total ? '.3' : '1'; }
+  }
+
+  function changePage(dir) {
+    const maxPage = Math.ceil(total / PER_PAGE) - 1;
+    currentPage = Math.max(0, Math.min(maxPage, currentPage + dir));
+    renderPage(currentPage);
+  }
+
+  // Initial render
+  if (allRows.length > 0) renderPage(0);
+
+
+  function approvePendingInline(id) {
+    fetch('/obligations/approve/' + id, { method: 'POST' })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) { window.location.reload(); }
+      })
+      .catch(() => {});
+  }
 </script>
 {% endblock %}

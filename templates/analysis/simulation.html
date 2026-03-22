@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block title %}Simulation — FinanceOS{% endblock %}
+{% block page_title %}Simulation{% endblock %}
+
+{% block extra_css %}
+<style>
+:root{--s2:#161929;--s3:#1c1f32;--s4:#13162a;--bd:rgba(255,255,255,.06);--bd2:rgba(255,255,255,.09);--tx:#e8eaf6;--tx2:#a0a3bd;--tx3:#484e6e;--ind:#6366f1;--ind2:#818cf8;--grn:#22c55e;--grn2:#4ade80;--red:#f87171;--amb:#fbbf24}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes barIn{from{width:0}}
+.fu{animation:fadeUp .32s cubic-bezier(.4,0,.2,1) both}.bi{animation:barIn .7s ease both}
+
+.sm-card{background:var(--s2);border:1px solid var(--bd);border-radius:14px;transition:border-color .2s}
+.sm-card:hover{border-color:rgba(99,102,241,.15)}
+.sm-card.primary{background:linear-gradient(135deg,#1C1F3F,#14182E);border:1px solid rgba(99,102,241,.35);box-shadow:0 20px 50px rgba(99,102,241,.2);position:relative;overflow:hidden}
+.sm-card.primary::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 80% 25%,rgba(99,102,241,.2),transparent 60%)}
+
+/* KPI strip */
+.sm-kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.sm-kpi-card{border-radius:12px;padding:16px 20px;border:1px solid var(--bd);background:var(--s3);display:flex;align-items:center;gap:14px}
+.sm-kpi-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sm-kpi-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:4px}
+.sm-kpi-val{font-size:20px;font-weight:900;letter-spacing:-.2px}
+.sm-kpi-sub{font-size:10px;color:var(--tx3);margin-top:2px}
+
+/* Main grid */
+.sm-main{display:grid;grid-template-columns:300px 1fr;gap:14px;margin-bottom:18px;align-items:stretch;}
+.sm-controls{padding:20px;display:flex;flex-direction:column;}
+.sm-outcome{padding:22px;display:flex;flex-direction:column;}
+.sm-controls-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.sm-scenario-tabs{display:flex;gap:4px;margin-bottom:18px;background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:8px;padding:3px}
+.sm-stab{flex:1;padding:6px 8px;border-radius:6px;border:none;font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s;color:var(--tx3);background:transparent}
+.sm-stab.active{background:var(--ind);color:#fff;box-shadow:0 2px 8px rgba(99,102,241,.3)}
+.sm-slider-block{margin-bottom:16px}
+.sm-slider-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.sm-slider-name{font-size:12px;font-weight:600;color:var(--tx)}
+.sm-slider-val{font-size:12px;font-weight:800;color:var(--ind2);font-variant-numeric:tabular-nums}
+.sm-slider{width:100%;height:4px;background:rgba(255,255,255,.08);border-radius:99px;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none}
+.sm-slider::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--ind);border:2px solid #fff;box-shadow:0 2px 6px rgba(99,102,241,.4);cursor:pointer}
+.sm-slider-hint{font-size:9px;color:var(--grn2);margin-top:4px}
+
+
+.sm-out-bars{flex:1;display:flex;align-items:flex-end;gap:8px;min-height:130px;padding-bottom:20px;position:relative}
+.sm-outcome-title{font-size:15px;font-weight:800;color:var(--tx);margin-bottom:4px}
+.sm-outcome-legend{display:flex;gap:14px;margin-bottom:16px}
+.sm-outcome-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--tx3)}
+.sm-out-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%}
+.sm-out-bar-area{width:100%;flex:1;position:relative;display:flex;flex-direction:column;justify-content:flex-end}
+.sm-out-bar{width:100%;border-radius:4px 4px 0 0;min-height:3px}
+.sm-out-bar.simulated{border:1.5px dashed rgba(129,140,248,.6);background:rgba(99,102,241,.15)!important;box-shadow:none!important}
+.sm-out-lbl{font-size:8px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;text-align:center}
+/* Zones */
+.sm-zone-line{position:absolute;left:0;right:0;height:1px;pointer-events:none}
+
+/* Apply CTA */
+.sm-apply-cta{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.sm-apply-text-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:3px}
+.sm-apply-text{font-size:17px;font-weight:800;color:var(--tx)}
+.sm-apply-btn{display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;font-size:14px;font-weight:800;padding:13px 24px;border-radius:11px;text-decoration:none;border:none;cursor:pointer;font-family:inherit;box-shadow:0 8px 24px rgba(99,102,241,.35);transition:filter .2s,box-shadow .2s;text-transform:uppercase;letter-spacing:.04em}
+.sm-apply-btn:hover{filter:brightness(1.1);box-shadow:0 12px 32px rgba(99,102,241,.45)}
+
+/* Scenario matrix */
+.sm-matrix{width:100%;border-collapse:collapse}
+.sm-matrix th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);padding:10px 16px;text-align:left;border-bottom:1px solid var(--bd)}
+.sm-matrix td{font-size:12px;color:var(--tx2);padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.03);font-variant-numeric:tabular-nums}
+.sm-matrix tr:hover td{background:rgba(99,102,241,.03)}
+.sm-matrix tr:last-child td{border-bottom:none}
+.sm-matrix .best{color:var(--grn2);font-weight:700}
+.sm-matrix td:first-child{color:var(--tx);font-weight:600}
+.sm-tag{font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;display:inline-block}
+.bar-track{background:rgba(255,255,255,.05);border-radius:99px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px}
+</style>
+{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
+
+{# ── Header ── #}
+<div class="fu" style="margin-bottom:20px;">
+  <p style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:4px;">What-If Analysis Engine</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <h2 style="font-size:26px;font-weight:900;color:var(--tx);letter-spacing:-.4px;">Simulation</h2>
+        <span style="font-size:10px;font-weight:700;padding:4px 12px;border-radius:99px;background:rgba(99,102,241,.15);color:var(--ind2);border:1px solid rgba(99,102,241,.3);">Scenario: Balanced</span>
+      </div>
+      <p style="font-size:12px;color:var(--tx3);margin-top:5px;">Explore financial scenarios and test outcomes before committing.</p>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="{{ url_for('analysis.optimization') }}"
+        style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9px;background:var(--s3);border:1px solid var(--bd2);color:var(--tx2);font-size:12px;font-weight:600;text-decoration:none;transition:all .2s;"
+        onmouseover="this.style.borderColor='rgba(99,102,241,.4)';this.style.color='var(--ind2)'" onmouseout="this.style.borderColor='var(--bd2)';this.style.color='var(--tx2)'">
+        Apply Strategy →
+      </a>
+    </div>
+  </div>
+</div>
+
+{# ── KPI strip ── #}
+<div class="sm-kpi fu" style="animation-delay:.05s;">
+  <div class="sm-kpi-card">
+    <div class="sm-kpi-icon" style="background:rgba(34,197,94,.12);">
+      <span class="material-symbols-outlined" style="font-size:20px;color:var(--grn2);">savings</span>
+    </div>
+    <div>
+      <div class="sm-kpi-lbl">Monthly Savings</div>
+      {% set sav_delta = savings.current_savings %}
+      <div class="sm-kpi-val" style="color:{{ 'var(--grn2)' if sav_delta >= 0 else 'var(--red)' }};">
+        {{ '+' if sav_delta >= 0 else '-' }}₹{{ "{:,.0f}".format(sav_delta|abs) }}<span style="font-size:12px;font-weight:600;">/mo</span>
+      </div>
+      <div class="sm-kpi-sub">projected improvement</div>
+    </div>
+  </div>
+  <div class="sm-kpi-card">
+    <div class="sm-kpi-icon" style="background:rgba(99,102,241,.12);">
+      <span class="material-symbols-outlined" style="font-size:20px;color:var(--ind2);">schedule</span>
+    </div>
+    <div>
+      <div class="sm-kpi-lbl">Budget Runway</div>
+      <div class="sm-kpi-val" style="color:var(--ind2);">+{{ forecast.days_total - forecast.days_passed }} Days<span style="font-size:12px;font-weight:600;"> ext.</span></div>
+      <div class="sm-kpi-sub">this month remaining</div>
+    </div>
+  </div>
+  <div class="sm-kpi-card">
+    <div class="sm-kpi-icon" style="background:rgba(251,191,36,.12);">
+      <span class="material-symbols-outlined" style="font-size:20px;color:var(--amb);">bolt</span>
+    </div>
+    <div>
+      <div class="sm-kpi-lbl">Budget Adherence</div>
+      {% set eff = health.adherence_pct %}
+      <div class="sm-kpi-val" style="color:{{ 'var(--grn2)' if eff >= 70 else 'var(--amb)' }};">{{ eff }}%<span style="font-size:12px;font-weight:600;"> on track</span></div>
+      <div class="sm-kpi-sub">of budgets within limit</div>
+    </div>
+  </div>
+</div>
+
+{# ── Controls + Projected Outcome ── #}
+<div class="sm-main fu" style="animation-delay:.08s;">
+
+  {# Scenario Controls #}
+  <div class="sm-card sm-controls">
+    <div class="sm-controls-title">
+      <span>⚙ Scenario Controls</span>
+      <button onclick="resetSliders()" style="font-size:10px;font-weight:600;color:var(--tx3);background:none;border:none;cursor:pointer;font-family:inherit;transition:color .15s;"
+        onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--tx3)'">↺ Reset</button>
+    </div>
+
+    <div class="sm-scenario-tabs">
+      <button class="sm-stab" onclick="setScenario(this,'conservative')">Conservative</button>
+      <button class="sm-stab active" onclick="setScenario(this,'balanced')">Balanced</button>
+      <button class="sm-stab" onclick="setScenario(this,'aggressive')">Aggressive</button>
+    </div>
+
+    {# Savings rate slider #}
+    <div class="sm-slider-block">
+      <div class="sm-slider-head">
+        <span class="sm-slider-name">Savings Rate</span>
+        <span class="sm-slider-val" id="savings-val">{{ [savings.goal_progress, 5]|max }}%</span>
+      </div>
+      <input type="range" class="sm-slider" id="savings-slider" min="5" max="50" step="1"
+        value="{{ [savings.goal_progress, 5]|max }}"
+        oninput="document.getElementById('savings-val').textContent=this.value+'%'; updateOutcome()"/>
+      <div class="sm-slider-hint">Increase savings → reduce discretionary spend</div>
+    </div>
+
+    {# Expense reduction slider #}
+    <div class="sm-slider-block">
+      <div class="sm-slider-head">
+        <span class="sm-slider-name">Expense Control</span>
+        <span class="sm-slider-val" id="expense-val">0%</span>
+      </div>
+      <input type="range" class="sm-slider" id="expense-slider" min="0" max="30" step="1"
+        value="0"
+        oninput="document.getElementById('expense-val').textContent='-'+this.value+'%'; updateOutcome()"/>
+      <div class="sm-slider-hint" id="expense-hint">Reduce expenses → extend budget runway</div>
+    </div>
+
+    {# Debt payoff slider #}
+    {% if debt.total_emi > 0 %}
+    <div class="sm-slider-block">
+      <div class="sm-slider-head">
+        <span class="sm-slider-name">Debt Prepayment</span>
+        <span class="sm-slider-val" id="debt-val">₹0</span>
+      </div>
+      <input type="range" class="sm-slider" id="debt-slider" min="0" max="{{ (debt.total_emi * 2)|round|int }}" step="500"
+        value="0"
+        oninput="document.getElementById('debt-val').textContent='₹'+Number(this.value).toLocaleString('en-IN'); updateOutcome()"/>
+      <div class="sm-slider-hint">Extra EMI → reduces loan duration</div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  {# Projected Outcome chart #}
+  <div class="sm-card sm-outcome">
+    <div class="sm-outcome-title">Projected Outcome</div>
+    <div class="sm-outcome-legend">
+      <div class="sm-outcome-leg-item">
+        <div style="width:20px;height:2px;background:rgba(255,255,255,.4);border-radius:99px;"></div> Current Path
+      </div>
+      <div class="sm-outcome-leg-item">
+        <div style="width:20px;height:2px;border:1px dashed var(--ind2);border-radius:99px;"></div> Simulated Path
+      </div>
+    </div>
+
+    {# Simple projection bar chart: 6 periods #}
+    {% set base_sav = savings.avg_income - savings.avg_income * 0.8 if savings.avg_income else 0 %}
+    {% set proj_savings = [savings.current_savings, base_sav] | max %}
+    {% set points = [proj_savings * 0.6, proj_savings * 0.75, proj_savings * 0.88, proj_savings, proj_savings * 1.05, proj_savings * 1.12] %}
+    {% set sim_points = [proj_savings * 0.7, proj_savings * 0.9, proj_savings * 1.05, proj_savings * 1.15, proj_savings * 1.22, proj_savings * 1.32] %}
+    {% set max_pt = sim_points | max if sim_points | max > 0 else 1 %}
+    {% set years = ['2024','2025','2026','2027','2028','2029'] %}
+
+    <div class="sm-out-bars" style="position:relative;">
+      {# Zone lines #}
+      <div class="sm-zone-line" style="top:15%;border-top:1px solid rgba(34,197,94,.2);"></div>
+      <div class="sm-zone-line" style="top:55%;border-top:1px solid rgba(251,191,36,.2);"></div>
+      <div class="sm-zone-line" style="top:80%;border-top:1px solid rgba(248,113,113,.15);"></div>
+
+      {% for i in range(6) %}
+      {% set bh = ((points[i] / max_pt * 90)|round|int) if max_pt > 0 else 10 %}
+      {% set sh = ((sim_points[i] / max_pt * 90)|round|int) if max_pt > 0 else 15 %}
+      {% set bh = [bh, 4]|max %}
+      {% set sh = [sh, 4]|max %}
+      <div class="sm-out-col">
+        <div class="sm-out-bar-area">
+          <div class="sm-out-bar" style="height:{{ sh }}%;background:linear-gradient(180deg,rgba(99,102,241,.35),rgba(99,102,241,.1));border:1px dashed rgba(99,102,241,.4);border-radius:4px 4px 0 0;"></div>
+        </div>
+        <span class="sm-out-lbl">{{ years[i] }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Apply CTA #}
+    <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.18);border-radius:12px;padding:16px 20px;margin-top:auto;">
+      <div class="sm-apply-cta">
+        <div>
+          <div class="sm-apply-text-lbl">Next Step: Optimize This Strategy →</div>
+          <div class="sm-apply-text">Ready to execute?</div>
+          <p style="font-size:11px;color:var(--tx3);margin-top:3px;">Apply this scenario to your financial plan.</p>
+        </div>
+        <a href="{{ url_for('analysis.optimization') }}" class="sm-apply-btn">
+          Apply This Strategy
+          <span class="material-symbols-outlined" style="font-size:18px;">arrow_forward</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Scenario Matrix ── #}
+<div class="sm-card fu" style="animation-delay:.11s;overflow:hidden;">
+  <div style="padding:18px 20px 14px;border-bottom:1px solid var(--bd);">
+    <span style="font-size:14px;font-weight:800;color:var(--tx);">Scenario Matrix</span>
+  </div>
+  <table class="sm-matrix">
+    <thead>
+      <tr>
+        <th>Scenario Name</th>
+        <th>Key Variables</th>
+        <th>Projected Savings</th>
+        <th>Confidence / Risk</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set scenarios = [
+        ('Aggressive Growth',  'S:15% · I:Bull', 1.35, 94, 'MED',  True,  'var(--grn2)'),
+        ('Balanced Pivot',     'S:20% · I:Mix',  1.12, 78, 'LOW',  False, 'var(--ind2)'),
+        ('Conservative Save',  'S:25% · I:Flat', 0.98, 82, 'MIN',  False, 'var(--amb)'),
+      ] %}
+      {% set base_proj = savings.current_savings if savings.current_savings > 0 else (savings.avg_income * 0.2 if savings.avg_income else 10000) %}
+      {% for name, vars, mult, conf, risk, is_best, clr in scenarios %}
+      {% set proj = (base_proj * 12 * mult)|round|int %}
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:{{ clr }};display:inline-block;flex-shrink:0;"></span>
+            {{ name }}
+            {% if is_best %}<span class="sm-tag" style="background:rgba(34,197,94,.1);color:var(--grn2);">Best Outcome</span>{% endif %}
+          </div>
+        </td>
+        <td><span style="font-size:10px;color:var(--tx3);">{{ vars }}</span></td>
+        <td class="{{ 'best' if is_best else '' }}">₹{{ "{:,.0f}".format(proj) }}/yr</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="bar-track" style="height:4px;width:80px;"><div class="bar-fill" style="width:{{ conf }}%;background:{{ clr }};"></div></div>
+            <span style="font-size:11px;color:var(--tx2);">{{ conf }}% / {{ risk }}</span>
+          </div>
+        </td>
+        <td>
+          <a href="{{ url_for('analysis.optimization') }}" style="font-size:11px;font-weight:600;color:var(--ind2);text-decoration:none;">Apply →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function setScenario(btn, mode) {
+  document.querySelectorAll('.sm-stab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const presets = {
+    conservative: {savings: 25, expense: 20, debt: 0},
+    balanced:     {savings: 15, expense: 10, debt: 0},
+    aggressive:   {savings: 5,  expense: 5,  debt: 0},
+  };
+  const p = presets[mode];
+  if (!p) return;
+  const ss = document.getElementById('savings-slider');
+  const es = document.getElementById('expense-slider');
+  if (ss) { ss.value = p.savings; document.getElementById('savings-val').textContent = p.savings + '%'; }
+  if (es) { es.value = p.expense; document.getElementById('expense-val').textContent = '-' + p.expense + '%'; }
+  updateOutcome();
+}
+function resetSliders() {
+  document.querySelectorAll('.sm-stab').forEach((b,i) => b.classList.toggle('active', i===1));
+  setScenario(document.querySelectorAll('.sm-stab')[1], 'balanced');
+}
+function updateOutcome() { /* chart updates handled server-side via page refresh in full impl */ }
+</script>
+{% endblock %}

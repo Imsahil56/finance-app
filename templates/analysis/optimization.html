@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+{% block title %}Optimization — FinanceOS{% endblock %}
+{% block page_title %}Optimization{% endblock %}
+
+{% block extra_css %}
+<style>
+:root{--s2:#161929;--s3:#1c1f32;--s4:#13162a;--bd:rgba(255,255,255,.06);--bd2:rgba(255,255,255,.09);--tx:#e8eaf6;--tx2:#a0a3bd;--tx3:#484e6e;--ind:#6366f1;--ind2:#818cf8;--grn:#22c55e;--grn2:#4ade80;--red:#f87171;--amb:#fbbf24}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes barIn{from{width:0}}
+.fu{animation:fadeUp .32s cubic-bezier(.4,0,.2,1) both}.bi{animation:barIn .7s ease both}
+
+.op-card{background:var(--s2);border:1px solid var(--bd);border-radius:14px;transition:border-color .2s}
+.op-card:hover{border-color:rgba(99,102,241,.15)}
+
+/* Problem banner */
+.op-banner{display:grid;grid-template-columns:2fr 1.5fr 1.5fr 1.5fr;gap:0;border-radius:14px;overflow:hidden;border:1px solid var(--bd);margin-bottom:18px}
+.op-banner-cell{padding:20px 22px;border-right:1px solid var(--bd)}
+.op-banner-cell:last-child{border-right:none}
+.op-banner-eyebrow{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--tx3);margin-bottom:8px}
+.op-banner-val{font-size:17px;font-weight:900;color:var(--tx);line-height:1.2}
+.op-banner-sub{font-size:10px;color:var(--tx3);margin-top:3px}
+.op-banner-accent{font-size:20px;font-weight:900;color:var(--red)}
+
+/* Impact simulation */
+.op-sim-grid{display:grid;grid-template-columns:1fr 280px;gap:14px;margin-bottom:18px;align-items:start}
+.op-sim{padding:22px}
+.op-sim-title{font-size:15px;font-weight:800;color:var(--tx);margin-bottom:3px}
+.op-sim-delta{font-size:13px;font-weight:700;color:var(--grn2);margin-bottom:16px}
+
+.op-compare-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.op-compare-col{padding:14px}
+.op-compare-col:not(:last-child){border-right:1px solid var(--bd)}
+.op-compare-col-head{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:10px}
+.op-compare-row{margin-bottom:8px}
+.op-compare-lbl{font-size:10px;color:var(--tx3);margin-bottom:2px}
+.op-compare-val{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
+.op-compare-bar{height:3px;border-radius:99px;margin-top:5px;animation:barIn .7s ease both}
+
+.op-sim-actions{display:flex;gap:10px}
+.op-sim-btn-primary{flex:1;padding:11px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;box-shadow:0 6px 18px rgba(99,102,241,.3);transition:filter .2s}
+.op-sim-btn-primary:hover{filter:brightness(1.1)}
+.op-sim-btn-ghost{flex:1;padding:11px;border-radius:10px;background:transparent;border:1px solid var(--bd2);color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.op-sim-btn-ghost:hover{border-color:rgba(99,102,241,.4);color:var(--ind2)}
+
+/* Efficiency ring card */
+.op-ring-card{padding:22px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.op-ring-wrap{position:relative;width:120px;height:120px;margin:0 auto 12px}
+.op-ring-wrap svg{transform:rotate(-90deg)}
+.op-ring-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.op-ring-val{font-size:20px;font-weight:900;color:#fff;line-height:1}
+.op-ring-lbl{font-size:9px;color:rgba(255,255,255,.4);margin-top:2px}
+.op-eff-row{display:flex;justify-content:space-between;align-items:center;width:100%;padding:6px 0;border-bottom:1px solid var(--bd)}
+.op-eff-row:last-child{border-bottom:none}
+.op-eff-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-right:7px}
+
+/* Recommendations */
+.op-rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.op-rec-col-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.op-rec-card{border-radius:12px;border:1px solid var(--bd);background:var(--s3);padding:16px;margin-bottom:10px;position:relative;overflow:hidden;transition:border-color .2s}
+.op-rec-card:hover{border-color:rgba(99,102,241,.25)}
+.op-rec-card.top{border-color:rgba(34,197,94,.2)}
+.op-rec-eyebrow{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:5px;display:flex;justify-content:space-between}
+.op-rec-title{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:4px}
+.op-rec-desc{font-size:11px;color:var(--tx2);line-height:1.5;margin-bottom:10px}
+.op-rec-why{font-size:10px;color:var(--tx3);margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.op-rec-why-text{font-size:11px;color:var(--tx3);line-height:1.4;margin-bottom:10px;font-style:italic}
+.op-rec-footer{display:flex;gap:14px;align-items:center}
+.op-rec-save-lbl{font-size:9px;color:var(--tx3)}
+.op-rec-save-val{font-size:14px;font-weight:800;color:var(--grn2)}
+.op-rec-effort{font-size:9px;color:var(--tx3)}
+.op-rec-arrow{position:absolute;bottom:14px;right:14px;color:var(--tx3);font-size:18px}
+.op-impact-badge{font-size:9px;font-weight:700;padding:3px 8px;border-radius:5px}
+
+/* Risks card */
+.op-risk-card{border-radius:12px;border:1px solid rgba(99,102,241,.15);background:rgba(99,102,241,.04);padding:16px}
+.op-risk-title{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.op-risk-item{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--bd)}
+.op-risk-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.op-risk-dot{width:6px;height:6px;border-radius:50%;background:var(--tx3);flex-shrink:0;margin-top:4px}
+
+/* Sim variables */
+.op-vars{padding:20px;margin-bottom:18px}
+.op-vars-title{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:3px}
+.op-vars-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.op-var-item{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:10px;padding:12px}
+.op-var-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:6px}
+.op-var-val{font-size:13px;font-weight:800;color:var(--tx)}
+.op-var-tag{font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:4px;display:inline-block;background:rgba(99,102,241,.15);color:var(--ind2)}
+
+/* Forecast CTA */
+.op-footer-cta{display:flex;align-items:center;justify-content:space-between;background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:16px 22px;flex-wrap:wrap;gap:12px}
+.bar-track{background:rgba(255,255,255,.05);border-radius:99px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px}
+</style>
+{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
+
+{# ── Header ── #}
+<div class="fu" style="margin-bottom:20px;">
+  <p style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:4px;">Strategic Efficiency</p>
+  <h2 style="font-size:26px;font-weight:900;color:var(--tx);letter-spacing:-.4px;margin-bottom:5px;">Optimization</h2>
+  <p style="font-size:12px;color:var(--tx3);">Improve financial efficiency with actionable strategies and high-impact modeling.</p>
+</div>
+
+{# ── Problem Detection Banner ── #}
+{% set over_budget_risks = budget_risks | selectattr('risk', 'equalto', 'high') | list if budget_risks else [] %}
+{% set impact_leak = forecast.forecast_spend - forecast.budget if forecast.budget and forecast.forecast_spend > forecast.budget else 0 %}
+<div class="op-banner fu" style="animation-delay:.04s; background:var(--s2);">
+  <div class="op-banner-cell">
+    <div class="op-banner-eyebrow">Detected Problem</div>
+    <div class="op-banner-val">
+      {% if over_budget_risks %}
+        {{ over_budget_risks[0].category }} & discretionary spending exceeding targets.
+      {% elif impact_leak > 0 %}
+        Monthly forecast exceeds budget by ₹{{ "{:,.0f}".format(impact_leak) }}.
+      {% else %}
+        No critical issues detected this period.
+      {% endif %}
+    </div>
+  </div>
+  <div class="op-banner-cell">
+    <div class="op-banner-eyebrow">Impact Leakage</div>
+    <div class="op-banner-accent">₹{{ "{:,.0f}".format(impact_leak if impact_leak > 0 else forecast.daily_avg * 30 * 1 / 10) }}<span style="font-size:12px;font-weight:600;">/mo</span></div>
+    <div class="op-banner-sub">detected this period</div>
+  </div>
+  <div class="op-banner-cell">
+    <div class="op-banner-eyebrow">Recommended Actions</div>
+    <div class="op-banner-val">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;background:rgba(99,102,241,.2);border-radius:50%;font-size:11px;font-weight:900;color:var(--ind2);margin-right:6px;">{{ [over_budget_risks|length, 1]|max }}</span>
+      High-Impact Optimizations
+    </div>
+  </div>
+  <div class="op-banner-cell">
+    <div class="op-banner-eyebrow">Expected Outcome</div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="op-banner-val">{{ health.score }} → <span style="color:var(--grn2);">{{ [health.score + 6, 100]|min }}</span></div>
+      <div style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:6px 10px;text-align:center;">
+        <div style="font-size:9px;color:var(--grn2);font-weight:700;">+{{ [100 - health.score, 6]|min }}%</div>
+        <div style="font-size:8px;color:var(--tx3);">efficiency</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Impact Simulation + Efficiency Index ── #}
+<div class="op-sim-grid fu" style="animation-delay:.07s;">
+
+  <div class="op-card op-sim">
+    <div class="op-sim-title">Impact Simulation</div>
+    {% set projected_delta = (forecast.forecast_spend * 1 / 5)|round|int %}
+    <div class="op-sim-delta">Projected Delta: -₹{{ "{:,.0f}".format(projected_delta) }} Δ</div>
+
+    <div class="op-compare-grid">
+      <div class="op-compare-col">
+        <div class="op-compare-col-head">Current Configuration</div>
+        <div class="op-compare-row">
+          <div class="op-compare-lbl">Monthly Burn</div>
+          <div class="op-compare-val" style="color:var(--tx);">₹{{ "{:,.1f}".format(forecast.forecast_spend / 1000) }}k</div>
+          <div class="op-compare-bar bi" style="width:{{ [(forecast.forecast_spend / (forecast.budget if forecast.budget else forecast.forecast_spend) * 100)|round|int, 100]|min }}%;background:rgba(255,255,255,.15);"></div>
+        </div>
+        <div class="op-compare-row">
+          <div class="op-compare-lbl">Operational ROI</div>
+          <div class="op-compare-val" style="color:var(--tx);">{{ health.savings_rate_pct }}%</div>
+        </div>
+      </div>
+      <div class="op-compare-col">
+        <div class="op-compare-col-head" style="color:var(--ind2);">Optimized Model</div>
+        <div class="op-compare-row">
+          <div class="op-compare-lbl">Projected Burn</div>
+          <div class="op-compare-val" style="color:var(--grn2);">₹{{ "{:,.1f}".format((forecast.forecast_spend - projected_delta) / 1000) }}k</div>
+          <div class="op-compare-bar bi" style="width:{{ [((forecast.forecast_spend - projected_delta) / (forecast.budget if forecast.budget else forecast.forecast_spend) * 100)|round|int, 100]|min }}%;background:var(--grn2);animation-delay:.2s;"></div>
+        </div>
+        <div class="op-compare-row">
+          <div class="op-compare-lbl">Target ROI</div>
+          <div class="op-compare-val" style="color:var(--grn2);">{{ [health.savings_rate_pct + 3, 100]|min }}%</div>
+        </div>
+      </div>
+      <div class="op-compare-col">
+        <div class="op-compare-col-head" style="color:var(--grn);">Ready to Deploy</div>
+        <div style="display:flex;flex-direction:column;justify-content:center;height:80%;gap:8px;">
+          <div style="font-size:12px;color:var(--tx2);">Savings: <strong style="color:var(--grn2);">+₹{{ "{:,.0f}".format(projected_delta) }}/mo</strong></div>
+          <div style="font-size:12px;color:var(--tx2);">Health: <strong style="color:var(--grn2);">+{{ [100-health.score, 6]|min }} pts</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="op-sim-actions">
+      <button class="op-sim-btn-primary" onclick="window.location.href='{{ url_for('analysis.simulation') }}'">
+        Deploy Strategy
+      </button>
+      <button class="op-sim-btn-ghost" onclick="window.print()">
+        <span style="display:inline-flex;align-items:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:15px;">download</span>
+          Export Full Analysis
+        </span>
+      </button>
+    </div>
+  </div>
+
+  {# Efficiency Index ring ── #}
+  <div class="op-card op-ring-card">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--tx3);margin-bottom:14px;">Efficiency Index</div>
+    <p style="font-size:11px;color:var(--tx3);margin-bottom:12px;">Aggregated performance score across all departments.</p>
+
+    {% set sc = health.score %}
+    {% set sc_opt = [sc + 6, 100]|min %}
+    {% set sc_clr = '#22c55e' if sc >= 70 else ('#fbbf24' if sc >= 50 else '#f87171') %}
+    <div class="op-ring-wrap">
+      <svg viewBox="0 0 36 36" width="120" height="120">
+        <defs>
+          <linearGradient id="op-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="{{ sc_clr }}60"/>
+            <stop offset="100%" stop-color="{{ sc_clr }}"/>
+          </linearGradient>
+          <linearGradient id="op-grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="var(--ind2)60"/>
+            <stop offset="100%" stop-color="var(--ind2)"/>
+          </linearGradient>
+        </defs>
+        <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="3.5"/>
+        <circle cx="18" cy="18" r="14" fill="none" stroke="url(#op-grad)" stroke-width="3.5"
+          stroke-dasharray="{{ sc }} {{ 100 - sc }}" stroke-linecap="round" opacity=".5"
+          style="transition:stroke-dasharray .8s ease;"/>
+        <circle cx="18" cy="18" r="14" fill="none" stroke="url(#op-grad2)" stroke-width="3.5"
+          stroke-dasharray="{{ sc_opt }} {{ 100 - sc_opt }}" stroke-linecap="round"
+          style="filter:drop-shadow(0 0 4px var(--ind2)80); transition:stroke-dasharray .8s ease;"/>
+      </svg>
+      <div class="op-ring-inner">
+        <div class="op-ring-val">{{ sc }}<span style="color:rgba(255,255,255,.4);font-size:14px;">→</span>{{ sc_opt }}</div>
+        <div class="op-ring-lbl">Optimal Target</div>
+      </div>
+    </div>
+
+    <div style="width:100%;margin-top:4px;">
+      {% for label, pct, clr in [('Savings Rate', health.savings_rate_pct, 'var(--grn2)'), ('Budget Adherence', health.adherence_pct, 'var(--ind2)'), ('Expense Stability', [100 - health.expense_variance|round|int, 0]|max, 'var(--amb)')] %}
+      <div class="op-eff-row">
+        <div style="display:flex;align-items:center;">
+          <div class="op-eff-dot" style="background:{{ clr }};"></div>
+          <span style="font-size:11px;color:var(--tx2);">{{ label }}</span>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:{{ clr }};">{{ pct }}%</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{# ── Actionable Recommendations ── #}
+<div class="fu" style="animation-delay:.1s;margin-bottom:18px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <span style="font-size:17px;font-weight:800;color:var(--tx);">Actionable Recommendations</span>
+    <span class="material-symbols-outlined" style="font-size:18px;color:var(--tx3);cursor:pointer;">filter_list</span>
+  </div>
+
+  <div class="op-rec-grid">
+    {# Quick Wins column #}
+    <div>
+      <div class="op-rec-col-title">
+        <span style="color:var(--amb);">⚡</span>
+        <span style="color:var(--tx3);">Quick Wins</span>
+      </div>
+
+      {# Top risk as Quick Win #}
+      {% if budget_risks %}
+      {% set top_risk = budget_risks[0] %}
+      <div class="op-rec-card top">
+        <div class="op-rec-eyebrow">
+          <span>Top Priority Quick Win</span>
+          <span class="op-impact-badge" style="background:rgba(34,197,94,.1);color:var(--grn2);">High Impact</span>
+        </div>
+        <div class="op-rec-title">Reduce {{ top_risk.category }} Spend</div>
+        <div class="op-rec-desc">{{ top_risk.category ~ " spending projected at " ~ top_risk.proj_pct ~ "% of budget." }}</div>
+        <div class="op-rec-why">Why this recommendation?</div>
+        <div class="op-rec-why-text">"{{ top_risk.category }} is at {{ top_risk.proj_pct }}% of budget with {{ forecast.days_total - forecast.days_passed }} days remaining."</div>
+        <div class="op-rec-footer">
+          <div>
+            <div class="op-rec-save-lbl">Potential Save</div>
+            <div class="op-rec-save-val">₹{{ "{:,.0f}".format((top_risk.budget * (top_risk.proj_pct - 80) / 100)|round|int if top_risk.proj_pct > 80 else top_risk.budget * 10 / 100) }}/mo</div>
+          </div>
+          <div>
+            <div class="op-rec-effort">Effort</div>
+            <div style="font-size:12px;font-weight:700;color:var(--tx2);">Low</div>
+          </div>
+        </div>
+        <span class="material-symbols-outlined op-rec-arrow">chevron_right</span>
+      </div>
+      {% endif %}
+
+      {# Generic EMI optimization #}
+      {% if debt.total_emi > 0 %}
+      <div class="op-rec-card">
+        <div class="op-rec-eyebrow">
+          <span>Tactical Optimization</span>
+          <span class="op-impact-badge" style="background:rgba(99,102,241,.1);color:var(--ind2);">Med Impact</span>
+        </div>
+        <div class="op-rec-title">Optimise Loan Repayment</div>
+        <div class="op-rec-desc">Consider prepayment on highest-interest loan to reduce total interest burden.</div>
+        <div class="op-rec-why">Why this recommendation?</div>
+        <div class="op-rec-why-text">"Current DTI ratio of {{ debt.dti }}% leaves room for accelerated payoff."</div>
+        <div class="op-rec-footer">
+          <div>
+            <div class="op-rec-save-lbl">Potential Save</div>
+            <div class="op-rec-save-val">+₹{{ "{:,.0f}".format((debt.total_emi * 15 / 100)|round|int) }}/mo</div>
+          </div>
+          <div>
+            <div class="op-rec-effort">Effort</div>
+            <div style="font-size:12px;font-weight:700;color:var(--tx2);">Minimal</div>
+          </div>
+        </div>
+        <span class="material-symbols-outlined op-rec-arrow">chevron_right</span>
+      </div>
+      {% endif %}
+    </div>
+
+    {# Long-term + Risks column #}
+    <div>
+      <div class="op-rec-col-title">
+        <span class="material-symbols-outlined" style="font-size:14px;color:var(--tx3);">calendar_month</span>
+        Long-term Strategies
+      </div>
+
+      <div class="op-rec-card">
+        <div class="op-rec-eyebrow">
+          <span>Strategic — Critical</span>
+          <span class="op-impact-badge" style="background:rgba(248,113,113,.1);color:var(--red);">Critical</span>
+        </div>
+        <div class="op-rec-title">Build Emergency Fund</div>
+        <div class="op-rec-desc">Establish 3–6 months of expenses as emergency reserves before aggressive investing.</div>
+        <div class="op-rec-why">Why this recommendation?</div>
+        <div class="op-rec-why-text">"Current savings rate of {{ health.savings_rate_pct }}% suggests limited liquidity buffer."</div>
+        <div class="op-rec-footer">
+          <div>
+            <div class="op-rec-save-lbl">Projected Value</div>
+            <div class="op-rec-save-val">{{ wealth.projected_label }}/yr</div>
+          </div>
+          <div>
+            <div class="op-rec-effort">Complexity</div>
+            <div style="font-size:12px;font-weight:700;color:var(--tx2);">High</div>
+          </div>
+        </div>
+        <span class="material-symbols-outlined op-rec-arrow">chevron_right</span>
+      </div>
+
+      {# Strategic Risks card #}
+      <div class="op-risk-card">
+        <div class="op-risk-title">
+          <span class="material-symbols-outlined" style="font-size:16px;color:var(--ind2);">info</span>
+          Strategic Risks & Trade-offs
+        </div>
+        <div class="op-risk-item">
+          <div class="op-risk-dot" style="background:var(--amb);"></div>
+          <div>
+            <span style="font-size:11px;font-weight:700;color:var(--tx2);">Expense Volatility: </span>
+            <span style="font-size:11px;color:var(--tx3);">{{ health.expense_variance|round(1) }}% variance may cause budget overruns in peak months.</span>
+          </div>
+        </div>
+        <div class="op-risk-item">
+          <div class="op-risk-dot" style="background:var(--tx3);"></div>
+          <div>
+            <span style="font-size:11px;font-weight:700;color:var(--tx2);">Debt Exposure: </span>
+            <span style="font-size:11px;color:var(--tx3);">DTI of {{ debt.dti }}% limits financial flexibility. Reduce before new commitments.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Simulation Variables ── #}
+<div class="op-card op-vars fu" style="animation-delay:.12s;">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div class="op-vars-title">Simulation Variables</div>
+      <p style="font-size:11px;color:var(--tx3);margin-top:2px;">Configure parameters for the optimization model.</p>
+    </div>
+    <span style="font-size:9px;font-weight:700;padding:4px 12px;border-radius:6px;background:rgba(99,102,241,.12);color:var(--ind2);border:1px solid rgba(99,102,241,.2);">Scenario: Growth Mode / Balanced</span>
+  </div>
+  <div class="op-vars-grid">
+    <div class="op-var-item">
+      <div class="op-var-lbl">Risk Appetite</div>
+      <div style="height:4px;background:rgba(255,255,255,.08);border-radius:99px;margin:6px 0;overflow:hidden;">
+        <div style="width:50%;height:100%;background:var(--ind2);border-radius:99px;"></div>
+      </div>
+      <div class="op-var-val">Moderate</div>
+    </div>
+    <div class="op-var-item">
+      <div class="op-var-lbl">Risk Balanced</div>
+      <div style="height:4px;background:rgba(255,255,255,.08);border-radius:99px;margin:6px 0;overflow:hidden;">
+        <div style="width:60%;height:100%;background:var(--grn2);border-radius:99px;"></div>
+      </div>
+      <div class="op-var-val" style="color:var(--grn2);">Risk-Balanced</div>
+    </div>
+    <div class="op-var-item">
+      <div class="op-var-lbl">Optimization Target</div>
+      <div class="op-var-val">Operational Cashflow</div>
+      <div class="op-var-tag">Selected</div>
+    </div>
+    <div class="op-var-item">
+      <div class="op-var-lbl">Time Horizon</div>
+      <div style="display:flex;gap:4px;margin:4px 0;">
+        <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:var(--ind);color:#fff;">This Year</span>
+        <span style="font-size:10px;font-weight:600;padding:3px 8px;border-radius:5px;background:rgba(255,255,255,.05);color:var(--tx3);">FY 2026</span>
+      </div>
+      <button onclick="window.location.href='{{ url_for('analysis.forecasting') }}'"
+        style="font-size:9px;font-weight:700;padding:4px 10px;border-radius:6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);color:var(--ind2);cursor:pointer;font-family:inherit;transition:background .2s;"
+        onmouseover="this.style.background='rgba(99,102,241,.2)'" onmouseout="this.style.background='rgba(99,102,241,.1)'">
+        Recalculate →
+      </button>
+    </div>
+  </div>
+</div>
+
+{# ── View Impact CTA ── #}
+<div class="op-footer-cta fu" style="animation-delay:.14s;">
+  <span style="font-size:14px;font-weight:700;color:var(--tx);">View Impact in Forecast</span>
+  <a href="{{ url_for('analysis.forecasting') }}"
+    style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--ind2);text-decoration:none;transition:gap .2s;"
+    onmouseover="this.style.gap='12px'" onmouseout="this.style.gap='6px'">
+    View Forecast
+    <span class="material-symbols-outlined" style="font-size:18px;">arrow_forward</span>
+  </a>
+</div>
+
+{% endblock %}

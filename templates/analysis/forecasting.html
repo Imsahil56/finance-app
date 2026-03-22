@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% block title %}Forecasting — FinanceOS{% endblock %}
+{% block page_title %}Forecasting{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --s2:#161929;--s3:#1c1f32;--s4:#13162a;
+  --bd:rgba(255,255,255,.06);--bd2:rgba(255,255,255,.09);
+  --tx:#e8eaf6;--tx2:#a0a3bd;--tx3:#484e6e;
+  --ind:#6366f1;--ind2:#818cf8;
+  --grn:#22c55e;--grn2:#4ade80;--red:#f87171;--amb:#fbbf24;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes barIn{from{width:0}}
+@keyframes dash{to{stroke-dashoffset:0}}
+.fu{animation:fadeUp .32s cubic-bezier(.4,0,.2,1) both}
+.bi{animation:barIn .7s ease both}
+
+/* ── Shared card ── */
+.fc-card{background:var(--s2);border:1px solid var(--bd);border-radius:14px;transition:border-color .2s}
+.fc-card:hover{border-color:rgba(99,102,241,.18)}
+.fc-card.primary{
+  background:linear-gradient(135deg,#1C1F3F,#14182E);
+  border:1px solid rgba(99,102,241,.35);
+  box-shadow:0 20px 50px rgba(99,102,241,.22);
+  position:relative;overflow:hidden;
+}
+.fc-card.primary::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 80% 25%,rgba(99,102,241,.22),transparent 60%)}
+.fc-lbl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);margin-bottom:4px}
+.fc-val{font-size:24px;font-weight:900;color:var(--tx);letter-spacing:-.3px}
+.fc-sub{font-size:11px;color:var(--tx3);margin-top:4px}
+
+/* ── Top 3 hero cards ── */
+.fc-top{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+
+/* ── Chart area ── */
+.fc-chart-grid{display:grid;grid-template-columns:1fr 260px;gap:14px;margin-bottom:18px}
+.fc-chart-card{padding:22px}
+.fc-chart-title{font-size:13px;font-weight:800;color:var(--tx);margin-bottom:4px}
+.fc-chart-sub{font-size:10px;color:var(--tx3);margin-bottom:16px}
+.fc-bars{display:flex;align-items:flex-end;gap:6px;height:120px}
+.fc-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%}
+.fc-bar-area{width:100%;flex:1;position:relative;display:flex;flex-direction:column;justify-content:flex-end}
+.fc-bar{width:100%;border-radius:4px 4px 0 0;min-height:3px;transition:opacity .2s}
+.fc-bar-lbl{font-size:8px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em}
+/* Forecast dotted bars */
+.fc-bar.forecast{border:1.5px dashed rgba(99,102,241,.5);background:rgba(99,102,241,.12)!important;box-shadow:none!important}
+
+/* Integrity ring card */
+.fc-ring-card{padding:22px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.fc-ring-wrap{position:relative;width:110px;height:110px;margin:0 auto 14px}
+.fc-ring-wrap svg{transform:rotate(-90deg)}
+.fc-ring-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.fc-ring-score{font-size:26px;font-weight:900;color:#fff;line-height:1}
+.fc-ring-lbl{font-size:9px;color:rgba(255,255,255,.4);margin-top:2px;text-transform:uppercase;letter-spacing:.06em}
+.fc-factor-row{display:flex;justify-content:space-between;align-items:center;width:100%;padding:5px 0;border-bottom:1px solid var(--bd)}
+.fc-factor-row:last-child{border-bottom:none}
+.fc-factor-lbl{font-size:11px;color:var(--tx2)}
+.fc-factor-val{font-size:11px;font-weight:700;color:var(--ind2)}
+
+/* ── Bottom grid ── */
+.fc-bottom{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+
+/* Risk items */
+.risk-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)}
+.risk-item:last-child{border-bottom:none}
+.risk-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.risk-cat{font-size:12px;font-weight:600;color:var(--tx);flex:1}
+.risk-pct{font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}
+.risk-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px}
+
+/* Variance table */
+.var-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bd)}
+.var-row:last-child{border-bottom:none}
+.var-lbl{font-size:12px;color:var(--tx2)}
+.var-bar-wrap{flex:1;margin:0 12px}
+.var-val{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;min-width:60px;text-align:right}
+.bar-track{background:rgba(255,255,255,.05);border-radius:99px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px}
+
+/* ── Segment cards ── */
+.seg-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.seg-card{border-radius:12px;padding:16px;border:1px solid var(--bd);background:var(--s3);position:relative;overflow:hidden}
+.seg-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.seg-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:2px}
+.seg-val{font-size:18px;font-weight:900;letter-spacing:-.2px}
+.seg-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:6px}
+
+/* Simulate CTA */
+.sim-cta{display:flex;align-items:center;justify-content:space-between;background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.2);border-radius:12px;padding:16px 22px;margin-top:4px;flex-wrap:wrap;gap:12px}
+.sim-cta-btn{display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;font-size:13px;font-weight:700;padding:10px 20px;border-radius:9px;text-decoration:none;border:none;cursor:pointer;font-family:inherit;box-shadow:0 6px 18px rgba(99,102,241,.3);transition:filter .2s}
+.sim-cta-btn:hover{filter:brightness(1.1)}
+</style>
+{% endblock %}
+
+{% block content %}
+<span id="meta-monthly-expense" data-value="{{ sidebar_expense }}" class="hidden"></span>
+<span id="meta-monthly-pct"     data-value="{{ sidebar_pct }}"     class="hidden"></span>
+
+{# ── Page header ── #}
+<div class="fu" style="margin-bottom:20px;">
+  <p style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:4px;">Predictive Engine</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <h2 style="font-size:26px;font-weight:900;color:var(--tx);letter-spacing:-.4px;">Forecasting</h2>
+    <div style="display:flex;gap:8px;">
+      <a href="{{ url_for('analysis.simulation') }}"
+        style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);color:var(--ind2);font-size:12px;font-weight:700;text-decoration:none;transition:background .2s;"
+        onmouseover="this.style.background='rgba(99,102,241,.18)'" onmouseout="this.style.background='rgba(99,102,241,.1)'">
+        <span class="material-symbols-outlined" style="font-size:14px;">science</span> Simulate This Scenario →
+      </a>
+    </div>
+  </div>
+</div>
+
+{# ── Top 3 hero cards ── #}
+<div class="fc-top fu" style="animation-delay:.05s;">
+  {# Revenue forecast #}
+  <div class="fc-card primary" style="padding:20px;">
+    <div class="fc-lbl" style="color:rgba(165,168,248,.6);">Revenue Trend Forecast</div>
+    {% if forecast.change_pct is not none %}
+    <div class="fc-val" style="color:{{ '#4ade80' if forecast.change_pct > 0 else '#f87171' }}; font-size:28px;">
+      {{ '+' if forecast.change_pct > 0 else '' }}{{ forecast.change_pct }}% vs Prev
+    </div>
+    {% else %}
+    <div class="fc-val" style="color:#fff; font-size:26px;">₹{{ "{:,.0f}".format(forecast.forecast_spend) }}</div>
+    {% endif %}
+    <div class="fc-sub" style="color:rgba(255,255,255,.35);">Projected by end of month</div>
+  </div>
+
+  {# Budget risk timeline #}
+  {% set high_risks = budget_risks | selectattr('risk', 'equalto', 'high') | list if budget_risks else [] %}
+  <div class="fc-card" style="padding:20px;">
+    <div class="fc-lbl">Budget Risk Timeline</div>
+    {% if high_risks %}
+    <div class="fc-val" style="color:var(--red); font-size:26px;">{{ high_risks|length }} Critical</div>
+    <div class="fc-sub" style="color:var(--red);">{{ forecast.days_total - forecast.days_passed }} days remaining</div>
+    {% else %}
+    <div class="fc-val" style="color:var(--grn2); font-size:26px;">On Track</div>
+    <div class="fc-sub">{{ forecast.days_total - forecast.days_passed }} days remaining this month</div>
+    {% endif %}
+  </div>
+
+  {# Wealth projection #}
+  <div class="fc-card" style="padding:20px;">
+    <div class="fc-lbl">Wealth Projection 2030</div>
+    <div class="fc-val" style="color:var(--ind2); font-size:24px;">{{ wealth.projected_label }}</div>
+    <div class="fc-sub">at ₹{{ "{:,.0f}".format(wealth.avg_monthly_savings) }}/mo savings rate</div>
+  </div>
+</div>
+
+{# ── Main chart + Integrity score ── #}
+<div class="fc-chart-grid fu" style="animation-delay:.08s;">
+
+  {# Spending trend chart — last 6mo + forecast #}
+  <div class="fc-card fc-chart-card">
+    <div class="fc-chart-title">Predictive Spend Variance</div>
+    <div class="fc-chart-sub">
+      <span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;">
+        <span style="width:10px;height:3px;background:var(--ind2);border-radius:99px;display:inline-block;"></span> Actual
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:4px;">
+        <span style="width:10px;height:3px;border:1px dashed rgba(99,102,241,.5);border-radius:99px;display:inline-block;"></span> Forecast
+      </span>
+    </div>
+
+    {% if trends and trends.monthly_data and trends.monthly_data | length > 0 %}
+    {% set months = trends.monthly_data[-6:] %}
+    {% set all_amounts = months | map(attribute='expense') | list %}
+    {% set max_amt = all_amounts | max if all_amounts else 1 %}
+    {% set min_amt = all_amounts | min if all_amounts else 0 %}
+    {% set range_amt = (max_amt - min_amt) if max_amt > min_amt else max_amt %}
+    {% set range_amt = range_amt if range_amt > 0 else 1 %}
+
+    <div class="fc-bars">
+      {% for mo in months %}
+      {% set bh = (((mo.expense - min_amt + range_amt / 10) / (range_amt * 11 / 10) * 100)|round|int) %}
+      {% set bh = [bh, 5]|max %}
+      {% set is_last = loop.last %}
+      <div class="fc-bar-col">
+        <div class="fc-bar-area">
+          <div class="fc-bar bi {{ 'forecast' if is_last else '' }}"
+            style="height:{{ bh }}%;
+              {% if not is_last %}background:{{ 'linear-gradient(180deg,rgba(129,140,248,.85),rgba(99,102,241,.35))' }};
+              box-shadow:{{ '0 0 12px rgba(99,102,241,.35)' if loop.revindex == 1 else 'none' }};{% endif %}">
+          </div>
+        </div>
+        <span class="fc-bar-lbl" style="{{ 'color:var(--ind2);font-weight:700;' if is_last else '' }}">{{ mo.label[:3] if mo.label else '' }}</span>
+      </div>
+      {% endfor %}
+      {# Forecast bar #}
+      {% set fc_bh = (((forecast.forecast_spend - min_amt + range_amt / 10) / (range_amt * 11 / 10)) * 100)|round|int if range_amt > 0 else 20 %}
+      {% set fc_bh = [fc_bh, 5]|max %}
+      <div class="fc-bar-col">
+        <div class="fc-bar-area">
+          <div class="fc-bar forecast" style="height:{{ fc_bh }}%;"></div>
+        </div>
+        <span class="fc-bar-lbl" style="color:var(--ind2);font-weight:700;">FCST</span>
+      </div>
+    </div>
+
+    {# Zone labels #}
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+      {% if forecast.budget %}
+      <span style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:4px;background:rgba(248,113,113,.1);color:var(--red);">Budget Exhaustion Zone</span>
+      <span style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:4px;background:rgba(251,191,36,.1);color:var(--amb);">Warning Threshold</span>
+      <span style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,.1);color:var(--grn);">Stable Range</span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  {# Model Integrity / Health Score ring ── #}
+  <div class="fc-card fc-ring-card">
+    <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);margin-bottom:14px;text-align:center;">Model Integrity Score</div>
+    {% set sc = health.score %}
+    {% set sc_clr = '#22c55e' if sc >= 70 else ('#fbbf24' if sc >= 50 else '#f87171') %}
+    <div class="fc-ring-wrap">
+      <svg viewBox="0 0 36 36" width="110" height="110">
+        <defs>
+          <linearGradient id="fg-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="{{ sc_clr }}"/>
+            <stop offset="100%" stop-color="{{ sc_clr }}cc"/>
+          </linearGradient>
+        </defs>
+        <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="3.5"/>
+        <circle cx="18" cy="18" r="14" fill="none" stroke="url(#fg-grad)" stroke-width="3.5"
+          stroke-dasharray="{{ sc }} {{ 100 - sc }}" stroke-linecap="round"
+          style="filter:drop-shadow(0 0 4px {{ sc_clr }}80); transition:stroke-dasharray .8s ease;"/>
+      </svg>
+      <div class="fc-ring-inner">
+        <div class="fc-ring-score" style="color:{{ sc_clr }};">{{ sc }}</div>
+        <div class="fc-ring-lbl">{{ health.label }}</div>
+      </div>
+    </div>
+
+    <div style="width:100%;">
+      <div style="font-size:10px;font-weight:600;color:var(--tx3);margin-bottom:8px;">Influencing Factors</div>
+      <div class="fc-factor-row">
+        <span class="fc-factor-lbl">Historical Correlation</span>
+        <span class="fc-factor-val">{{ health.adherence_pct }}%</span>
+      </div>
+      <div class="fc-factor-row">
+        <span class="fc-factor-lbl">Savings Rate</span>
+        <span class="fc-factor-val" style="color:{{ 'var(--grn2)' if health.savings_rate_pct > 20 else 'var(--amb)' }};">{{ health.savings_rate_pct }}%</span>
+      </div>
+      <div class="fc-factor-row">
+        <span class="fc-factor-lbl">Model Consensus</span>
+        <span class="fc-factor-val" style="color:{{ 'var(--grn2)' if sc >= 70 else 'var(--amb)' }};">{{ 'High' if sc >= 70 else ('Medium' if sc >= 50 else 'Low') }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Bottom: Budget Risks + Prediction Variance ── #}
+<div class="fc-bottom fu" style="animation-delay:.11s;">
+
+  {# Budget risks — "Quantified Insights" #}
+  <div class="fc-card" style="padding:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);">⚡ Quantified Insights</span>
+    </div>
+    {% if budget_risks %}
+    {% for risk in budget_risks[:4] %}
+    {% set rc = '#f87171' if risk.risk == 'high' else ('#fbbf24' if risk.risk == 'medium' else '#22c55e') %}
+    <div class="risk-item">
+      <div class="risk-dot" style="background:{{ rc }};"></div>
+      <div style="flex:1;min-width:0;">
+        <div class="risk-cat">{{ risk.category }}</div>
+        <div style="font-size:10px;color:var(--tx3);margin-top:1px;">{{ risk.category }} projected at {{ risk.proj_pct }}% of budget.</div>
+      </div>
+      <span class="risk-badge" style="background:{{ rc }}18;color:{{ rc }};">{{ risk.risk | upper }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="text-align:center;padding:20px 0;">
+      <span class="material-symbols-outlined" style="font-size:32px;color:var(--grn);display:block;margin-bottom:6px;">check_circle</span>
+      <p style="font-size:12px;color:var(--tx3);">All budgets on track — no critical risks.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  {# Prediction variance — Optimistic / Baseline / Pessimistic ── #}
+  <div class="fc-card" style="padding:20px;">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:14px;">📊 Prediction Variance</div>
+    {% set base = forecast.forecast_spend %}
+    {% set opt  = (base * 85 / 100)|round|int %}
+    {% set pess = (base * 115 / 100)|round|int %}
+    {% set max_var = pess %}
+    <div class="var-row">
+      <span class="var-lbl">Optimistic Case</span>
+      <div class="var-bar-wrap"><div class="bar-track" style="height:5px;"><div class="bar-fill bi" style="width:{{ (opt/max_var*100)|round|int }}%;background:var(--grn2);"></div></div></div>
+      <span class="var-val" style="color:var(--grn2);">₹{{ "{:,.0f}".format(opt) }}</span>
+      <span style="font-size:9px;color:var(--tx3);margin-left:6px;">P10</span>
+    </div>
+    <div class="var-row">
+      <span class="var-lbl">Baseline (Median)</span>
+      <div class="var-bar-wrap"><div class="bar-track" style="height:5px;"><div class="bar-fill bi" style="width:{{ (base/max_var*100)|round|int }}%;background:var(--ind2);"></div></div></div>
+      <span class="var-val" style="color:var(--ind2);">₹{{ "{:,.0f}".format(base) }}</span>
+      <span style="font-size:9px;color:var(--tx3);margin-left:6px;">P50</span>
+    </div>
+    <div class="var-row">
+      <span class="var-lbl">Pessimistic Case</span>
+      <div class="var-bar-wrap"><div class="bar-track" style="height:5px;"><div class="bar-fill bi" style="width:100%;background:var(--red);"></div></div></div>
+      <span class="var-val" style="color:var(--red);">₹{{ "{:,.0f}".format(pess) }}</span>
+      <span style="font-size:9px;color:var(--tx3);margin-left:6px;">P90</span>
+    </div>
+  </div>
+</div>
+
+{# ── Segment forecast cards ── #}
+<div class="fu" style="animation-delay:.13s;margin-bottom:18px;">
+  <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:12px;">Prediction Variance by Segment</p>
+  <div class="seg-grid">
+    <div class="seg-card" style="border-color:rgba(34,197,94,.2);">
+      <div class="seg-icon" style="background:rgba(34,197,94,.12);">
+        <span class="material-symbols-outlined" style="font-size:18px;color:var(--grn2);">savings</span>
+      </div>
+      <div class="seg-label">Savings Trajectory</div>
+      <div class="seg-val" style="color:var(--grn2);">₹{{ "{:,.0f}".format(savings.current_savings if savings.current_savings > 0 else 0) }}</div>
+      <div class="seg-badge" style="background:rgba(34,197,94,.1);color:var(--grn2);">
+        {{ '↑ Stable' if savings.current_savings >= 0 else '↓ Negative' }}
+      </div>
+    </div>
+    <div class="seg-card" style="border-color:rgba(99,102,241,.2);">
+      <div class="seg-icon" style="background:rgba(99,102,241,.12);">
+        <span class="material-symbols-outlined" style="font-size:18px;color:var(--ind2);">account_balance</span>
+      </div>
+      <div class="seg-label">Debt Obligations</div>
+      <div class="seg-val" style="color:var(--amb);">₹{{ "{:,.0f}".format(debt.total_emi) }}/mo</div>
+      <div class="seg-badge" style="background:rgba(251,191,36,.1);color:var(--amb);">
+        {{ debt.dti_label }}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Simulate CTA ── #}
+<div class="sim-cta fu" style="animation-delay:.15s;">
+  <div>
+    <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:3px;">Next Step: Simulate This Scenario →</p>
+    <p style="font-size:15px;font-weight:700;color:var(--tx);">Run a What-If Analysis based on this forecast</p>
+  </div>
+  <a href="{{ url_for('analysis.simulation') }}" class="sim-cta-btn">
+    <span class="material-symbols-outlined" style="font-size:16px;">science</span>
+    Simulate This →
+  </a>
+</div>
+{% endblock %}

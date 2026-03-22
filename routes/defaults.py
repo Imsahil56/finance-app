@@ -135,7 +135,7 @@ def edit_default_budget(dcb_id):
         flash(f'Default for {row["category"]} updated. Existing monthly budgets are NOT affected.', 'success')
         return redirect(url_for('defaults_bp.default_budgets'))
 
-    return render_template('budget/edit_default_budget.html', row=row)
+    return redirect(url_for('defaults_bp.default_budgets'))
 
 
 @defaults_bp.route('/default-budgets/delete/<int:dcb_id>', methods=['POST'])
